@@ -1,0 +1,91 @@
+[
+  {
+    "type": "textarea",
+    "label": "Objetivo puntual de la brigada",
+    "required": true
+  },
+  {
+    "type": "number",
+    "label": "¿Cuántos estudiantes en total integraron la o las brigadas?",
+    "required": true
+  },
+  {
+    "type": "textarea",
+    "label": "¿Qué consideras que fue lo más significativo de realizar este reto?",
+    "required": true
+  },
+  {
+    "type": "radio",
+    "label": "Realizaron la manifestación como guardianes de la naturaleza.",
+    "choices": [
+      "Sí",
+      "No"
+    ],
+    "required": true
+  },
+  {
+    "type": "text",
+    "label": "¿Cuáles actividades pedagógicas se realizaron para fomentar la educación y conciencia en este tema? Tema desarrollado:",
+    "required": true
+  },
+  {
+    "type": "select",
+    "label": "Tipo (lección, charla, taller)",
+    "choices": [
+      "Lección",
+      "Charla",
+      "Taller",
+      "Otro"
+    ],
+    "required": true
+  },
+  {
+    "type": "textarea",
+    "label": "En qué consistió:",
+    "required": true
+  },
+  {
+    "type": "number",
+    "label": "Cuántos estudiantes participaron:",
+    "required": true
+  },
+  {
+    "type": "textarea",
+    "label": "Otras acciones relacionadas no contempladas aquí:",
+    "required": false
+  },
+  {
+    "type": "checkbox",
+    "label": "¿Cuáles hábitos y buenas prácticas ambientales se promovieron en la comunidad educativa?",
+    "choices": [
+      "Responsabilidad y compromiso",
+      "Trabajo en equipo y colaboración",
+      "Persistencia y disciplina",
+      "Empatía y conexión con la naturaleza",
+      "Creatividad e innovación",
+      "Liderazgo y toma de decisiones",
+      "Otros"
+    ],
+    "required": true
+  },
+  {
+    "type": "file",
+    "label": "Fotos de la o las brigadas estudiantiles.",
+    "required": true
+  },
+  {
+    "type": "file",
+    "label": "Fotos de todas las actividades pedagógicas y de concientización realizadas para este tema.",
+    "required": true
+  },
+  {
+    "type": "file",
+    "label": "Manifestación como guardianes de la naturaleza.",
+    "required": true
+  },
+  {
+    "type": "file",
+    "label": "Evidencias de otras acciones relacionadas (si hubieron).",
+    "required": false
+  }
+]

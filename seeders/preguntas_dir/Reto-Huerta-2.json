@@ -1,0 +1,138 @@
+[
+  {
+    "type": "checkbox",
+    "label": "¿Qué tipo de huerta tienen?",
+    "choices": [
+      "Hileras en tierra",
+      "Camas",
+      "Vertical",
+      "Hidroponía",
+      "Otro"
+    ],
+    "required": true
+  },
+  {
+    "type": "select",
+    "label": "¿Comenzaron el huerto para este reto, el huerto ya estaba en proceso o ya tenían un huerto funcional?",
+    "choices": [
+      "De cero",
+      "Estaba en proceso",
+      "Ya teníamos un huerto funcional"
+    ],
+    "required": true
+  },
+  {
+    "type": "number",
+    "label": "Cantidad de m2 aproximados del tamaño de la huerta",
+    "required": true
+  },
+  {
+    "type": "text",
+    "label": "¿Quien es la persona o grupo encargado de dar seguimiento a la huerta en periodo de vacaciones?",
+    "required": true
+  },
+  {
+    "type": "radio",
+    "label": "¿Abastecen de productos del huerto el comedor?",
+    "choices": [
+      "Sí",
+      "No"
+    ],
+    "required": true
+  },
+  {
+    "type": "text",
+    "label": "¿Cuáles actividades pedagógicas se realizaron para fomentar la educación y conciencia en este tema? Tema desarrollado:",
+    "required": true
+  },
+  {
+    "type": "select",
+    "label": "Tipo (lección, charla, taller)",
+    "choices": [
+      "Lección",
+      "Charla",
+      "Taller",
+      "Otro"
+    ],
+    "required": true
+  },
+  {
+    "type": "textarea",
+    "label": "En qué consistió:",
+    "required": true
+  },
+  {
+    "type": "number",
+    "label": "Cuántos estudiantes participaron:",
+    "required": true
+  },
+  {
+    "type": "checkbox",
+    "label": "¿Cuáles hábitos y buenas prácticas ambientales se promovieron en la comunidad educativa?",
+    "choices": [
+      "Comer alimentos saludables",
+      "Replicar el huerto en el hogar",
+      "Quitar maleza",
+      "Controlar plagas de forma natural",
+      "Estudiantes con rol activo en el huerto",
+      "Lavar las frutas y verduras",
+      "Optimizar el uso del agua en el riego.",
+      "Otros"
+    ],
+    "required": true
+  },
+  {
+    "type": "textarea",
+    "label": "¿Cuáles fueron las mejoras aplicadas?",
+    "required": true
+  },
+  {
+    "type": "radio",
+    "label": "¿Lograron conectar la actividad pedagógica a temas del currículo educativo?",
+    "choices": [
+      "Sí",
+      "No"
+    ],
+    "required": true
+  },
+  {
+    "type": "text",
+    "label": "Sí: ¿a cuál materia?",
+    "required": true,
+    "conditional_logic": {
+      "field": "¿Lograron conectar la actividad pedagógica a temas del currículo educativo?",
+      "operator": "==",
+      "value": "Sí"
+    }
+  },
+  {
+    "type": "text",
+    "label": "No: ¿Cuál fue o fueron las barreras?",
+    "required": true,
+    "conditional_logic": {
+      "field": "¿Lograron conectar la actividad pedagógica a temas del currículo educativo?",
+      "operator": "==",
+      "value": "No"
+    }
+  },
+  {
+    "type": "file",
+    "label": "Fotos que demuestran el proceso de creación, ampliación o mejora del huerto escolar.",
+    "required": true
+  },
+  {
+    "type": "file",
+    "label": "Fotos de todas las actividades pedagógicas y de concientización realizadas para este tema.",
+    "required": true
+  },
+  {
+    "type": "file",
+    "label": "Manifestación como guardianes de la naturaleza.",
+    "required": true
+  },
+  {
+    "type": "file",
+    "label": "Evidencias de otras acciones relacionadas (si hubieron).",
+    "required": false
+  }
+]

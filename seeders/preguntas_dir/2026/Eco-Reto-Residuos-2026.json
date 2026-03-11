@@ -1,0 +1,279 @@
+[
+  {
+    "id": "q1",
+    "pregunta": "1. ¿Realizaron taller teórico-práctico para estudiantes sobre gestión de residuos sólidos?  (si/no)",
+    "tipo_de_campo": "seleccion_unica",
+    "opciones": ["si", "no"],
+    "required": true,
+    "depends_on": null,
+    "suma_puntos": false
+  },
+  {
+    "id": "q1_1",
+    "pregunta": "4.1 - ¿Cuántos estudiantes participaron?",
+    "tipo_de_campo": "numero_entero",
+    "opciones": null,
+    "required": false,
+    "depends_on": {
+      "field": "q1",
+      "value": "si"
+    },
+    "suma_puntos": false
+  },
+  {
+    "id": "q1_2",
+    "pregunta": "4.2 - Puede agregar un comentario corto sobre esta actividad.",
+    "tipo_de_campo": "textarea",
+    "opciones": null,
+    "required": false,
+    "depends_on": {
+      "field": "q1",
+      "value": "si"
+    },
+    "suma_puntos": false
+  },
+  {
+    "id": "q1_e1",
+    "pregunta": "Fotografía de la sección del planeamiento de esta actividad (si lo tienen).\n5 eco pt",
+    "tipo_de_campo": "subida_archivo",
+    "opciones": null,
+    "required": false,
+    "depends_on": {
+      "field": "q1",
+      "value": "si"
+    },
+    "suma_puntos": true,
+    "puntos": 5
+  },
+  {
+    "id": "q1_e2",
+    "pregunta": "REQUISITO -Fotografía que se vea claramente que  el recurso educativo usado está relacionado al tema de residuos, sea una dinámica de separación, video, cuento, presentación u otro.\n5 eco pt",
+    "tipo_de_campo": "subida_archivo",
+    "opciones": null,
+    "required": true,
+    "depends_on": {
+      "field": "q1",
+      "value": "si"
+    },
+    "suma_puntos": true,
+    "puntos": 5
+  },
+  {
+    "id": "q1_e3",
+    "pregunta": "REQUISITO -Fotografía o mini video (1 minuto) de los estudiantes durante el taller. \n5 eco pt",
+    "tipo_de_campo": "subida_archivo",
+    "opciones": null,
+    "required": true,
+    "depends_on": {
+      "field": "q1",
+      "value": "si"
+    },
+    "suma_puntos": true,
+    "puntos": 5
+  },
+  {
+    "id": "q2",
+    "pregunta": "2. ¿Celebraron el Día Mundial del Reciclaje – 17 de mayo o alguna otra sobre residuos. -  (si/no)",
+    "tipo_de_campo": "seleccion_unica",
+    "opciones": ["si", "no"],
+    "required": true,
+    "depends_on": null,
+    "suma_puntos": false
+  },
+  {
+    "id": "q2_e1",
+    "pregunta": "Fotografía de la pizarra o mural conmemorativo para una de estas celebraciones.\n5 eco pt",
+    "tipo_de_campo": "subida_archivo",
+    "opciones": null,
+    "required": false,
+    "depends_on": {
+      "field": "q2",
+      "value": "si"
+    },
+    "suma_puntos": true,
+    "puntos": 5
+  },
+  {
+    "id": "q2_e2",
+    "pregunta": "Fotografía de actividad  con estudiantes claramente relacionada a la celebración del Día Mundial del Reciclaje - (diferente a la actividad 1 del taller).\n5 eco pt",
+    "tipo_de_campo": "subida_archivo",
+    "opciones": null,
+    "required": false,
+    "depends_on": {
+      "field": "q2",
+      "value": "si"
+    },
+    "suma_puntos": true,
+    "puntos": 5
+  },
+  {
+    "id": "q3",
+    "pregunta": "3. ¿Realizaron los estudiantes un monitoreo de residuos sólidos? -  (si/no)",
+    "tipo_de_campo": "seleccion_unica",
+    "opciones": ["si", "no"],
+    "required": true,
+    "depends_on": null,
+    "suma_puntos": false
+  },
+  {
+    "id": "q3_e1",
+    "pregunta": "Fotografía de los estudiantes realizando el monitoreo (actividad sugerida para eco brigadas o gobierno estudiantil).\n5 eco pts",
+    "tipo_de_campo": "subida_archivo",
+    "opciones": null,
+    "required": false,
+    "depends_on": {
+      "field": "q3",
+      "value": "si"
+    },
+    "suma_puntos": true,
+    "puntos": 5
+  },
+  {
+    "id": "q3_e2",
+    "pregunta": "Fotografía del monitoreo realizado con firma de recibido de dirección o junta de educación (actividad sugerida para eco brigadas o para el gobierno estudiantil).\n5 eco pts",
+    "tipo_de_campo": "subida_archivo",
+    "opciones": null,
+    "required": false,
+    "depends_on": {
+      "field": "q3",
+      "value": "si"
+    },
+    "suma_puntos": true,
+    "puntos": 5
+  },
+  {
+    "id": "q4",
+    "pregunta": "4. ¿Hicieron faroles, decoración, máscaras, material educativo, u otros con material de reciclaje? -  (si/no)",
+    "tipo_de_campo": "seleccion_unica",
+    "opciones": ["si", "no"],
+    "required": true,
+    "depends_on": null,
+    "suma_puntos": false
+  },
+  {
+    "id": "q4_e1",
+    "pregunta": "Fotografía de algunos de los productos hechos con material de reciclaje\n5 eco pts",
+    "tipo_de_campo": "subida_archivo",
+    "opciones": null,
+    "required": false,
+    "depends_on": {
+      "field": "q4",
+      "value": "si"
+    },
+    "suma_puntos": true,
+    "puntos": 5
+  },
+  {
+    "id": "q5",
+    "pregunta": "5. ¿Fomentan hábitos de separación de los residuos sólidos? -  (si/no)",
+    "tipo_de_campo": "seleccion_unica",
+    "opciones": ["si", "no"],
+    "required": true,
+    "depends_on": null,
+    "suma_puntos": false
+  },
+  {
+    "id": "q5_1",
+    "pregunta": "5.1 Pueden comentar sobre la gestión de residuos en su centro educativo.",
+    "tipo_de_campo": "textarea",
+    "opciones": null,
+    "required": false,
+    "depends_on": {
+      "field": "q5",
+      "value": "si"
+    },
+    "suma_puntos": false
+  },
+  {
+    "id": "q5_e1",
+    "pregunta": "REQUISITO - Fotografía de estación con recipientes de separación o punto ecológico colocado en pasillo.\n10 eco pts",
+    "tipo_de_campo": "subida_archivo",
+    "opciones": null,
+    "required": true,
+    "depends_on": {
+      "field": "q5",
+      "value": "si"
+    },
+    "suma_puntos": true,
+    "puntos": 10
+  },
+  {
+    "id": "q5_e2",
+    "pregunta": "Fotografía del lugar de almacenamiento o de acopio para los residuos del centro educativo.\n5 eco pts",
+    "tipo_de_campo": "subida_archivo",
+    "opciones": null,
+    "required": false,
+    "depends_on": {
+      "field": "q5",
+      "value": "si"
+    },
+    "suma_puntos": true,
+    "puntos": 5
+  },
+  {
+    "id": "q6",
+    "pregunta": "6.  ¿Cuantifican la recolección de material valorizable (reciclables)?  -  (si/no)",
+    "tipo_de_campo": "seleccion_unica",
+    "opciones": ["si", "no"],
+    "required": true,
+    "depends_on": null,
+    "suma_puntos": false
+  },
+  {
+    "id": "q6_e1",
+    "pregunta": "Llevar un registro en Excel de la cantidad (por peso o por número de bolsas) de los residuos valorizables recolectados cada mes según su tipo: plástico, aluminio, papel, tetrapack, etc.\n5 eco pts",
+    "tipo_de_campo": "subida_archivo",
+    "opciones": null,
+    "required": false,
+    "depends_on": {
+      "field": "q6",
+      "value": "si"
+    },
+    "suma_puntos": true,
+    "puntos": 5
+  },
+  {
+    "id": "q7",
+    "pregunta": "7. ¿Cuantifican los residuos no valorizables (basura) que generan con el fin de reducir? -  (si/no)",
+    "tipo_de_campo": "seleccion_unica",
+    "opciones": ["si", "no"],
+    "required": true,
+    "depends_on": null,
+    "suma_puntos": false
+  },
+  {
+    "id": "q7_e1",
+    "pregunta": "REQUISITO - Llevar un registro en Excel de  la generación de residuos no valorizables (basura) con el fin de implementar acciones concretas de reducción.\n10 eco pts",
+    "tipo_de_campo": "subida_archivo",
+    "opciones": null,
+    "required": true,
+    "depends_on": {
+      "field": "q7",
+      "value": "si"
+    },
+    "suma_puntos": true,
+    "puntos": 10
+  },
+  {
+    "id": "q8",
+    "pregunta": "8. ¿Comunicaron alguna directriz o política institucional para evitar el uso de materiales poco amigables con el ambiente? -  (si/no)",
+    "tipo_de_campo": "seleccion_unica",
+    "opciones": ["si", "no"],
+    "required": true,
+    "depends_on": null,
+    "suma_puntos": false
+  },
+  {
+    "id": "q8_e1",
+    "pregunta": "Fotografía de una directriz o política institucional que promueva la reducción de residuos al  evitar el uso de materiales poco amigables como globos, foam, estereofón, vajillas desechables y escarcha en actividades educativas y de decoración. \n5 eco pts",
+    "tipo_de_campo": "subida_archivo",
+    "opciones": null,
+    "required": false,
+    "depends_on": {
+      "field": "q8",
+      "value": "si"
+    },
+    "suma_puntos": true,
+    "puntos": 5
+  }
+]

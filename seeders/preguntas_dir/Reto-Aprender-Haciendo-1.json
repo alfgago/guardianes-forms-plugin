@@ -1,0 +1,96 @@
+[
+  {
+    "type": "textarea",
+    "label": "¿Qué consideras que fue lo más significativo de realizar este reto?",
+    "required": true
+  },
+  {
+    "type": "text",
+    "label": "¿Cuáles actividades pedagógicas se realizaron para fomentar la educación y conciencia en este tema? Tema desarrollado:",
+    "required": true
+  },
+  {
+    "type": "select",
+    "label": "Tipo (lección, charla, taller)",
+    "choices": [
+      "Lección",
+      "Charla",
+      "Taller",
+      "Otro"
+    ],
+    "required": true
+  },
+  {
+    "type": "textarea",
+    "label": "En qué consistió:",
+    "required": true
+  },
+  {
+    "type": "number",
+    "label": "Cuántos estudiantes participaron:",
+    "required": true
+  },
+  {
+    "type": "checkbox",
+    "label": "¿Cuáles hábitos y buenas prácticas ambientales se promovieron?",
+    "choices": [
+      "Plantear desafíos reales del entorno que requieran soluciones prácticas.",
+      "Fomentar debates y lluvia de ideas para generar alternativas creativas.",
+      "Motivar la observación y exploración del entorno para aprender de la naturaleza.",
+      "Desarrollar proyectos en grupo con roles definidos.",
+      "Crear proyectos con empatía que involucren el bienestar de la comunidad o el cuidado de espacios naturales.",
+      "Impulsar el proponer ideas nuevas, experimentar y no temer al error.",
+      "Otros"
+    ],
+    "required": true
+  },
+  {
+    "type": "radio",
+    "label": "¿Lograron conectar la actividad pedagógica a temas del currículo educativo?",
+    "choices": [
+      "Sí",
+      "No"
+    ],
+    "required": true
+  },
+  {
+    "type": "text",
+    "label": "Sí: ¿a cuál materia?",
+    "required": true,
+    "conditional_logic": {
+      "field": "¿Lograron conectar la actividad pedagógica a temas del currículo educativo?",
+      "operator": "==",
+      "value": "Sí"
+    }
+  },
+  {
+    "type": "text",
+    "label": "No: ¿cuál fue o fueron las barreras?",
+    "required": true,
+    "conditional_logic": {
+      "field": "¿Lograron conectar la actividad pedagógica a temas del currículo educativo?",
+      "operator": "==",
+      "value": "No"
+    }
+  },
+  {
+    "type": "file",
+    "label": "Sección del Plan de Trabajo del docente en el que se refleja la actividad realizada",
+    "required": true
+  },
+  {
+    "type": "file",
+    "label": "Fotos de las actividades pedagógicas y de sensibilización realizadas.",
+    "required": true
+  },
+  {
+    "type": "file",
+    "label": "Manifestación como guardianes de la naturaleza.",
+    "required": true
+  },
+  {
+    "type": "file",
+    "label": "Evidencias de otras acciones relacionadas (si las hubo).",
+    "required": false
+  }
+]

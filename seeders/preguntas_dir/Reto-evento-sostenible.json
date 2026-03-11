@@ -1,0 +1,73 @@
+[
+  {
+    "type": "text",
+    "label": "¿Cuál fue el motivo del evento cero residuos que realizaron?",
+    "required": true
+  },
+  {
+    "type": "select",
+    "label": "¿Quienes participaron?",
+    "choices": [
+      "Toda la comunidad educativa",
+      "Estudiantes y docentes",
+      "Padres de familia"
+    ],
+    "required": true
+  },
+  {
+    "type": "text",
+    "label": "Otras acciones relacionadas no contempladas aquí:",
+    "required": false
+  },
+  {
+    "type": "checkbox",
+    "label": "¿Cuáles hábitos y buenas prácticas ambientales se promovieron en la comunidad educativa?",
+    "choices": [
+      "Reducir, reutilizar y reciclar",
+      "Consumo de alimentos cero residuos",
+      "No a los plásticos de un solo uso",
+      "No a los globos, escarcha y al fon",
+      "Otros"
+    ],
+    "required": true
+  },
+  {
+    "type": "radio",
+    "label": "¿Se implementaron nuevas directrices o políticas institucionales para la implementación de eventos cero residuos?",
+    "choices": [
+      "Sí",
+      "No"
+    ],
+    "required": true
+  },
+  {
+    "type": "textarea",
+    "label": "¿Qué consideras que fue lo más significativo de realizar este reto?",
+    "required": true
+  },
+  {
+    "type": "file",
+    "label": "Plan del evento cero residuos.",
+    "required": true
+  },
+  {
+    "type": "file",
+    "label": "Fotos de la decoración sostenible con la participación estudiantil",
+    "required": true
+  },
+  {
+    "type": "file",
+    "label": "Fotos de las actividades realizadas durante el evento que evidencien una gestión cero residuos.",
+    "required": true
+  },
+  {
+    "type": "file",
+    "label": "Documento de la directriz o política institucional que fomente eventos cero residuos (si la hubiera).",
+    "required": false
+  },
+  {
+    "type": "file",
+    "label": "Manifestación como guardianes de la Naturaleza.",
+    "required": true
+  }
+]

@@ -1,0 +1,13 @@
+<wpml-config>
+  <admin-texts>
+    <key name="guardianes-config"/>
+    <key name="gnf_docente_status"/>
+  </admin-texts>
+  <custom-types>
+    <custom-type translate="1">centro_educativo</custom-type>
+    <custom-type translate="1">reto</custom-type>
+  </custom-types>
+  <taxonomies>
+    <taxonomy translate="1">gn_region</taxonomy>
+  </taxonomies>
+</wpml-config>

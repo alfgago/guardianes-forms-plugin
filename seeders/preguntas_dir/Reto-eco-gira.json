@@ -1,0 +1,106 @@
+[
+  {
+    "type": "text",
+    "label": "¿Cuál fue el lugar o lugares visitados durante la las eco giras?",
+    "required": true
+  },
+  {
+    "type": "textarea",
+    "label": "¿Qué fue lo más significativo de realizar este reto?",
+    "required": true
+  },
+  {
+    "type": "number",
+    "label": "Cantidad de estudiantes participantes en la eco gira:",
+    "required": true
+  },
+  {
+    "type": "text",
+    "label": "¿Cuáles actividades pedagógicas se realizaron antes, durante o después de la eco gira para fomentar la educación y conciencia en este tema? Tema desarrollado:",
+    "required": true
+  },
+  {
+    "type": "select",
+    "label": "Tipo (lección, charla, taller)",
+    "choices": [
+      "Lección",
+      "Charla",
+      "Taller",
+      "Otro"
+    ],
+    "required": true
+  },
+  {
+    "type": "textarea",
+    "label": "En qué consistió:",
+    "required": true
+  },
+  {
+    "type": "number",
+    "label": "Cuántos estudiantes participaron:",
+    "required": true
+  },
+  {
+    "type": "checkbox",
+    "label": "¿Cuáles hábitos y buenas prácticas se inculcaron con relación a la visita a áreas protegidas, reservas biológicas o de conservación ?",
+    "choices": [
+      "Reducir la generación de residuos",
+      "Meriendas saludables cero residuos",
+      "Responsabilizarse de los residuos que ingresan en áreas de vida silvestre.",
+      "Disfrutar del contacto con la naturaleza.",
+      "Mantener una conducta respetuosa hacia todos los seres vivos.",
+      "Observar y acatar las recomendaciones de las áreas protegidas o de conservación.",
+      "Otros"
+    ],
+    "required": true
+  },
+  {
+    "type": "radio",
+    "label": "¿Lograron conectar la actividad pedagógica a temas del currículo educativo?",
+    "choices": [
+      "Sí",
+      "No"
+    ],
+    "required": true
+  },
+  {
+    "type": "text",
+    "label": "Sí: ¿a cuál materia?",
+    "required": true,
+    "conditional_logic": {
+      "field": "¿Lograron conectar la actividad pedagógica a temas del currículo educativo?",
+      "operator": "==",
+      "value": "Sí"
+    }
+  },
+  {
+    "type": "text",
+    "label": "No: ¿Cuál fue o fueron las barreras?",
+    "required": true,
+    "conditional_logic": {
+      "field": "¿Lograron conectar la actividad pedagógica a temas del currículo educativo?",
+      "operator": "==",
+      "value": "No"
+    }
+  },
+  {
+    "type": "file",
+    "label": "Fotos de las actividades de campo realizadas durante la eco gira.",
+    "required": true
+  },
+  {
+    "type": "file",
+    "label": "Fotos de las actividades pedagógicas y de concientización realizadas.",
+    "required": true
+  },
+  {
+    "type": "file",
+    "label": "Manifestación como guardianes de la naturaleza.",
+    "required": true
+  },
+  {
+    "type": "file",
+    "label": "Evidencias de otras acciones relacionadas (si hubieron).",
+    "required": false
+  }
+]

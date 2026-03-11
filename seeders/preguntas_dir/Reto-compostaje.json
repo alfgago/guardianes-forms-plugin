@@ -1,0 +1,129 @@
+[
+  {
+    "type": "select",
+    "label": "¿Qué usan como sistema para compostar en tu centro educativo?",
+    "choices": [
+      "Compostera giratoria",
+      "Compostera de piso",
+      "Otro"
+    ],
+    "required": true
+  },
+  {
+    "type": "textarea",
+    "label": "¿En qué consistieron las acciones de mejora o mantenimiento?",
+    "required": true
+  },
+  {
+    "type": "radio",
+    "label": "¿Ya están produciendo abono?",
+    "choices": [
+      "Sí",
+      "No"
+    ],
+    "required": true
+  },
+  {
+    "type": "checkbox",
+    "label": "Si tu respuesta anterior fue sí, ¿en qué aprovechan el abono?",
+    "choices": [
+      "Para mejorar el suelo",
+      "Abonar las plantas del CE",
+      "Venta local de abono",
+      "Otro"
+    ],
+    "required": true,
+    "conditional_logic": {
+      "field": "¿Ya están produciendo abono?",
+      "operator": "==",
+      "value": "Sí"
+    }
+  },
+  {
+    "type": "text",
+    "label": "¿Cuáles actividades pedagógicas se realizaron para fomentar la educación y conciencia en este tema? Tema desarrollado:",
+    "required": true
+  },
+  {
+    "type": "select",
+    "label": "Tipo ( charla, taller)",
+    "choices": [
+      "Charla",
+      "Taller",
+      "Otro"
+    ],
+    "required": true
+  },
+  {
+    "type": "textarea",
+    "label": "En qué consistieron las actividades desarrolladas:",
+    "required": true
+  },
+  {
+    "type": "number",
+    "label": "Cuántos estudiantes participaron:",
+    "required": true
+  },
+  {
+    "type": "checkbox",
+    "label": "¿Cuáles hábitos y buenas prácticas ambientales se promovieron en la comunidad educativa?",
+    "choices": [
+      "Depositar residuos: orgánicos y secos",
+      "Revolver el compostaje",
+      "Abonar las plantas",
+      "Mecanismo de separación en el comedor.",
+      "Replicar en el hogar",
+      "Otros"
+    ],
+    "required": true
+  },
+  {
+    "type": "radio",
+    "label": "¿Lograron conectar la actividad pedagógica a temas del currículo educativo?",
+    "choices": [
+      "Sí",
+      "No"
+    ],
+    "required": true
+  },
+  {
+    "type": "text",
+    "label": "Sí: ¿a cuál materia?",
+    "required": true,
+    "conditional_logic": {
+      "field": "¿Lograron conectar la actividad pedagógica a temas del currículo educativo?",
+      "operator": "==",
+      "value": "Sí"
+    }
+  },
+  {
+    "type": "text",
+    "label": "No: ¿Cuál fue o fueron las barreras?",
+    "required": true,
+    "conditional_logic": {
+      "field": "¿Lograron conectar la actividad pedagógica a temas del currículo educativo?",
+      "operator": "==",
+      "value": "No"
+    }
+  },
+  {
+    "type": "file",
+    "label": "Fotos que demuestran el proceso de realización del compostaje con la participación de estudiantes.",
+    "required": true
+  },
+  {
+    "type": "file",
+    "label": "Fotos de todas las actividades pedagógicas y de concientización realizadas para este tema.",
+    "required": true
+  },
+  {
+    "type": "file",
+    "label": "Manifestación como guardianes de la naturaleza.",
+    "required": true
+  },
+  {
+    "type": "file",
+    "label": "Evidencias de otras acciones relacionadas (si hubieron).",
+    "required": false
+  }
+]

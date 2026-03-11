@@ -1,0 +1,137 @@
+[
+  {
+    "type": "textarea",
+    "label": "¿Qué consideras que fue lo más significativo de realizar este reto?",
+    "required": true
+  },
+  {
+    "type": "text",
+    "label": "¿Cuáles actividades pedagógicas se realizaron para fomentar la educación y conciencia en este tema? Tema desarrollado:",
+    "required": true
+  },
+  {
+    "type": "select",
+    "label": "Tipo (lección, charla, taller)",
+    "choices": [
+      "Lección",
+      "Charla",
+      "Taller",
+      "Otro"
+    ],
+    "required": true
+  },
+  {
+    "type": "textarea",
+    "label": "En qué consistió:",
+    "required": true
+  },
+  {
+    "type": "number",
+    "label": "Cuántos estudiantes participaron:",
+    "required": true
+  },
+  {
+    "type": "checkbox",
+    "label": "Hábitos y buenas prácticas:",
+    "choices": [
+      "Apagar las luces mientras no se usen.",
+      "Ser vigilantes al deterioro, daños o desperdicio energético.",
+      "Desconectar artefactos.",
+      "Regular el uso del aire acondicionado.",
+      "Aprovechar la luz natural.",
+      "Otros"
+    ],
+    "required": true
+  },
+  {
+    "type": "radio",
+    "label": "¿Realizaron las revisiones periódicas?",
+    "choices": [
+      "Sí",
+      "No"
+    ],
+    "required": true
+  },
+  {
+    "type": "radio",
+    "label": "¿Realizaron reparaciones o mejoras al sistema eléctrico; tomas, cableado pelado, plafones, iluminación LED, u otros?",
+    "choices": [
+      "Sí",
+      "No"
+    ],
+    "required": true
+  },
+  {
+    "type": "radio",
+    "label": "¿Adquirieron artefactos Energy Star o ahorrativos?",
+    "choices": [
+      "Sí",
+      "No"
+    ],
+    "required": true
+  },
+  {
+    "type": "select",
+    "label": "¿Le dieron mantenimiento al aire acondicionado para un funcionamiento óptimo?",
+    "choices": [
+      "Sí",
+      "No",
+      "No aplica"
+    ],
+    "required": true
+  },
+  {
+    "type": "radio",
+    "label": "¿Lograron conectar la actividad pedagógica a temas del currículo educativo?",
+    "choices": [
+      "Sí",
+      "No"
+    ],
+    "required": true
+  },
+  {
+    "type": "text",
+    "label": "Sí: ¿a cuál materia?",
+    "required": true,
+    "conditional_logic": {
+      "field": "¿Lograron conectar la actividad pedagógica a temas del currículo educativo?",
+      "operator": "==",
+      "value": "Sí"
+    }
+  },
+  {
+    "type": "text",
+    "label": "No: ¿Cuál fue o fueron las barreras?",
+    "required": true,
+    "conditional_logic": {
+      "field": "¿Lograron conectar la actividad pedagógica a temas del currículo educativo?",
+      "operator": "==",
+      "value": "No"
+    }
+  },
+  {
+    "type": "file",
+    "label": "Fotos de las buenas prácticas y hábitos para el ahorro de energía de los estudiantes.",
+    "required": true
+  },
+  {
+    "type": "file",
+    "label": "Evidencia de las medidas para la sostenibilidad (fotos, documentos, facturas, otros).",
+    "required": true
+  },
+  {
+    "type": "file",
+    "label": "Fotos de todas las actividades pedagógicas realizadas para este tema.",
+    "required": true
+  },
+  {
+    "type": "file",
+    "label": "Manifestación como guardianes de la naturaleza.",
+    "required": true
+  },
+  {
+    "type": "file",
+    "label": "Evidencias de otras acciones realizadas relacionadas (si hubieron).",
+    "required": false
+  }
+]

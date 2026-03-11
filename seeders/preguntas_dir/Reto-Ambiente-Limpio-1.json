@@ -1,0 +1,102 @@
+[
+  {
+    "type": "number",
+    "label": "Cantidad de bolsas de residuos recolectados durante el año en las limpiezas dentro o fuera del centro educativo:",
+    "required": true
+  },
+  {
+    "type": "number",
+    "label": "Cantidad de campañas de limpieza realizadas:",
+    "required": true
+  },
+  {
+    "type": "text",
+    "label": "¿Cuáles actividades pedagógicas se realizaron para fomentar la educación y conciencia en este tema? Tema desarrollado:",
+    "required": true
+  },
+  {
+    "type": "select",
+    "label": "Tipo (lección, charla, taller)",
+    "choices": [
+      "Lección",
+      "Charla",
+      "Taller",
+      "Otro"
+    ],
+    "required": true
+  },
+  {
+    "type": "textarea",
+    "label": "En qué consistió:",
+    "required": true
+  },
+  {
+    "type": "number",
+    "label": "Cuántos estudiantes participaron:",
+    "required": true
+  },
+  {
+    "type": "checkbox",
+    "label": "¿Cuáles hábitos y buenas prácticas ambientales se promovieron en la comunidad educativa?",
+    "choices": [
+      "Cumplir con las rutinas de limpieza",
+      "Crear periódicamente campañas de limpieza",
+      "Lavarse las manos",
+      "Reducir la generación de residuos",
+      "Meriendas saludables cero residuos",
+      "Gestionar responsablemente los residuos",
+      "Mantener una conducta respetuosa hacia todos los seres vivos",
+      "Otros"
+    ],
+    "required": true
+  },
+  {
+    "type": "radio",
+    "label": "¿Lograron conectar la actividad pedagógica a temas del currículo educativo?",
+    "choices": [
+      "Sí",
+      "No"
+    ],
+    "required": true
+  },
+  {
+    "type": "text",
+    "label": "Sí: ¿a cuál materia?",
+    "required": true,
+    "conditional_logic": {
+      "field": "¿Lograron conectar la actividad pedagógica a temas del currículo educativo?",
+      "operator": "==",
+      "value": "Sí"
+    }
+  },
+  {
+    "type": "text",
+    "label": "No: ¿cuál fue o fueron las barreras?",
+    "required": true,
+    "conditional_logic": {
+      "field": "¿Lograron conectar la actividad pedagógica a temas del currículo educativo?",
+      "operator": "==",
+      "value": "No"
+    }
+  },
+  {
+    "type": "file",
+    "label": "Programas de limpieza de aulas y espacios verdes.",
+    "required": true
+  },
+  {
+    "type": "file",
+    "label": "Fotos de las acciones realizadas con participación estudiantil.",
+    "required": true
+  },
+  {
+    "type": "file",
+    "label": "Fotos que evidencian una gestión de aseo, orden y limpieza del centro educativo.",
+    "required": true
+  },
+  {
+    "type": "file",
+    "label": "Manifestación como guardianes de la Naturaleza.",
+    "required": true
+  }
+]

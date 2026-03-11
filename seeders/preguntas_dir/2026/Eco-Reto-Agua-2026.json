@@ -1,0 +1,363 @@
+[
+  {
+    "id": "q1",
+    "pregunta": "1. ¿Celebraron el Día Mundial del Agua? -  (si/no)",
+    "tipo_de_campo": "seleccion_unica",
+    "opciones": ["si", "no"],
+    "required": true,
+    "depends_on": null,
+    "suma_puntos": false
+  },
+  {
+    "id": "q1_1",
+    "pregunta": "1.1 - ¿Cuántos estudiantes participaron?",
+    "tipo_de_campo": "numero_entero",
+    "opciones": null,
+    "required": false,
+    "depends_on": {
+      "field": "q1",
+      "value": "si"
+    },
+    "suma_puntos": false
+  },
+  {
+    "id": "q1_2",
+    "pregunta": "1.2 - Puede agregar un comentario corto sobre esta actividad.",
+    "tipo_de_campo": "textarea",
+    "opciones": null,
+    "required": false,
+    "depends_on": {
+      "field": "q1",
+      "value": "si"
+    },
+    "suma_puntos": false
+  },
+  {
+    "id": "q1_e1",
+    "pregunta": "Fotografía de la pizarra o mural conmemorativo para esta celebración.\n5 eco pt",
+    "tipo_de_campo": "subida_archivo",
+    "opciones": null,
+    "required": false,
+    "depends_on": {
+      "field": "q1",
+      "value": "si"
+    },
+    "suma_puntos": true,
+    "puntos": 5
+  },
+  {
+    "id": "q1_e2",
+    "pregunta": "Fotografía de estudiantes durante la actividad educativa, donde se evidencie claramente que para el Día Mundial del Agua.\n5 eco pt",
+    "tipo_de_campo": "subida_archivo",
+    "opciones": null,
+    "required": false,
+    "depends_on": {
+      "field": "q1",
+      "value": "si"
+    },
+    "suma_puntos": true,
+    "puntos": 5
+  },
+  {
+    "id": "q2",
+    "pregunta": "2. ¿Realizaron charla o lección sobre la importancia del agua para la vida y buenas prácticas de ahorro?  (*Esta acción es requisito para el logro de cualquier galardón). -  (si/no).",
+    "tipo_de_campo": "seleccion_unica",
+    "opciones": ["si", "no"],
+    "required": true,
+    "depends_on": null,
+    "suma_puntos": false
+  },
+  {
+    "id": "q2_1",
+    "pregunta": "2.1 - ¿Cuántos estudiantes participaron?",
+    "tipo_de_campo": "numero_entero",
+    "opciones": null,
+    "required": false,
+    "depends_on": {
+      "field": "q2",
+      "value": "si"
+    },
+    "suma_puntos": false
+  },
+  {
+    "id": "q2_2",
+    "pregunta": "2.2 - Puede agregar un comentario corto sobre esta actividad.",
+    "tipo_de_campo": "textarea",
+    "opciones": null,
+    "required": false,
+    "depends_on": {
+      "field": "q2",
+      "value": "si"
+    },
+    "suma_puntos": false
+  },
+  {
+    "id": "q2_e1",
+    "pregunta": "REQUISITO - Fotografía de la sección del planeamiento docente de esta actividad (si lo tienen).\n5 eco pts",
+    "tipo_de_campo": "subida_archivo",
+    "opciones": null,
+    "required": false,
+    "depends_on": {
+      "field": "q2",
+      "value": "si"
+    },
+    "suma_puntos": true,
+    "puntos": 5
+  },
+  {
+    "id": "q2_e2",
+    "pregunta": "REQUISITO - Fotografía o mini video (1 minuto) de los estudiantes durante la actividad educativa que se vea claramente que es del tema del agua.\n 5 eco pts",
+    "tipo_de_campo": "subida_archivo",
+    "opciones": null,
+    "required": true,
+    "depends_on": {
+      "field": "q2",
+      "value": "si"
+    },
+    "suma_puntos": true,
+    "puntos": 5
+  },
+  {
+    "id": "q2_e3",
+    "pregunta": "REQUISITO - Fotografía que se vea que el recurso educativo usado está relacionado al tema de agua (video, presentación, hoja de trabajo u otro (diferente al realizado en el Día Mundial del Agua).\n 5 eco pts",
+    "tipo_de_campo": "subida_archivo",
+    "opciones": null,
+    "required": true,
+    "depends_on": {
+      "field": "q2",
+      "value": "si"
+    },
+    "suma_puntos": true,
+    "puntos": 5
+  },
+  {
+    "id": "q3",
+    "pregunta": "3. ¿Rotularon para fomentar buenos hábitos de ahorro? (*Esta acción es requisito para el logro de cualquier galardón).  -  (si/no)",
+    "tipo_de_campo": "seleccion_unica",
+    "opciones": ["si", "no"],
+    "required": true,
+    "depends_on": null,
+    "suma_puntos": false
+  },
+  {
+    "id": "q3_e1",
+    "pregunta": "REQUISITO - Fotografía de rótulo(s) ya colocado(s)  en área de lavamanos para inculcar el hábito de ahorro de agua.\n5 eco pt",
+    "tipo_de_campo": "subida_archivo",
+    "opciones": null,
+    "required": true,
+    "depends_on": {
+      "field": "q3",
+      "value": "si"
+    },
+    "suma_puntos": true,
+    "puntos": 5
+  },
+  {
+    "id": "q3_e2",
+    "pregunta": "REQUISITO - Fotografía de rótulo ya colocado en otros lavamanos o pila para inculcar el ahorro y evitar el desperdicio de agua (área diferente a la anterior).\n5 eco pt",
+    "tipo_de_campo": "subida_archivo",
+    "opciones": null,
+    "required": true,
+    "depends_on": {
+      "field": "q3",
+      "value": "si"
+    },
+    "suma_puntos": true,
+    "puntos": 5
+  },
+  {
+    "id": "q4",
+    "pregunta": "4. ¿Realizaron monitoreo estudiantil de agua? -  (si/no)",
+    "tipo_de_campo": "seleccion_unica",
+    "opciones": ["si", "no"],
+    "required": true,
+    "depends_on": null,
+    "suma_puntos": false
+  },
+  {
+    "id": "q4_1",
+    "pregunta": "4.1 - ¿Cuántos estudiantes participaron?",
+    "tipo_de_campo": "numero_entero",
+    "opciones": null,
+    "required": false,
+    "depends_on": {
+      "field": "q4",
+      "value": "si"
+    },
+    "suma_puntos": false
+  },
+  {
+    "id": "q4_2",
+    "pregunta": "4.2 - Puede agregar un comentario corto sobre esta actividad.",
+    "tipo_de_campo": "textarea",
+    "opciones": null,
+    "required": false,
+    "depends_on": {
+      "field": "q4",
+      "value": "si"
+    },
+    "suma_puntos": false
+  },
+  {
+    "id": "q4_e1",
+    "pregunta": "Fotografía de los estudiantes realizando el monitoreo (actividad sugerida para eco brigadas o gobierno estudiantil).\n5 eco pts",
+    "tipo_de_campo": "subida_archivo",
+    "opciones": null,
+    "required": false,
+    "depends_on": {
+      "field": "q4",
+      "value": "si"
+    },
+    "suma_puntos": true,
+    "puntos": 5
+  },
+  {
+    "id": "q4_e2",
+    "pregunta": "Fotografía del monitoreo realizado con firma de recibido de dirección (actividad sugerida para eco brigadas o para el gobierno estudiantil).\n5 eco pts",
+    "tipo_de_campo": "subida_archivo",
+    "opciones": null,
+    "required": false,
+    "depends_on": {
+      "field": "q4",
+      "value": "si"
+    },
+    "suma_puntos": true,
+    "puntos": 5
+  },
+  {
+    "id": "q5",
+    "pregunta": "5. ¿ Realizaron reparaciones y/o mejoras? -  (si/no)",
+    "tipo_de_campo": "seleccion_unica",
+    "opciones": ["si", "no"],
+    "required": true,
+    "depends_on": null,
+    "suma_puntos": false
+  },
+  {
+    "id": "q5_e1",
+    "pregunta": "Fotografía en la que se observa claramente la reparación de una tubería. (Si es que hubo reparaciones).\n5 eco pts",
+    "tipo_de_campo": "subida_archivo",
+    "opciones": null,
+    "required": false,
+    "depends_on": {
+      "field": "q5",
+      "value": "si"
+    },
+    "suma_puntos": true,
+    "puntos": 5
+  },
+  {
+    "id": "q5_e2",
+    "pregunta": "Fotografía en la que se observa cambio de cacheras, mangueras de abasto u otras mejoras de esa índole (solo si se realizó).\n5 eco pts",
+    "tipo_de_campo": "subida_archivo",
+    "opciones": null,
+    "required": false,
+    "depends_on": {
+      "field": "q5",
+      "value": "si"
+    },
+    "suma_puntos": true,
+    "puntos": 5
+  },
+  {
+    "id": "q5_e3",
+    "pregunta": "Fotografías en la que se observa que están limpiando el tanque de agua (solo si cuentan con tanque de almacenamiento).\n5 eco pts",
+    "tipo_de_campo": "subida_archivo",
+    "opciones": null,
+    "required": false,
+    "depends_on": {
+      "field": "q5",
+      "value": "si"
+    },
+    "suma_puntos": true,
+    "puntos": 5
+  },
+  {
+    "id": "q6",
+    "pregunta": "6. ¿Cuentan con un sistema permanente de captación de agua llovida?  -   (si/no)",
+    "tipo_de_campo": "seleccion_unica",
+    "opciones": ["si", "no"],
+    "required": true,
+    "depends_on": null,
+    "suma_puntos": false
+  },
+  {
+    "id": "q6_e1",
+    "pregunta": "Fotografía del sistema de recolección de agua de lluvia (que cuente con bajante(s) y tanque de recolección (sistema permanente).\n10 eco pts",
+    "tipo_de_campo": "subida_archivo",
+    "opciones": null,
+    "required": false,
+    "depends_on": {
+      "field": "q6",
+      "value": "si"
+    },
+    "suma_puntos": true,
+    "puntos": 10
+  },
+  {
+    "id": "q7",
+    "pregunta": "7. ¿Cuentan con algún sistema de tratamiento de aguas grises que use procesos biológicos que imitan a la naturaleza? -   (si/no)",
+    "tipo_de_campo": "seleccion_unica",
+    "opciones": ["si", "no"],
+    "required": true,
+    "depends_on": null,
+    "suma_puntos": false
+  },
+  {
+    "id": "q7_e1",
+    "pregunta": "Fotografías en la que se observa claramente un sistema funcional para el tratamiento de aguas de forma biológica.\n10 eco pts",
+    "tipo_de_campo": "subida_archivo",
+    "opciones": null,
+    "required": false,
+    "depends_on": {
+      "field": "q7",
+      "value": "si"
+    },
+    "suma_puntos": true,
+    "puntos": 10
+  },
+  {
+    "id": "q8",
+    "pregunta": "8. ¿Cuentan con un sistema de riego ahorrativo por goteo, con tubería perforada u otro similar para la huerta o  jardines?  -   (si/no)",
+    "tipo_de_campo": "seleccion_unica",
+    "opciones": ["si", "no"],
+    "required": true,
+    "depends_on": null,
+    "suma_puntos": false
+  },
+  {
+    "id": "q8_e1",
+    "pregunta": "Fotografía en la que se observa claramente un sistema funcional y ahorrativo de riego como los mencionados.\n5 eco pts",
+    "tipo_de_campo": "subida_archivo",
+    "opciones": null,
+    "required": false,
+    "depends_on": {
+      "field": "q8",
+      "value": "si"
+    },
+    "suma_puntos": true,
+    "puntos": 5
+  },
+  {
+    "id": "q9",
+    "pregunta": "9. ¿Cuentan con el consumo de agua de enero a noviembre del año pasado? -  (si/no)",
+    "tipo_de_campo": "seleccion_unica",
+    "opciones": ["si", "no"],
+    "required": true,
+    "depends_on": null,
+    "suma_puntos": false
+  },
+  {
+    "id": "q9_e1",
+    "pregunta": "Aportar los datos completos de consumo de agua de enero a noviembre únicamente del año 2025. Los datos del año actual no se solicitarán.\n10 eco pts",
+    "tipo_de_campo": "subida_archivo",
+    "opciones": null,
+    "required": false,
+    "depends_on": {
+      "field": "q9",
+      "value": "si"
+    },
+    "suma_puntos": true,
+    "puntos": 10
+  }
+]

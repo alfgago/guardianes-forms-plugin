@@ -1,0 +1,109 @@
+[
+  {
+    "type": "text",
+    "label": "¿Cuál es el nombre que asignaron al reto comodín?",
+    "required": true
+  },
+  {
+    "type": "textarea",
+    "label": "Describa puntualmente en qué consiste el reto",
+    "required": true
+  },
+  {
+    "type": "textarea",
+    "label": "¿Cómo contribuye con la cultura de sostenibilidad del centro educativo?",
+    "required": true
+  },
+  {
+    "type": "number",
+    "label": "¿Cuántos estudiantes se involucraron?",
+    "required": true
+  },
+  {
+    "type": "text",
+    "label": "¿Cuánto tiempo tiene el proyecto de haber sido implementado?",
+    "required": true
+  },
+  {
+    "type": "text",
+    "label": "¿Cuáles actividades pedagógicas se realizaron para fomentar la educación y conciencia en este tema? Tema desarrollado:",
+    "required": true
+  },
+  {
+    "type": "select",
+    "label": "Tipo (lección, charla, taller)",
+    "choices": [
+      "Lección",
+      "Charla",
+      "Taller",
+      "Otro"
+    ],
+    "required": true
+  },
+  {
+    "type": "textarea",
+    "label": "En qué consistió:",
+    "required": true
+  },
+  {
+    "type": "number",
+    "label": "Cuántos estudiantes participaron:",
+    "required": true
+  },
+  {
+    "type": "checkbox",
+    "label": "¿Cuáles hábitos y buenas prácticas ambientales se promovieron en la comunidad educativa?",
+    "choices": [
+      "Reducir, reutilizar y reciclar",
+      "Consumo de alimentos cero residuos",
+      "No a los plásticos de un solo uso",
+      "No a los globos, escarcha y al fon",
+      "Otros"
+    ],
+    "required": true
+  },
+  {
+    "type": "radio",
+    "label": "¿Lograron conectar la actividad pedagógica a temas del currículo educativo?",
+    "choices": [
+      "Sí",
+      "No"
+    ],
+    "required": true
+  },
+  {
+    "type": "text",
+    "label": "Sí: ¿a cuál materia?",
+    "required": true,
+    "conditional_logic": {
+      "field": "¿Lograron conectar la actividad pedagógica a temas del currículo educativo?",
+      "operator": "==",
+      "value": "Sí"
+    }
+  },
+  {
+    "type": "text",
+    "label": "No: ¿cuál fue o fueron las barreras?",
+    "required": true,
+    "conditional_logic": {
+      "field": "¿Lograron conectar la actividad pedagógica a temas del currículo educativo?",
+      "operator": "==",
+      "value": "No"
+    }
+  },
+  {
+    "type": "file",
+    "label": "Fotos de hábitos, buenas prácticas ambientales, actividades pedagógicas y de sensibilización realizadas.",
+    "required": true
+  },
+  {
+    "type": "file",
+    "label": "Fotos de la implementación del proyecto, procesos, mejoras o mantenimiento con la participación estudiantil.",
+    "required": true
+  },
+  {
+    "type": "file",
+    "label": "Manifestación como guardianes de la Naturaleza.",
+    "required": true
+  }
+]

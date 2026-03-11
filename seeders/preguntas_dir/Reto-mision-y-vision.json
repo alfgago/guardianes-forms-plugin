@@ -1,0 +1,76 @@
+[
+  {
+    "type": "select",
+    "label": "¿Se realizaron ajustes a la misión, visión y valores del centro educativo para este reto?",
+    "choices": [
+      "Sí realizamos ajustes",
+      "Se elaboró de cero",
+      "Ya se incluían términos ambientales"
+    ],
+    "required": true
+  },
+  {
+    "type": "text",
+    "label": "Otras acciones relacionadas no contempladas aquí:",
+    "required": false
+  },
+  {
+    "type": "checkbox",
+    "label": "¿Qué palabras o conceptos clave se integraron en la misión y visión?",
+    "choices": [
+      "Sostenibilidad ambiental",
+      "Educación para el desarrollo sostenible",
+      "Armonía con la naturaleza",
+      "Guardianes de la naturaleza",
+      "Educación regenerativa",
+      "Amigables con el ambiente",
+      "Otras"
+    ],
+    "required": true
+  },
+  {
+    "type": "textarea",
+    "label": "Anota la misión, visión y valores actuales que contemplan la sostenibilidad del CE: Misión",
+    "required": true
+  },
+  {
+    "type": "textarea",
+    "label": "Visión",
+    "required": true
+  },
+  {
+    "type": "textarea",
+    "label": "Valores",
+    "required": true
+  },
+  {
+    "type": "textarea",
+    "label": "¿Qué consideras que fue lo más significativo de realizar este reto?",
+    "required": true
+  },
+  {
+    "type": "textarea",
+    "label": "¿Cuál estrategia usaron para dar a conocer a la comunidad educativa los valores institucionales?",
+    "required": true
+  },
+  {
+    "type": "file",
+    "label": "Documentos (ej. misión y visión actualizados).",
+    "required": true
+  },
+  {
+    "type": "file",
+    "label": "Fotos de todas la estrategia usada para dar a conocer los valores institucionales.",
+    "required": true
+  },
+  {
+    "type": "file",
+    "label": "Secciones del Plan Anual de Trabajo (PAT) que incorporan la sostenibilidad ambiental.",
+    "required": true
+  },
+  {
+    "type": "file",
+    "label": "Evidencias de otras acciones realizadas relacionadas (si hubieron).",
+    "required": false
+  }
+]

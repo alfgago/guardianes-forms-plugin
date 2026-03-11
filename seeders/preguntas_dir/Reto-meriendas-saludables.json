@@ -1,0 +1,135 @@
+[
+  {
+    "type": "textarea",
+    "label": "¿Cuál o cuáles estrategias administrativas (memorándum, directriz, comunicado, u otros) se gestionaron para promover meriendas saludables y una reducción en los residuos que a raíz de las mismas se generan?",
+    "required": true
+  },
+  {
+    "type": "radio",
+    "label": "¿Cuentan con soda estudiantil en el centro educativo?",
+    "choices": [
+      "Sí",
+      "No"
+    ],
+    "required": true
+  },
+  {
+    "type": "radio",
+    "label": "Si su respuesta anterior fue que sí ¿La soda aplica las regulaciones del MEP en cuanto a los productos que ofrecen a los estudiantes?",
+    "choices": [
+      "Sí",
+      "No"
+    ],
+    "required": true,
+    "conditional_logic": {
+      "field": "¿Cuentan con soda estudiantil en el centro educativo?",
+      "operator": "==",
+      "value": "Sí"
+    }
+  },
+  {
+    "type": "textarea",
+    "label": "Si su respuesta anterior fue que no ¿Qué medidas ha tomado el centro educativo?",
+    "required": true,
+    "conditional_logic": {
+      "field": "Si su respuesta anterior fue que sí ¿La soda aplica las regulaciones del MEP en cuanto a los productos que ofrecen a los estudiantes?",
+      "operator": "==",
+      "value": "No"
+    }
+  },
+  {
+    "type": "textarea",
+    "label": "¿Qué consideras que fue lo más significativo de realizar este reto?",
+    "required": true
+  },
+  {
+    "type": "text",
+    "label": "¿Cuáles actividades pedagógicas se realizaron para fomentar la educación y conciencia en este tema? Tema desarrollado:",
+    "required": true
+  },
+  {
+    "type": "select",
+    "label": "Tipo (lección, charla, taller)",
+    "choices": [
+      "Lección",
+      "Charla",
+      "Taller",
+      "Otro"
+    ],
+    "required": true
+  },
+  {
+    "type": "textarea",
+    "label": "En qué consistió:",
+    "required": true
+  },
+  {
+    "type": "number",
+    "label": "Cuántos estudiantes participaron:",
+    "required": true
+  },
+  {
+    "type": "checkbox",
+    "label": "¿Cuáles hábitos y buenas prácticas ambientales se promovieron en la comunidad educativa?",
+    "choices": [
+      "Concientizar sobre la importancia de la alimentación saludable.",
+      "Reducir el consumo de azúcar y sodio en el comedor escolar.",
+      "Práctica de lavado de manos antes de comer",
+      "Lavar las frutas.",
+      "Promover el tomar agua, en vez de jugos azucarados.",
+      "Usar botellas reutilizables",
+      "Reducir cantidad de residuos producidos",
+      "Otros relacionados"
+    ],
+    "required": true
+  },
+  {
+    "type": "radio",
+    "label": "¿Lograron conectar la actividad pedagógica a temas del currículo educativo?",
+    "choices": [
+      "Sí",
+      "No"
+    ],
+    "required": true
+  },
+  {
+    "type": "text",
+    "label": "Sí: ¿a cuál materia?",
+    "required": true,
+    "conditional_logic": {
+      "field": "¿Lograron conectar la actividad pedagógica a temas del currículo educativo?",
+      "operator": "==",
+      "value": "Sí"
+    }
+  },
+  {
+    "type": "text",
+    "label": "No: ¿cuál fue o fueron las barreras?",
+    "required": true,
+    "conditional_logic": {
+      "field": "¿Lograron conectar la actividad pedagógica a temas del currículo educativo?",
+      "operator": "==",
+      "value": "No"
+    }
+  },
+  {
+    "type": "file",
+    "label": "Documentos de gestiones administrativas (directrices, memorandums, comunicados, u otros).",
+    "required": true
+  },
+  {
+    "type": "file",
+    "label": "Fotos de todas las actividades pedagógicas y de concientización realizadas.",
+    "required": true
+  },
+  {
+    "type": "file",
+    "label": "Manifestación como guardianes de la naturaleza.",
+    "required": true
+  },
+  {
+    "type": "file",
+    "label": "Evidencias de otras acciones relacionadas.",
+    "required": false
+  }
+]

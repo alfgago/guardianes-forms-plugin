@@ -1,0 +1,131 @@
+[
+  {
+    "id": "q1",
+    "pregunta": "1. ¿Celebraron el Día Mundial de la Limpieza o Día Internacional de Limpieza de playas?  -  (si/no)",
+    "tipo_de_campo": "seleccion_unica",
+    "opciones": ["si", "no"],
+    "required": true,
+    "depends_on": null,
+    "suma_puntos": false
+  },
+  {
+    "id": "q1_e1",
+    "pregunta": "Fotografía de la pizarra o mural conmemorativo para una de estas celebraciones.\n5 eco pt",
+    "tipo_de_campo": "subida_archivo",
+    "opciones": null,
+    "required": false,
+    "depends_on": {
+      "field": "q1",
+      "value": "si"
+    },
+    "suma_puntos": true,
+    "puntos": 5
+  },
+  {
+    "id": "q1_e2",
+    "pregunta": "Fotografía o mini video de alguna limpieza realizada específicamente para conmemorar una de estas celebraciones con participación estudiantil.\n10 eco pts",
+    "tipo_de_campo": "subida_archivo",
+    "opciones": null,
+    "required": false,
+    "depends_on": {
+      "field": "q1",
+      "value": "si"
+    },
+    "suma_puntos": true,
+    "puntos": 10
+  },
+  {
+    "id": "q1_e3",
+    "pregunta": "Fotografía de los estudiantes aprendiendo sobre el tema del impacto de los residuos para la biodiversidad de ríos o marina. Debe observarse claramente que el recurso educativo usado trata sobre el tema. (video, cuento, ppt).\n10 eco pt",
+    "tipo_de_campo": "subida_archivo",
+    "opciones": null,
+    "required": false,
+    "depends_on": {
+      "field": "q1",
+      "value": "si"
+    },
+    "suma_puntos": true,
+    "puntos": 10
+  },
+  {
+    "id": "q3",
+    "pregunta": "3. ¿Participaron en alguna jornada de limpiezas comunitarias? -  (si/no)",
+    "tipo_de_campo": "seleccion_unica",
+    "opciones": ["si", "no"],
+    "required": true,
+    "depends_on": null,
+    "suma_puntos": false
+  },
+  {
+    "id": "q3_1",
+    "pregunta": "3.1 ¿Cuál institución coordinó la jornada?",
+    "tipo_de_campo": "text",
+    "opciones": null,
+    "required": false,
+    "depends_on": {
+      "field": "q3",
+      "value": "si"
+    },
+    "suma_puntos": false
+  },
+  {
+    "id": "q3_2",
+    "pregunta": "3.2 ¿Cuántos estudiantes participaron?",
+    "tipo_de_campo": "numero_entero",
+    "opciones": null,
+    "required": false,
+    "depends_on": {
+      "field": "q3",
+      "value": "si"
+    },
+    "suma_puntos": false
+  },
+  {
+    "id": "q3_e1",
+    "pregunta": "Fotografía de la invitación a estudiantes y padres de familia, fuera por chat, comunicado o flyer para participar de esta jornada comunitaria.\n5 eco pt",
+    "tipo_de_campo": "subida_archivo",
+    "opciones": null,
+    "required": false,
+    "depends_on": {
+      "field": "q3",
+      "value": "si"
+    },
+    "suma_puntos": true,
+    "puntos": 5
+  },
+  {
+    "id": "q3_e2",
+    "pregunta": "Fotografía donde se observa que hubo presencia durante la jornada de limpiezas comunitarias (en conjunto con otros actores).\n10 eco pts",
+    "tipo_de_campo": "subida_archivo",
+    "opciones": null,
+    "required": false,
+    "depends_on": {
+      "field": "q3",
+      "value": "si"
+    },
+    "suma_puntos": true,
+    "puntos": 10
+  },
+  {
+    "id": "q4",
+    "pregunta": "4. ¿Realizaron alguna limpieza dentro o fuera del centro educativo? -  (si/no)",
+    "tipo_de_campo": "seleccion_unica",
+    "opciones": ["si", "no"],
+    "required": true,
+    "depends_on": null,
+    "suma_puntos": false
+  },
+  {
+    "id": "q4_e1",
+    "pregunta": "Fotografía de alguna limpieza realizada durante el año dentro del centro educativo o en la comunidad con estudiantes (diferente a las actividades anteriores).\n10 eco pts",
+    "tipo_de_campo": "subida_archivo",
+    "opciones": null,
+    "required": false,
+    "depends_on": {
+      "field": "q4",
+      "value": "si"
+    },
+    "suma_puntos": true,
+    "puntos": 10
+  }
+]

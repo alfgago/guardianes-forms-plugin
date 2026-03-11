@@ -1,0 +1,16 @@
+# PDFs temporales descargados
+temp-pdfs/
+*.pdf
+
+# Archivos de texto extraídos (opcional - descomenta si no quieres versionarlos)
+# pdf-texts/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+venv/
+env/
+

@@ -1,0 +1,747 @@
+[
+{
+    "key":  "group_gnf_matricula_frontend",
+    "title":  "Guardianes - Matricula Frontend",
+    "fields":  [
+                   {
+                       "key":  "field_gnf_mat_tab_centro",
+                       "label":  "Datos del Centro Educativo",
+                       "name":  "",
+                       "type":  "tab",
+                       "placement":  "top",
+                       "endpoint":  0
+                   },
+                   {
+                       "key":  "field_gnf_mat_centro_existe",
+                       "label":  "Tu centro educativo ya existe en el sistema?",
+                       "name":  "centro_existe",
+                       "type":  "radio",
+                       "instructions":  "",
+                       "required":  1,
+                       "choices":  {
+                                       "Sí":  "Sí",
+                                       "No":  "No"
+                                   },
+                       "allow_null":  0,
+                       "other_choice":  0,
+                       "layout":  "horizontal",
+                       "return_format":  "value",
+                       "default_value":  "Sí"
+                   },
+                   {
+                       "key":  "field_gnf_mat_centro_id_existente",
+                       "label":  "Selecciona tu Centro Educativo",
+                       "name":  "centro_id_existente",
+                       "type":  "post_object",
+                       "instructions":  "Busca y selecciona tu centro educativo de la lista.",
+                       "required":  1,
+                       "post_type":  [
+                                         "centro_educativo"
+                                     ],
+                       "taxonomy":  "",
+                       "allow_null":  0,
+                       "multiple":  0,
+                       "return_format":  "id",
+                       "ui":  1,
+                       "conditional_logic":  [
+                                                 [
+                                                     {
+                                                         "field":  "field_gnf_mat_centro_existe",
+                                                         "operator":  "==",
+                                                         "value":  "Sí"
+                                                     }
+                                                 ]
+                                             ]
+                   },
+                   {
+                       "key":  "field_gnf_mat_centro_nombre",
+                       "label":  "Nombre del Centro Educativo",
+                       "name":  "centro_nombre",
+                       "type":  "text",
+                       "instructions":  "",
+                       "required":  1,
+                       "conditional_logic":  [
+                                                 [
+                                                     {
+                                                         "field":  "field_gnf_mat_centro_existe",
+                                                         "operator":  "==",
+                                                         "value":  "No"
+                                                     }
+                                                 ]
+                                             ]
+                   },
+                   {
+                       "key":  "field_gnf_mat_centro_codigo_mep",
+                       "label":  "Codigo MEP del Centro Educativo",
+                       "name":  "centro_codigo_mep",
+                       "type":  "text",
+                       "instructions":  "Codigo del Ministerio de Educacion Publica. Campo obligatorio.",
+                       "required":  1,
+                       "conditional_logic":  [
+                                                 [
+                                                     {
+                                                         "field":  "field_gnf_mat_centro_existe",
+                                                         "operator":  "==",
+                                                         "value":  "No"
+                                                     }
+                                                 ]
+                                             ]
+                   },
+                   {
+                       "key":  "field_gnf_mat_centro_correo_institucional",
+                       "label":  "Correo electronico institucional",
+                       "name":  "centro_correo_institucional",
+                       "type":  "email",
+                       "instructions":  "",
+                       "required":  1,
+                       "conditional_logic":  [
+                                                 [
+                                                     {
+                                                         "field":  "field_gnf_mat_centro_existe",
+                                                         "operator":  "==",
+                                                         "value":  "No"
+                                                     }
+                                                 ]
+                                             ]
+                   },
+                   {
+                       "key":  "field_gnf_mat_centro_telefono",
+                       "label":  "Numero de telefono del Centro Educativo",
+                       "name":  "centro_telefono",
+                       "type":  "text",
+                       "instructions":  "",
+                       "required":  1,
+                       "conditional_logic":  [
+                                                 [
+                                                     {
+                                                         "field":  "field_gnf_mat_centro_existe",
+                                                         "operator":  "==",
+                                                         "value":  "No"
+                                                     }
+                                                 ]
+                                             ]
+                   },
+                   {
+                       "key":  "field_gnf_mat_centro_nivel_educativo",
+                       "label":  "Nivel educativo",
+                       "name":  "centro_nivel_educativo",
+                       "type":  "select",
+                       "instructions":  "",
+                       "required":  1,
+                       "choices":  {
+                                       "preescolar":  "Preescolar",
+                                       "primaria":  "Primaria",
+                                       "secundaria":  "Secundaria"
+                                   },
+                       "default_value":  false,
+                       "allow_null":  0,
+                       "multiple":  0,
+                       "ui":  0,
+                       "ajax":  0,
+                       "return_format":  "value",
+                       "placeholder":  ""
+                   },
+                   {
+                       "key":  "field_gnf_mat_centro_dependencia",
+                       "label":  "Dependencia",
+                       "name":  "centro_dependencia",
+                       "type":  "select",
+                       "instructions":  "",
+                       "required":  1,
+                       "choices":  {
+                                       "publica":  "Publico",
+                                       "privada":  "Privado",
+                                       "subvencionada":  "Subvencionado"
+                                   },
+                       "default_value":  false,
+                       "allow_null":  0,
+                       "multiple":  0,
+                       "ui":  0,
+                       "ajax":  0,
+                       "return_format":  "value",
+                       "placeholder":  ""
+                   },
+                   {
+                       "key":  "field_gnf_mat_centro_jornada",
+                       "label":  "Jornada",
+                       "name":  "centro_jornada",
+                       "type":  "select",
+                       "instructions":  "",
+                       "required":  1,
+                       "choices":  {
+                                       "diurno":  "Diurno",
+                                       "nocturno":  "Nocturno"
+                                   },
+                       "default_value":  false,
+                       "allow_null":  0,
+                       "multiple":  0,
+                       "ui":  0,
+                       "ajax":  0,
+                       "return_format":  "value",
+                       "placeholder":  ""
+                   },
+                   {
+                       "key":  "field_gnf_mat_centro_tipologia",
+                       "label":  "Tipologia segun matricula",
+                       "name":  "centro_tipologia",
+                       "type":  "select",
+                       "instructions":  "",
+                       "required":  1,
+                       "choices":  {
+                                       "tipo_i":  "Tipo I (500 o mas estudiantes)",
+                                       "tipo_ii":  "Tipo II (300-499)",
+                                       "tipo_iii":  "Tipo III (100-299)",
+                                       "tipo_iv":  "Tipo IV (99 o menos)",
+                                       "tipo_v":  "Tipo V (multigrado)"
+                                   },
+                       "default_value":  false,
+                       "allow_null":  0,
+                       "multiple":  0,
+                       "ui":  0,
+                       "ajax":  0,
+                       "return_format":  "value",
+                       "placeholder":  ""
+                   },
+                   {
+                       "key":  "field_gnf_mat_centro_region",
+                       "label":  "Direccion Regional de Educacion",
+                       "name":  "centro_region",
+                       "type":  "taxonomy",
+                       "instructions":  "Seleccione la Direccion Regional de Educacion correspondiente.",
+                       "required":  1,
+                       "taxonomy":  "gn_region",
+                       "field_type":  "select",
+                       "allow_null":  0,
+                       "add_term":  0,
+                       "save_terms":  0,
+                       "load_terms":  0,
+                       "return_format":  "id",
+                       "multiple":  0,
+                       "conditional_logic":  [
+                                                 [
+                                                     {
+                                                         "field":  "field_gnf_mat_centro_existe",
+                                                         "operator":  "==",
+                                                         "value":  "No"
+                                                     }
+                                                 ]
+                                             ]
+                   },
+                   {
+                       "key":  "field_gnf_mat_centro_circuito",
+                       "label":  "Circuito Educativo",
+                       "name":  "centro_circuito",
+                       "type":  "text",
+                       "instructions":  "",
+                       "required":  1,
+                       "conditional_logic":  [
+                                                 [
+                                                     {
+                                                         "field":  "field_gnf_mat_centro_existe",
+                                                         "operator":  "==",
+                                                         "value":  "No"
+                                                     }
+                                                 ]
+                                             ]
+                   },
+                   {
+                       "key":  "field_gnf_mat_centro_provincia",
+                       "label":  "Provincia",
+                       "name":  "centro_provincia",
+                       "type":  "select",
+                       "instructions":  "",
+                       "required":  1,
+                       "conditional_logic":  [
+                                                 [
+                                                     {
+                                                         "field":  "field_gnf_mat_centro_existe",
+                                                         "operator":  "==",
+                                                         "value":  "No"
+                                                     }
+                                                 ]
+                                             ],
+                       "choices":  {
+                                       "San Jose":  "San Jose",
+                                       "Alajuela":  "Alajuela",
+                                       "Cartago":  "Cartago",
+                                       "Heredia":  "Heredia",
+                                       "Guanacaste":  "Guanacaste",
+                                       "Puntarenas":  "Puntarenas",
+                                       "Limon":  "Limon"
+                                   },
+                       "default_value":  false,
+                       "allow_null":  0,
+                       "multiple":  0,
+                       "ui":  0,
+                       "ajax":  0,
+                       "return_format":  "value",
+                       "placeholder":  ""
+                   },
+                   {
+                       "key":  "field_gnf_mat_centro_canton",
+                       "label":  "Canton",
+                       "name":  "centro_canton",
+                       "type":  "select",
+                       "instructions":  "",
+                       "required":  1,
+                       "conditional_logic":  [
+                                                 [
+                                                     {
+                                                         "field":  "field_gnf_mat_centro_existe",
+                                                         "operator":  "==",
+                                                         "value":  "No"
+                                                     }
+                                                 ]
+                                             ],
+                       "choices":  {
+                                       "San Jose":  "San Jose",
+                                       "Escazu":  "Escazu",
+                                       "Desamparados":  "Desamparados",
+                                       "Puriscal":  "Puriscal",
+                                       "Tarrazu":  "Tarrazu",
+                                       "Aserri":  "Aserri",
+                                       "Mora":  "Mora",
+                                       "Goicoechea":  "Goicoechea",
+                                       "Santa Ana":  "Santa Ana",
+                                       "Alajuelita":  "Alajuelita",
+                                       "Vazquez de Coronado":  "Vazquez de Coronado",
+                                       "Acosta":  "Acosta",
+                                       "Tibas":  "Tibas",
+                                       "Moravia":  "Moravia",
+                                       "Montes de Oca":  "Montes de Oca",
+                                       "Turrubares":  "Turrubares",
+                                       "Dota":  "Dota",
+                                       "Curridabat":  "Curridabat",
+                                       "Perez Zeledon":  "Perez Zeledon",
+                                       "Leon Cortes Castro":  "Leon Cortes Castro",
+                                       "Alajuela":  "Alajuela",
+                                       "San Ramon":  "San Ramon",
+                                       "Grecia":  "Grecia",
+                                       "San Mateo":  "San Mateo",
+                                       "Atenas":  "Atenas",
+                                       "Naranjo":  "Naranjo",
+                                       "Palmares":  "Palmares",
+                                       "Poas":  "Poas",
+                                       "Orotina":  "Orotina",
+                                       "San Carlos":  "San Carlos",
+                                       "Zarcero":  "Zarcero",
+                                       "Sarchi":  "Sarchi",
+                                       "Upala":  "Upala",
+                                       "Los Chiles":  "Los Chiles",
+                                       "Guatuso":  "Guatuso",
+                                       "Rio Cuarto":  "Rio Cuarto",
+                                       "Cartago":  "Cartago",
+                                       "Paraiso":  "Paraiso",
+                                       "La Union":  "La Union",
+                                       "Jimenez":  "Jimenez",
+                                       "Turrialba":  "Turrialba",
+                                       "Alvarado":  "Alvarado",
+                                       "Oreamuno":  "Oreamuno",
+                                       "El Guarco":  "El Guarco",
+                                       "Heredia":  "Heredia",
+                                       "Barva":  "Barva",
+                                       "Santo Domingo":  "Santo Domingo",
+                                       "Santa Barbara":  "Santa Barbara",
+                                       "San Rafael":  "San Rafael",
+                                       "San Isidro":  "San Isidro",
+                                       "Belen":  "Belen",
+                                       "Flores":  "Flores",
+                                       "San Pablo":  "San Pablo",
+                                       "Sarapiqui":  "Sarapiqui",
+                                       "Liberia":  "Liberia",
+                                       "Nicoya":  "Nicoya",
+                                       "Santa Cruz":  "Santa Cruz",
+                                       "Bagaces":  "Bagaces",
+                                       "Carrillo":  "Carrillo",
+                                       "Canas":  "Canas",
+                                       "Abangares":  "Abangares",
+                                       "Tilaran":  "Tilaran",
+                                       "Nandayure":  "Nandayure",
+                                       "La Cruz":  "La Cruz",
+                                       "Hojancha":  "Hojancha",
+                                       "Puntarenas":  "Puntarenas",
+                                       "Esparza":  "Esparza",
+                                       "Buenos Aires":  "Buenos Aires",
+                                       "Montes de Oro":  "Montes de Oro",
+                                       "Osa":  "Osa",
+                                       "Quepos":  "Quepos",
+                                       "Golfito":  "Golfito",
+                                       "Coto Brus":  "Coto Brus",
+                                       "Parrita":  "Parrita",
+                                       "Corredores":  "Corredores",
+                                       "Garabito":  "Garabito",
+                                       "Monteverde":  "Monteverde",
+                                       "Puerto Jimenez":  "Puerto Jimenez",
+                                       "Limon":  "Limon",
+                                       "Pococi":  "Pococi",
+                                       "Siquirres":  "Siquirres",
+                                       "Talamanca":  "Talamanca",
+                                       "Matina":  "Matina",
+                                       "Guacimo":  "Guacimo"
+                                   },
+                       "default_value":  false,
+                       "allow_null":  0,
+                       "multiple":  0,
+                       "ui":  0,
+                       "ajax":  0,
+                       "return_format":  "value",
+                       "placeholder":  ""
+                   },
+                   {
+                       "key":  "field_gnf_mat_centro_codigo_presupuestario",
+                       "label":  "Codigo Presupuestario (solo CE publicos)",
+                       "name":  "centro_codigo_presupuestario",
+                       "type":  "text",
+                       "instructions":  "",
+                       "required":  0,
+                       "conditional_logic":  [
+                                                 [
+                                                     {
+                                                         "field":  "field_gnf_mat_centro_existe",
+                                                         "operator":  "==",
+                                                         "value":  "No"
+                                                     }
+                                                 ]
+                                             ]
+                   },
+                   {
+                       "key":  "field_gnf_mat_centro_direccion",
+                       "label":  "Direccion exacta del Centro Educativo",
+                       "name":  "centro_direccion",
+                       "type":  "textarea",
+                       "instructions":  "",
+                       "required":  1,
+                       "rows":  4,
+                       "new_lines":  "",
+                       "conditional_logic":  [
+                                                 [
+                                                     {
+                                                         "field":  "field_gnf_mat_centro_existe",
+                                                         "operator":  "==",
+                                                         "value":  "No"
+                                                     }
+                                                 ]
+                                             ]
+                   },
+                   {
+                       "key":  "field_gnf_mat_centro_total_estudiantes",
+                       "label":  "Cantidad total de estudiantes",
+                       "name":  "centro_total_estudiantes",
+                       "type":  "number",
+                       "instructions":  "",
+                       "required":  1,
+                       "min":  0,
+                       "step":  1
+                   },
+                   {
+                       "key":  "field_gnf_mat_centro_estudiantes_hombres",
+                       "label":  "Cantidad de hombres",
+                       "name":  "centro_estudiantes_hombres",
+                       "type":  "number",
+                       "instructions":  "",
+                       "required":  1,
+                       "min":  0,
+                       "step":  1
+                   },
+                   {
+                       "key":  "field_gnf_mat_centro_estudiantes_mujeres",
+                       "label":  "Cantidad de mujeres",
+                       "name":  "centro_estudiantes_mujeres",
+                       "type":  "number",
+                       "instructions":  "",
+                       "required":  1,
+                       "min":  0,
+                       "step":  1
+                   },
+                   {
+                       "key":  "field_gnf_mat_centro_estudiantes_migrantes",
+                       "label":  "Estudiantes en condicion de migrantes",
+                       "name":  "centro_estudiantes_migrantes",
+                       "type":  "number",
+                       "instructions":  "",
+                       "required":  0,
+                       "min":  0,
+                       "step":  1
+                   },
+                   {
+                       "key":  "field_gnf_mat_centro_ultimo_galardon_estrellas",
+                       "label":  "Ultimo galardon logrado",
+                       "name":  "centro_ultimo_galardon_estrellas",
+                       "type":  "select",
+                       "instructions":  "",
+                       "required":  1,
+                       "choices":  {
+                                       "1":  "1 estrella",
+                                       "2":  "2 estrellas",
+                                       "3":  "3 estrellas",
+                                       "4":  "4 estrellas",
+                                       "5":  "5 estrellas"
+                                   },
+                       "default_value":  "1",
+                       "allow_null":  0,
+                       "multiple":  0,
+                       "ui":  0,
+                       "ajax":  0,
+                       "return_format":  "value",
+                       "placeholder":  ""
+                   },
+                   {
+                       "key":  "field_gnf_mat_centro_ultimo_anio_participacion",
+                       "label":  "Ultimo ano de participacion",
+                       "name":  "centro_ultimo_anio_participacion",
+                       "type":  "select",
+                       "instructions":  "",
+                       "required":  1,
+                       "choices":  {
+                                       "2025":  "2025",
+                                       "2024":  "2024",
+                                       "otro":  "Otro"
+                                   },
+                       "default_value":  "2025",
+                       "allow_null":  0,
+                       "multiple":  0,
+                       "ui":  0,
+                       "ajax":  0,
+                       "return_format":  "value",
+                       "placeholder":  ""
+                   },
+                   {
+                       "key":  "field_gnf_mat_centro_ultimo_anio_participacion_otro",
+                       "label":  "Ultimo ano de participacion (otro)",
+                       "name":  "centro_ultimo_anio_participacion_otro",
+                       "type":  "number",
+                       "instructions":  "",
+                       "required":  0,
+                       "min":  1900,
+                       "max":  2100,
+                       "step":  1,
+                       "conditional_logic":  [
+                                                 [
+                                                     {
+                                                         "field":  "field_gnf_mat_centro_ultimo_anio_participacion",
+                                                         "operator":  "==",
+                                                         "value":  "otro"
+                                                     }
+                                                 ]
+                                             ]
+                   },
+                   {
+                       "key":  "field_gnf_mat_coordinador_cargo",
+                       "label":  "Cargo coordinador(a) PBAE",
+                       "name":  "coordinador_cargo",
+                       "type":  "select",
+                       "instructions":  "",
+                       "required":  1,
+                       "choices":  {
+                                       "director":  "Director(a)",
+                                       "docente":  "Docente",
+                                       "administrativo":  "Administrativo"
+                                   },
+                       "default_value":  false,
+                       "allow_null":  0,
+                       "multiple":  0,
+                       "ui":  0,
+                       "ajax":  0,
+                       "return_format":  "value",
+                       "placeholder":  ""
+                   },
+                   {
+                       "key":  "field_gnf_mat_coordinador_nombre",
+                       "label":  "Nombre del coordinador(a) PBAE",
+                       "name":  "coordinador_nombre",
+                       "type":  "text",
+                       "instructions":  "Si el cargo es director(a), este nombre se toma de quien inscribe.",
+                       "required":  0,
+                       "conditional_logic":  [
+                                                 [
+                                                     {
+                                                         "field":  "field_gnf_mat_coordinador_cargo",
+                                                         "operator":  "!=",
+                                                         "value":  "director"
+                                                     }
+                                                 ]
+                                             ]
+                   },
+                   {
+                       "key":  "field_gnf_mat_coordinador_celular",
+                       "label":  "Numero de tel celular coordinador(a)",
+                       "name":  "coordinador_celular",
+                       "type":  "text",
+                       "instructions":  "",
+                       "required":  1
+                   },
+                   {
+                       "key":  "field_gnf_mat_tab_docente",
+                       "label":  "Datos de quien inscribe",
+                       "name":  "",
+                       "type":  "tab",
+                       "placement":  "top",
+                       "endpoint":  0
+                   },
+                   {
+                       "key":  "field_gnf_mat_docente_nombre",
+                       "label":  "Nombre completo de quien inscribe",
+                       "name":  "docente_nombre",
+                       "type":  "text",
+                       "instructions":  "",
+                       "required":  1
+                   },
+                   {
+                       "key":  "field_gnf_mat_docente_cargo",
+                       "label":  "Cargo que ocupa en el Centro Educativo",
+                       "name":  "docente_cargo",
+                       "type":  "text",
+                       "instructions":  "",
+                       "required":  1
+                   },
+                   {
+                       "key":  "field_gnf_mat_docente_telefono",
+                       "label":  "Numero de telefono personal",
+                       "name":  "docente_telefono",
+                       "type":  "text",
+                       "instructions":  "",
+                       "required":  1
+                   },
+                   {
+                       "key":  "field_gnf_mat_docente_email",
+                       "label":  "Correo electronico (para login y notificaciones)",
+                       "name":  "docente_email",
+                       "type":  "email",
+                       "instructions":  "",
+                       "required":  1
+                   },
+                   {
+                       "key":  "field_gnf_mat_docente_email_confirm",
+                       "label":  "Confirmacion de correo electronico",
+                       "name":  "docente_email_confirm",
+                       "type":  "email",
+                       "instructions":  "Validar contra el correo principal en el handler del submit.",
+                       "required":  0
+                   },
+                   {
+                       "key":  "field_gnf_mat_docente_confirmaciones",
+                       "label":  "Confirmaciones",
+                       "name":  "docente_confirmaciones",
+                       "type":  "checkbox",
+                       "instructions":  "",
+                       "required":  1,
+                       "choices":  {
+                                       "autorizado":  "Confirmo que soy docente/director/encargado autorizado para inscribir este centro.",
+                                       "terminos":  "Acepto los terminos y condiciones del programa Bandera Azul Ecologica."
+                                   },
+                       "allow_custom":  0,
+                       "default_value":  [
+
+                                         ],
+                       "layout":  "vertical",
+                       "toggle":  0,
+                       "return_format":  "value"
+                   },
+                   {
+                       "key":  "field_gnf_mat_tab_bae",
+                       "label":  "Datos Bandera Azul",
+                       "name":  "",
+                       "type":  "tab",
+                       "placement":  "top",
+                       "endpoint":  0
+                   },
+                   {
+                       "key":  "field_gnf_mat_bae_comite_estudiantes",
+                       "label":  "Cantidad de estudiantes que formaran parte del Comite BAE",
+                       "name":  "bae_comite_estudiantes",
+                       "type":  "number",
+                       "instructions":  "Requisito minimo: 1 estudiante.",
+                       "required":  1,
+                       "min":  1,
+                       "step":  1
+                   },
+                   {
+                       "key":  "field_gnf_mat_bae_inscripcion_anterior",
+                       "label":  "Estuvieron inscritos en Bandera Azul en anos anteriores?",
+                       "name":  "bae_inscripcion_anterior",
+                       "type":  "radio",
+                       "instructions":  "",
+                       "required":  1,
+                       "choices":  {
+                                       "Sí":  "Sí",
+                                       "No":  "No"
+                                   },
+                       "allow_null":  0,
+                       "other_choice":  0,
+                       "layout":  "horizontal",
+                       "return_format":  "value",
+                       "default_value":  "No"
+                   },
+                   {
+                       "key":  "field_gnf_mat_tab_retos",
+                       "label":  "Matricula de Eco Retos",
+                       "name":  "",
+                       "type":  "tab",
+                       "placement":  "top",
+                       "endpoint":  0
+                   },
+                   {
+                       "key":  "field_gnf_mat_bae_meta_estrellas",
+                       "label":  "META: Cuantas estrellas se proponen alcanzar este ano?",
+                       "name":  "bae_meta_estrellas",
+                       "type":  "radio",
+                       "instructions":  "Cada nivel de estrellas requiere completar ciertos retos base y adicionales.",
+                       "required":  1,
+                       "choices":  {
+                                       "1 estrella":  "1 estrella",
+                                       "2 estrellas":  "2 estrellas",
+                                       "3 estrellas":  "3 estrellas",
+                                       "4 estrellas":  "4 estrellas",
+                                       "5 estrellas":  "5 estrellas"
+                                   },
+                       "allow_null":  0,
+                       "other_choice":  0,
+                       "layout":  "horizontal",
+                       "return_format":  "value",
+                       "default_value":  "1 estrella"
+                   },
+                   {
+                       "key":  "field_gnf_mat_bae_retos_seleccionados",
+                       "label":  "MATRICULA DE ECO RETOS: Selecciona los eco retos que van a realizar durante el ano.",
+                       "name":  "bae_retos_seleccionados",
+                       "type":  "relationship",
+                       "instructions":  "Selecciona todos los retos en los que participara tu centro educativo este ano. Los retos obligatorios se agregan automaticamente al guardar.",
+                       "required":  1,
+                       "post_type":  [
+                                         "reto"
+                                     ],
+                       "taxonomy":  [
+
+                                    ],
+                       "filters":  [
+                                       "search"
+                                   ],
+                       "elements":  [
+                                        "featured_image"
+                                    ],
+                       "min":  1,
+                       "max":  0,
+                       "return_format":  "id"
+                   }
+               ],
+    "location":  [
+                     [
+                         {
+                             "param":  "options_page",
+                             "operator":  "==",
+                             "value":  "guardianes-config"
+                         }
+                     ]
+                 ],
+    "menu_order":  30,
+    "position":  "normal",
+    "style":  "default",
+    "label_placement":  "top",
+    "instruction_placement":  "label",
+    "hide_on_screen":  "",
+    "active":  true,
+    "description":  "Schema ACF para reemplazar solo la matricula WPForms en frontend.",
+    "show_in_rest":  0
+}
+]
+

@@ -1,0 +1,122 @@
+[
+  {
+    "type": "select",
+    "label": "¿Quienes participan?",
+    "choices": [
+      "Toda la comunidad educativa",
+      "Un grupo de estudiantes y docentes",
+      "Padres de familia"
+    ],
+    "required": true
+  },
+  {
+    "type": "select",
+    "label": "¿Desde cuándo tienen el eco emprendimiento?",
+    "choices": [
+      "Iniciamos este año",
+      "De 1 a 2 años",
+      "3 años o más"
+    ],
+    "required": true
+  },
+  {
+    "type": "text",
+    "label": "¿Cuáles actividades pedagógicas se realizaron para fomentar la educación y conciencia en este tema? Tema desarrollado:",
+    "required": true
+  },
+  {
+    "type": "select",
+    "label": "Tipo (lección, charla, taller)",
+    "choices": [
+      "Lección",
+      "Charla",
+      "Taller",
+      "Otro"
+    ],
+    "required": true
+  },
+  {
+    "type": "textarea",
+    "label": "En qué consistió:",
+    "required": true
+  },
+  {
+    "type": "number",
+    "label": "Cuántos estudiantes participaron:",
+    "required": true
+  },
+  {
+    "type": "textarea",
+    "label": "¿Cuáles hábitos y buenas prácticas ambientales se promovieron con relación al emprendimiento?",
+    "required": true
+  },
+  {
+    "type": "radio",
+    "label": "¿Lograron conectar la actividad pedagógica a temas del currículo educativo?",
+    "choices": [
+      "Sí",
+      "No"
+    ],
+    "required": true
+  },
+  {
+    "type": "text",
+    "label": "Sí: ¿a cuál materia?",
+    "required": true,
+    "conditional_logic": {
+      "field": "¿Lograron conectar la actividad pedagógica a temas del currículo educativo?",
+      "operator": "==",
+      "value": "Sí"
+    }
+  },
+  {
+    "type": "text",
+    "label": "No: ¿Cuál fue o fueron las barreras?",
+    "required": true,
+    "conditional_logic": {
+      "field": "¿Lograron conectar la actividad pedagógica a temas del currículo educativo?",
+      "operator": "==",
+      "value": "No"
+    }
+  },
+  {
+    "type": "textarea",
+    "label": "Describa puntualmente el producto o servicio del eco emprendimiento:",
+    "required": true
+  },
+  {
+    "type": "textarea",
+    "label": "¿Cuáles son las principales prácticas sostenibles del eco emprendimiento?",
+    "required": true
+  },
+  {
+    "type": "text",
+    "label": "¿Han generado ingresos a partir del ecoemprendimiento? Si es así, ¿cuál ha sido el monto en colones?",
+    "required": true
+  },
+  {
+    "type": "file",
+    "label": "Planteamiento del emprendimiento (pdf).",
+    "required": true
+  },
+  {
+    "type": "file",
+    "label": "Fotos de los procesos que evidencien la sostenibilidad y la participación estudiantil.",
+    "required": true
+  },
+  {
+    "type": "file",
+    "label": "Fotos de las actividades formativas.",
+    "required": true
+  },
+  {
+    "type": "file",
+    "label": "Manifestación como Guardianes de la Naturaleza.",
+    "required": true
+  },
+  {
+    "type": "file",
+    "label": "Evidencias de otras acciones realizadas (si las hubiera).",
+    "required": false
+  }
+]

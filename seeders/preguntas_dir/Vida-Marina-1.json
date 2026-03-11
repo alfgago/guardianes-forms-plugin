@@ -1,0 +1,88 @@
+[
+  {
+    "type": "text",
+    "label": "¿Cuáles actividades pedagógicas se realizaron para fomentar la educación y conciencia en este tema? Tema desarrollado:",
+    "required": true
+  },
+  {
+    "type": "select",
+    "label": "Tipo (lección, charla, taller)",
+    "choices": [
+      "Lección",
+      "Charla",
+      "Taller",
+      "Otro"
+    ],
+    "required": true
+  },
+  {
+    "type": "textarea",
+    "label": "En qué consistió:",
+    "required": true
+  },
+  {
+    "type": "number",
+    "label": "Cuántos estudiantes participaron:",
+    "required": true
+  },
+  {
+    "type": "checkbox",
+    "label": "¿Cuáles hábitos y buenas prácticas se inculcaron en la comunidad educativa relacionadas a este reto?",
+    "choices": [
+      "Reducir las emisiones de CO2 y el consumo de energía",
+      "Reducir los plásticos y residuos generados en el centro educativo",
+      "Uso de productos de limpieza ecológicos",
+      "Hacer compras con responsabilidad ambiental",
+      "Realizar campañas de limpieza",
+      "Evitar comprar peces de acuario de agua salada capturados de su hábitat natural",
+      "Influir un cambio en las prácticas ambientales en los hogares",
+      "Mantenerse informados sobre la situación de los océanos y la vida marina",
+      "Otros"
+    ],
+    "required": true
+  },
+  {
+    "type": "radio",
+    "label": "¿Lograron conectar la actividad pedagógica a temas del currículo educativo?",
+    "choices": [
+      "Sí",
+      "No"
+    ],
+    "required": true
+  },
+  {
+    "type": "text",
+    "label": "Sí: ¿a cuál materia?",
+    "required": true,
+    "conditional_logic": {
+      "field": "¿Lograron conectar la actividad pedagógica a temas del currículo educativo?",
+      "operator": "==",
+      "value": "Sí"
+    }
+  },
+  {
+    "type": "text",
+    "label": "No: ¿cuál fue o fueron las barreras?",
+    "required": true,
+    "conditional_logic": {
+      "field": "¿Lograron conectar la actividad pedagógica a temas del currículo educativo?",
+      "operator": "==",
+      "value": "No"
+    }
+  },
+  {
+    "type": "file",
+    "label": "Fotos de las actividades pedagógicas y acciones de concientización que evidencien la participación estudiantil.",
+    "required": true
+  },
+  {
+    "type": "file",
+    "label": "Evidencias de otras acciones realizadas (si las hubiera).",
+    "required": false
+  },
+  {
+    "type": "file",
+    "label": "Manifestación como guardianes de la Naturaleza.",
+    "required": true
+  }
+]

@@ -1,0 +1,123 @@
+[
+  {
+    "type": "number",
+    "label": "¿Cuántos árboles se sembraron? Cantidad:",
+    "required": true
+  },
+  {
+    "type": "select",
+    "label": "¿Quiénes organizaron la o las actividades de siembra o campañas de reforestación en que participaron?",
+    "choices": [
+      "El centro educativo",
+      "Una organización sin fines de lucro",
+      "Una cooperativa",
+      "La municipalidad",
+      "Una entidad estatal",
+      "Otro"
+    ],
+    "required": true
+  },
+  {
+    "type": "checkbox",
+    "label": "¿Dónde se sembraron árboles?",
+    "choices": [
+      "Dentro del centro educativo",
+      "Áreas verdes de la comunidad",
+      "Zona costera",
+      "Borde de río o quebrada",
+      "Hogar de los estudiantes",
+      "Otro"
+    ],
+    "required": true
+  },
+  {
+    "type": "text",
+    "label": "¿Cuáles actividades pedagógicas se realizaron para fomentar la educación y conciencia en este tema? Tema desarrollado:",
+    "required": true
+  },
+  {
+    "type": "select",
+    "label": "Tipo (lección, charla, taller)",
+    "choices": [
+      "Lección",
+      "Charla",
+      "Taller",
+      "Otro"
+    ],
+    "required": true
+  },
+  {
+    "type": "textarea",
+    "label": "En qué consistió:",
+    "required": true
+  },
+  {
+    "type": "number",
+    "label": "Cuántos estudiantes participaron:",
+    "required": true
+  },
+  {
+    "type": "checkbox",
+    "label": "¿Cuáles hábitos y buenas prácticas ambientales se promovieron en la comunidad educativa?",
+    "choices": [
+      "Sembrar árboles nativos, y no exóticos",
+      "Cuidar los árboles durante su crecimiento",
+      "Podar los árboles",
+      "Usar las hojas secas como abono en lugar de quemarlas",
+      "Controlar plagas de forma natural",
+      "Regar los árboles cuando está fresco",
+      "Observar y respetar la biodiversidad que se beneficia de los árboles",
+      "Otros"
+    ],
+    "required": true
+  },
+  {
+    "type": "radio",
+    "label": "¿Lograron conectar la actividad pedagógica a temas del currículo educativo?",
+    "choices": [
+      "Sí",
+      "No"
+    ],
+    "required": true
+  },
+  {
+    "type": "text",
+    "label": "Sí: ¿a cuál materia?",
+    "required": true,
+    "conditional_logic": {
+      "field": "¿Lograron conectar la actividad pedagógica a temas del currículo educativo?",
+      "operator": "==",
+      "value": "Sí"
+    }
+  },
+  {
+    "type": "text",
+    "label": "No: ¿cuál fue o fueron las barreras?",
+    "required": true,
+    "conditional_logic": {
+      "field": "¿Lograron conectar la actividad pedagógica a temas del currículo educativo?",
+      "operator": "==",
+      "value": "No"
+    }
+  },
+  {
+    "type": "file",
+    "label": "Fotos que demuestran la actividad de siembra con la participación de estudiantes.",
+    "required": true
+  },
+  {
+    "type": "file",
+    "label": "Fotos de todas las actividades pedagógicas y de concientización realizadas para este tema.",
+    "required": true
+  },
+  {
+    "type": "file",
+    "label": "Manifestación como guardianes de la naturaleza.",
+    "required": true
+  },
+  {
+    "type": "file",
+    "label": "Evidencias de otras acciones relacionadas (si hubieron).",
+    "required": false
+  }
+]

@@ -1,0 +1,271 @@
+[
+  {
+    "id": "q1",
+    "pregunta": "1. ¿Celebraron el Día Mundial de la Eficiencia Energética (5 de marzo) , Día Mundial del Ahorro de Energía (21 de octubre) u otro sobre energías? -  (si/no)",
+    "tipo_de_campo": "seleccion_unica",
+    "opciones": ["si", "no"],
+    "required": true,
+    "depends_on": null,
+    "suma_puntos": false
+  },
+  {
+    "id": "q1_1",
+    "pregunta": "1.1 - ¿Cuántos estudiantes participaron?",
+    "tipo_de_campo": "numero_entero",
+    "opciones": null,
+    "required": false,
+    "depends_on": {
+      "field": "q1",
+      "value": "si"
+    },
+    "suma_puntos": false
+  },
+  {
+    "id": "q1_2",
+    "pregunta": "1.2 - Puede agregar un comentario corto sobre esta actividad.",
+    "tipo_de_campo": "textarea",
+    "opciones": null,
+    "required": false,
+    "depends_on": {
+      "field": "q1",
+      "value": "si"
+    },
+    "suma_puntos": false
+  },
+  {
+    "id": "q1_e1",
+    "pregunta": "Fotografía de la pizarra o mural conmemorativo para una de estas celebraciones.\n5 eco pt",
+    "tipo_de_campo": "subida_archivo",
+    "opciones": null,
+    "required": false,
+    "depends_on": {
+      "field": "q1",
+      "value": "si"
+    },
+    "suma_puntos": true,
+    "puntos": 5
+  },
+  {
+    "id": "q1_e2",
+    "pregunta": "Fotografía de estudiantes durante la actividad donde se evidencie claramente que para el Día Mundial de la eficiencia energética o el Día Mundial del ahorro de Energía.\n5 eco pt",
+    "tipo_de_campo": "subida_archivo",
+    "opciones": null,
+    "required": false,
+    "depends_on": {
+      "field": "q1",
+      "value": "si"
+    },
+    "suma_puntos": true,
+    "puntos": 5
+  },
+  {
+    "id": "q2",
+    "pregunta": "2. ¿Realizaron charla o lección sobre ahorro energético, uso responsable de la electricidad, u otro sobre el tema de energías renovables? -  (si/no)",
+    "tipo_de_campo": "seleccion_unica",
+    "opciones": ["si", "no"],
+    "required": true,
+    "depends_on": null,
+    "suma_puntos": false
+  },
+  {
+    "id": "q2_1",
+    "pregunta": "2.1 - ¿Cuántos estudiantes participaron?",
+    "tipo_de_campo": "numero_entero",
+    "opciones": null,
+    "required": false,
+    "depends_on": {
+      "field": "q2",
+      "value": "si"
+    },
+    "suma_puntos": false
+  },
+  {
+    "id": "q2_2",
+    "pregunta": "2.2 - Puede agregar un comentario corto sobre esta actividad.",
+    "tipo_de_campo": "textarea",
+    "opciones": null,
+    "required": false,
+    "depends_on": {
+      "field": "q2",
+      "value": "si"
+    },
+    "suma_puntos": false
+  },
+  {
+    "id": "q2_e1",
+    "pregunta": "Fotografía de la sección del planeamiento docente de esta actividad (si lo tienen).\n 5 eco pts",
+    "tipo_de_campo": "subida_archivo",
+    "opciones": null,
+    "required": false,
+    "depends_on": {
+      "field": "q2",
+      "value": "si"
+    },
+    "suma_puntos": true,
+    "puntos": 5
+  },
+  {
+    "id": "q2_e2",
+    "pregunta": "REQUISITO - Fotografía en la que se vea claramente que el recurso educativo usado está relacionado al tema de energías sea video, presentación, hoja de trabajo u otro (diferente al realizado en la celebración de fecha ambiental).\n5 eco pts",
+    "tipo_de_campo": "subida_archivo",
+    "opciones": null,
+    "required": true,
+    "depends_on": {
+      "field": "q2",
+      "value": "si"
+    },
+    "suma_puntos": true,
+    "puntos": 5
+  },
+  {
+    "id": "q2_e3",
+    "pregunta": "REQUISITO - Fotografía o mini video (1 minuto) de los estudiantes durante la actividad educativa (diferente a actividad 1 de fecha ambiental).\n5 eco pts",
+    "tipo_de_campo": "subida_archivo",
+    "opciones": null,
+    "required": true,
+    "depends_on": {
+      "field": "q2",
+      "value": "si"
+    },
+    "suma_puntos": true,
+    "puntos": 5
+  },
+  {
+    "id": "q3",
+    "pregunta": "3. ¿Rotularon para fomentar buenos hábitos de ahorro energético? -  (si/no)",
+    "tipo_de_campo": "seleccion_unica",
+    "opciones": ["si", "no"],
+    "required": true,
+    "depends_on": null,
+    "suma_puntos": false
+  },
+  {
+    "id": "q3_e1",
+    "pregunta": "REQUISITO - Fotografía de rotulación ya colocada en apagadores  para fomentar hábitos de ahorro energético.\n\n5 eco pts",
+    "tipo_de_campo": "subida_archivo",
+    "opciones": null,
+    "required": true,
+    "depends_on": {
+      "field": "q3",
+      "value": "si"
+    },
+    "suma_puntos": true,
+    "puntos": 5
+  },
+  {
+    "id": "q3_e2",
+    "pregunta": "REQUISITO - Fotografía de rotulación (en área diferente a la anterior) ya colocada en apagadores para fomentar hábitos de ahorro energético.\n5 eco pts",
+    "tipo_de_campo": "subida_archivo",
+    "opciones": null,
+    "required": true,
+    "depends_on": {
+      "field": "q3",
+      "value": "si"
+    },
+    "suma_puntos": true,
+    "puntos": 5
+  },
+  {
+    "id": "q4",
+    "pregunta": "4. ¿Realizaron un monitoreo estudiantil de buenas prácticas para el ahorro energético? -  (si/no)",
+    "tipo_de_campo": "seleccion_unica",
+    "opciones": ["si", "no"],
+    "required": true,
+    "depends_on": null,
+    "suma_puntos": false
+  },
+  {
+    "id": "q4_1",
+    "pregunta": "4.1 - ¿Cuántos estudiantes participaron?",
+    "tipo_de_campo": "numero_entero",
+    "opciones": null,
+    "required": false,
+    "depends_on": {
+      "field": "q4",
+      "value": "si"
+    },
+    "suma_puntos": false
+  },
+  {
+    "id": "q4_2",
+    "pregunta": "4.2 - Puede agregar un comentario corto sobre esta actividad.",
+    "tipo_de_campo": "textarea",
+    "opciones": null,
+    "required": false,
+    "depends_on": {
+      "field": "q4",
+      "value": "si"
+    },
+    "suma_puntos": false
+  },
+  {
+    "id": "q4_e1",
+    "pregunta": "Fotografía de los estudiantes realizando el monitoreo (actividad sugerida para eco brigadas).\n5 eco pts",
+    "tipo_de_campo": "subida_archivo",
+    "opciones": null,
+    "required": false,
+    "depends_on": {
+      "field": "q4",
+      "value": "si"
+    },
+    "suma_puntos": true,
+    "puntos": 5
+  },
+  {
+    "id": "q4_e2",
+    "pregunta": "Fotografía de los resultados del monitoreo realizado con firma de recibido de dirección (actividad sugerida para brigadas o para el gobierno estudiantil).\n5 eco pts",
+    "tipo_de_campo": "subida_archivo",
+    "opciones": null,
+    "required": false,
+    "depends_on": {
+      "field": "q4",
+      "value": "si"
+    },
+    "suma_puntos": true,
+    "puntos": 5
+  },
+  {
+    "id": "q5",
+    "pregunta": "5. ¿Realizaron reparaciones y/o mejoras? -  (si/no)",
+    "tipo_de_campo": "seleccion_unica",
+    "opciones": ["si", "no"],
+    "required": true,
+    "depends_on": null,
+    "suma_puntos": false
+  },
+  {
+    "id": "q5_e1",
+    "pregunta": "Fotografía en la que se observa la reparación o mejora realizada (cambio de iluminación LED, reparación de cableado, sustitución de equipo ineficiente, instalación de sensores, u otros, etc.).\n5 eco pts",
+    "tipo_de_campo": "subida_archivo",
+    "opciones": null,
+    "required": false,
+    "depends_on": {
+      "field": "q5",
+      "value": "si"
+    },
+    "suma_puntos": true,
+    "puntos": 5
+  },
+  {
+    "id": "q6",
+    "pregunta": "6. ¿Cuentan con el consumo de energía de enero a noviembre del año pasado? -  (si/no)",
+    "tipo_de_campo": "seleccion_unica",
+    "opciones": ["si", "no"],
+    "required": true,
+    "depends_on": null,
+    "suma_puntos": false
+  },
+  {
+    "id": "q6_e1",
+    "pregunta": "Aportar los datos completos de consumo de energía de enero a noviembre únicamente del año 2025. Los datos del año actual no se solicitarán.\n5 eco pts",
+    "tipo_de_campo": "subida_archivo",
+    "opciones": null,
+    "required": false,
+    "depends_on": {
+      "field": "q6",
+      "value": "si"
+    },
+    "suma_puntos": true,
+    "puntos": 5
+  }
+]

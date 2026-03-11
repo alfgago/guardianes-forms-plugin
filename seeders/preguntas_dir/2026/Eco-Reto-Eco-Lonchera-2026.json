@@ -1,0 +1,101 @@
+[
+  {
+    "id": "q1",
+    "pregunta": "1. ¿Promovieron loncheras saludables cero residuos? (primaria) -  (si/no)",
+    "tipo_de_campo": "seleccion_unica",
+    "opciones": ["si", "no"],
+    "required": true,
+    "depends_on": null,
+    "suma_puntos": false
+  },
+  {
+    "id": "q1_e1",
+    "pregunta": "Fotografía de comunicado al hogar solicitando que envíen del hogar loncheras saludables cero residuos: con alimentos caseros, saludables, en recipientes reutilizables.\n5 eco pt",
+    "tipo_de_campo": "subida_archivo",
+    "opciones": null,
+    "required": false,
+    "depends_on": {
+      "field": "q1",
+      "value": "si"
+    },
+    "suma_puntos": true,
+    "puntos": 5
+  },
+  {
+    "id": "q1_e2",
+    "pregunta": "Fotografía de padres de familia  recibiendo una charla formal sobre nutrición, en la que se observe claramente que el recurso utilizado (video o presentación) está relacionado a nutrición.\n10 eco pt",
+    "tipo_de_campo": "subida_archivo",
+    "opciones": null,
+    "required": false,
+    "depends_on": {
+      "field": "q1",
+      "value": "si"
+    },
+    "suma_puntos": true,
+    "puntos": 10
+  },
+  {
+    "id": "q1_e3",
+    "pregunta": "Fotografía de la soda de la escuela (si tienen) donde se observa claramente que los productos a la venta son saludables y cumplen con el Reglamento para el Funcionamiento y Administración de las Sodas en Centros Educativos. \n5 eco pt",
+    "tipo_de_campo": "subida_archivo",
+    "opciones": null,
+    "required": false,
+    "depends_on": {
+      "field": "q1",
+      "value": "si"
+    },
+    "suma_puntos": true,
+    "puntos": 5
+  },
+  {
+    "id": "q2",
+    "pregunta": "2. ¿Promovieron loncheras saludables cero residuos? (secundaria) -  (si/no)",
+    "tipo_de_campo": "seleccion_unica",
+    "opciones": ["si", "no"],
+    "required": true,
+    "depends_on": {
+      "field": "q1",
+      "value": "no"
+    },
+    "suma_puntos": false
+  },
+  {
+    "id": "q2_e1",
+    "pregunta": "Foto de algún recurso usado para una campaña dirigida a los estudiantes para que traigan “loncheras saludables cero residuos”: alimentos caseros, saludables y en recipientes reutilizables. \n5 eco pts",
+    "tipo_de_campo": "subida_archivo",
+    "opciones": null,
+    "required": false,
+    "depends_on": {
+      "field": "q2",
+      "value": "si"
+    },
+    "suma_puntos": true,
+    "puntos": 5
+  },
+  {
+    "id": "q2_e2",
+    "pregunta": "Fotografía de estudiantes de secundaria recibiendo una charla formal sobre nutrición, en la que se observe claramente que el recurso utilizado (video o presentación) está relacionado a nutrición.\n10 eco pt",
+    "tipo_de_campo": "subida_archivo",
+    "opciones": null,
+    "required": false,
+    "depends_on": {
+      "field": "q2",
+      "value": "si"
+    },
+    "suma_puntos": true,
+    "puntos": 10
+  },
+  {
+    "id": "q2_e3",
+    "pregunta": "Fotografía de la soda del colegio (si tienen) donde se observa claramente que los productos a la venta son saludables y cumplen con el Reglamento para el Funcionamiento y Administración de las Sodas en Centros Educativos. \n5 eco pts",
+    "tipo_de_campo": "subida_archivo",
+    "opciones": null,
+    "required": false,
+    "depends_on": {
+      "field": "q2",
+      "value": "si"
+    },
+    "suma_puntos": true,
+    "puntos": 5
+  }
+]

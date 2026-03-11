@@ -1,0 +1,87 @@
+:root {
+  /* Primary */
+  --gnf-ocean: #1e5f8a;
+  --gnf-ocean-dark: #164a6b;
+  --gnf-ocean-light: #2d7eb3;
+  --gnf-forest: #2d8a5f;
+  --gnf-forest-dark: #22694a;
+  --gnf-forest-light: #3ba876;
+
+  /* Accent */
+  --gnf-leaf: #4ade80;
+  --gnf-leaf-light: #86efac;
+  --gnf-sky: #e8f4f8;
+  --gnf-sky-dark: #cce8f0;
+  --gnf-sand: #faf7f2;
+  --gnf-earth: #8b7355;
+  --gnf-coral: #ef6b4a;
+  --gnf-coral-light: #fecaca;
+  --gnf-sun: #fbbf24;
+  --gnf-sun-light: #fef3c7;
+
+  /* Neutrals */
+  --gnf-white: #ffffff;
+  --gnf-gray-50: #f8fafc;
+  --gnf-gray-100: #f1f5f9;
+  --gnf-gray-200: #e2e8f0;
+  --gnf-gray-300: #cbd5e1;
+  --gnf-gray-400: #94a3b8;
+  --gnf-gray-500: #64748b;
+  --gnf-gray-600: #475569;
+  --gnf-gray-700: #334155;
+  --gnf-gray-800: #1e293b;
+  --gnf-gray-900: #0f172a;
+
+  /* Semantic aliases */
+  --gnf-primary: var(--gnf-forest);
+  --gnf-primary-dark: var(--gnf-forest-dark);
+  --gnf-secondary: var(--gnf-gray-100);
+  --gnf-text: var(--gnf-gray-800);
+  --gnf-muted: var(--gnf-gray-500);
+  --gnf-border: var(--gnf-gray-200);
+
+  /* Estado colors */
+  --gnf-estado-no_iniciado: var(--gnf-gray-400);
+  --gnf-estado-en_progreso: var(--gnf-ocean);
+  --gnf-estado-completo: var(--gnf-forest);
+  --gnf-estado-enviado: var(--gnf-sun);
+  --gnf-estado-aprobado: var(--gnf-leaf);
+  --gnf-estado-correccion: var(--gnf-coral);
+
+  /* Typography */
+  --gnf-font-display: 'League Spartan', -apple-system, BlinkMacSystemFont, sans-serif;
+  --gnf-font-body: 'League Spartan', -apple-system, BlinkMacSystemFont, sans-serif;
+
+  /* Spacing */
+  --gnf-space-1: 4px;
+  --gnf-space-2: 8px;
+  --gnf-space-3: 12px;
+  --gnf-space-4: 16px;
+  --gnf-space-5: 20px;
+  --gnf-space-6: 24px;
+  --gnf-space-8: 32px;
+  --gnf-space-10: 40px;
+  --gnf-space-12: 48px;
+
+  /* Radius */
+  --gnf-radius-sm: 6px;
+  --gnf-radius: 12px;
+  --gnf-radius-lg: 16px;
+  --gnf-radius-xl: 24px;
+  --gnf-radius-full: 9999px;
+
+  /* Shadows */
+  --gnf-shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --gnf-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  --gnf-shadow-md: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  --gnf-shadow-lg: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+
+  /* Transitions */
+  --gnf-transition-fast: 150ms ease;
+  --gnf-transition: 200ms ease;
+  --gnf-transition-slow: 300ms ease;
+
+  /* Layout */
+  --gnf-sidebar-width: 260px;
+  --gnf-topbar-height: 56px;
+}

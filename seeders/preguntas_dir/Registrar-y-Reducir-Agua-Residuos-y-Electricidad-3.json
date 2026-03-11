@@ -1,0 +1,208 @@
+[
+  {
+    "type": "select",
+    "label": "¿Desde cuándo llevan el registro de consumo de agua?",
+    "choices": [
+      "Primer año",
+      "2 años",
+      "3 años",
+      "+ de 4 años"
+    ],
+    "required": true
+  },
+  {
+    "type": "radio",
+    "label": "¿Lograron una reducción del consumo de agua con relación al año anterior?",
+    "choices": [
+      "Sí",
+      "No"
+    ],
+    "required": true
+  },
+  {
+    "type": "number",
+    "label": "¿Si tu respuesta fue “SÍ” cuál fue el porcentaje de ahorro con relación al año anterior? Total de consumo de enero 2025 a octubre 2025: __________ m3",
+    "required": true,
+    "conditional_logic": {
+      "field": "¿Lograron una reducción del consumo de agua con relación al año anterior?",
+      "operator": "==",
+      "value": "Sí"
+    }
+  },
+  {
+    "type": "number",
+    "label": "Total de consumo de enero 2024 a octubre 2024: __________ m3",
+    "required": true,
+    "conditional_logic": {
+      "field": "¿Lograron una reducción del consumo de agua con relación al año anterior?",
+      "operator": "==",
+      "value": "Sí"
+    }
+  },
+  {
+    "type": "number",
+    "label": "Total m3 ahorrados: ______",
+    "required": true,
+    "conditional_logic": {
+      "field": "¿Lograron una reducción del consumo de agua con relación al año anterior?",
+      "operator": "==",
+      "value": "Sí"
+    }
+  },
+  {
+    "type": "number",
+    "label": "Total m3 ahorrados por persona:____________",
+    "required": true,
+    "conditional_logic": {
+      "field": "¿Lograron una reducción del consumo de agua con relación al año anterior?",
+      "operator": "==",
+      "value": "Sí"
+    }
+  },
+  {
+    "type": "number",
+    "label": "El porcentaje de ahorro logrado fue de _____ % (Agua)",
+    "required": true,
+    "conditional_logic": {
+      "field": "¿Lograron una reducción del consumo de agua con relación al año anterior?",
+      "operator": "==",
+      "value": "Sí"
+    }
+  },
+  {
+    "type": "textarea",
+    "label": "Si tu respuesta fue \"NO\" (Agua), describe las causas:",
+    "required": true,
+    "conditional_logic": {
+      "field": "¿Lograron una reducción del consumo de agua con relación al año anterior?",
+      "operator": "==",
+      "value": "No"
+    }
+  },
+  {
+    "type": "select",
+    "label": "¿Desde cuándo llevan el registro de generación de residuos sólidos?",
+    "choices": [
+      "Primer año",
+      "2 años",
+      "3 años",
+      "+ de 4 años"
+    ],
+    "required": true
+  },
+  {
+    "type": "number",
+    "label": "RESIDUOS VALORIZABLES (reciclables): Total de abril a octubre 2025 ______ kilos",
+    "required": true
+  },
+  {
+    "type": "number",
+    "label": "RESIDUOS VALORIZABLES (reciclables): Total de abril a octubre 2024_____ kilos",
+    "required": true
+  },
+  {
+    "type": "number",
+    "label": "RESIDUOS NO VALORIZABLES (basura): Total de abril a octubre 2025 ______ bolsas",
+    "required": true
+  },
+  {
+    "type": "number",
+    "label": "RESIDUOS NO VALORIZABLES (basura): Total de abril a octubre 2024_____ bolsas",
+    "required": true
+  },
+  {
+    "type": "text",
+    "label": "Describa las causas si no lograron reducción en los residuos valorizables (reciclables)__",
+    "required": false
+  },
+  {
+    "type": "text",
+    "label": "Describa las causas si no lograron reducción en los residuos no valorizables (basura)__",
+    "required": false
+  },
+  {
+    "type": "select",
+    "label": "Desde cuándo llevan el registro de consumo eléctrico?",
+    "choices": [
+      "Primer año",
+      "2 años",
+      "3 años",
+      "+ de 4 años"
+    ],
+    "required": true
+  },
+  {
+    "type": "radio",
+    "label": "¿Lograron una reducción del consumo con relación al año anterior? (Energía)",
+    "choices": [
+      "Sí",
+      "No"
+    ],
+    "required": true
+  },
+  {
+    "type": "number",
+    "label": "¿Si tu respuesta fue “SÍ” cuál fue el porcentaje de ahorro con relación al año anterior? Total de consumo de enero 2025 a octubre 2025: __________ kWh",
+    "required": true,
+    "conditional_logic": {
+      "field": "¿Lograron una reducción del consumo con relación al año anterior? (Energía)",
+      "operator": "==",
+      "value": "Sí"
+    }
+  },
+  {
+    "type": "number",
+    "label": "Total de consumo de enero 2024 a octubre 2024: __________ kWh",
+    "required": true,
+    "conditional_logic": {
+      "field": "¿Lograron una reducción del consumo con relación al año anterior? (Energía)",
+      "operator": "==",
+      "value": "Sí"
+    }
+  },
+  {
+    "type": "number",
+    "label": "kWh ahorrados ______________",
+    "required": true,
+    "conditional_logic": {
+      "field": "¿Lograron una reducción del consumo con relación al año anterior? (Energía)",
+      "operator": "==",
+      "value": "Sí"
+    }
+  },
+  {
+    "type": "number",
+    "label": "kWh ahorrado por persona____________________",
+    "required": true,
+    "conditional_logic": {
+      "field": "¿Lograron una reducción del consumo con relación al año anterior? (Energía)",
+      "operator": "==",
+      "value": "Sí"
+    }
+  },
+  {
+    "type": "number",
+    "label": "El porcentaje de ahorro logrado fue de _____ % (Energía)",
+    "required": true,
+    "conditional_logic": {
+      "field": "¿Lograron una reducción del consumo con relación al año anterior? (Energía)",
+      "operator": "==",
+      "value": "Sí"
+    }
+  },
+  {
+    "type": "textarea",
+    "label": "Si tu respuesta fue \"NO\" (Energía), describe las causas",
+    "required": true,
+    "conditional_logic": {
+      "field": "¿Lograron una reducción del consumo con relación al año anterior? (Energía)",
+      "operator": "==",
+      "value": "No"
+    }
+  },
+  {
+    "type": "file",
+    "label": "EvidenciasTablas BAE",
+    "required": true
+  }
+]

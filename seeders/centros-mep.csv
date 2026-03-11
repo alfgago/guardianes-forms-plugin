@@ -1,0 +1,21 @@
+codigo_mep,nombre,direccion_regional,circuito,canton,provincia,distrito,poblado,dependencia,zona,telefono1
+0001,Escuela Central San José,San José Central,01-01,San José,San José,Hospital,Barrio Amón,Pública,Urbana,2222-1111
+0002,Colegio Científico de San José,San José Central,01-02,San José,San José,Catedral,Barrio Escalante,Pública,Urbana,2222-2222
+0003,Escuela Braulio Morales,San José Norte,02-01,Tibás,San José,San Juan,León XIII,Pública,Urbana,2235-1234
+0004,Liceo de Heredia,Heredia,03-01,Heredia,Heredia,Mercedes,Centro,Pública,Urbana,2237-4444
+0005,Escuela Carlos Sanabria,Heredia,03-02,Santo Domingo,Heredia,Santa Rosa,Paracito,Pública,Rural,2244-5555
+0006,Colegio Técnico Profesional de Cartago,Cartago,04-01,Cartago,Cartago,Oriental,El Carmen,Pública,Urbana,2551-1111
+0007,Escuela Mauro Fernández,Cartago,04-02,Oreamuno,Cartago,San Rafael,Cipreses,Pública,Rural,2536-2222
+0008,Liceo de Limón,Limón,05-01,Limón,Limón,Limón,Centro,Pública,Urbana,2758-1234
+0009,Escuela Sixaola,Limón,05-02,Talamanca,Limón,Sixaola,Progreso,Pública,Rural,2754-2345
+0010,Liceo de Liberia,Guanacaste,06-01,Liberia,Guanacaste,Liberia,Centro,Pública,Urbana,2665-1111
+0011,Escuela La Cruz,Guanacaste,06-02,La Cruz,Guanacaste,La Cruz,Centro,Pública,Rural,2679-2222
+0012,Colegio Técnico Profesional de Puntarenas,Puntarenas,07-01,Puntarenas,Puntarenas,Puntarenas,Centro,Pública,Urbana,2661-3333
+0013,Escuela de Quepos,Aguirre,07-02,Quepos,Puntarenas,Quepos,Centro,Pública,Urbana,2777-1234
+0014,Liceo de Alajuela,Alajuela,08-01,Alajuela,Alajuela,Alajuela,Centro,Pública,Urbana,2440-1111
+0015,Escuela José Martí,Alajuela,08-02,Grecia,Alajuela,Grecia,Centro,Pública,Urbana,2494-2222
+0016,Colegio Técnico Profesional de San Carlos,Zona Norte,09-01,San Carlos,Alajuela,Quesada,Centro,Pública,Urbana,2460-3333
+0017,Escuela Río Frío,Sarapiquí,09-02,Sarapiquí,Heredia,Puerto Viejo,Río Frío,Pública,Rural,2766-4444
+0018,Liceo Diurno de Desamparados,San José Sur,10-01,Desamparados,San José,Desamparados,Centro,Pública,Urbana,2259-5555
+0019,Escuela Óscar Bonilla,San José Oeste,10-02,Escazú,San José,Escazú,San Rafael,Pública,Urbana,2228-6666
+0020,Colegio Nocturno de San José,San José Central,01-03,San José,San José,Merced,Barrio México,Pública,Urbana,2221-7777

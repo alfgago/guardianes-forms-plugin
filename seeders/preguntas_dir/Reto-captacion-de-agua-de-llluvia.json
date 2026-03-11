@@ -1,0 +1,112 @@
+[
+  {
+    "type": "text",
+    "label": "¿Cuáles actividades pedagógicas se realizaron para fomentar la educación y conciencia en este tema? Tema desarrollado:",
+    "required": true
+  },
+  {
+    "type": "select",
+    "label": "Tipo (lección, charla, taller)",
+    "choices": [
+      "Lección",
+      "Charla",
+      "Taller",
+      "Otro"
+    ],
+    "required": true
+  },
+  {
+    "type": "textarea",
+    "label": "En qué consistió:",
+    "required": true
+  },
+  {
+    "type": "number",
+    "label": "Cuántos estudiantes participaron:",
+    "required": true
+  },
+  {
+    "type": "checkbox",
+    "label": "¿Cuáles hábitos y buenas prácticas se inculcaron a funcionarios y estudiantes con relación al sistema de captación de agua llovida?",
+    "choices": [
+      "Ahorrar el agua recolectada",
+      "Cerrar la llave mientras no se use el agua",
+      "Ser vigilantes e informar de fugas o deterioro del sistema",
+      "Detectar goteos y cerrar bien el tubo",
+      "Identificarse como guardianes de la naturaleza",
+      "Regar las plantas con regadera",
+      "Colocar botellas de arena en los inodoros",
+      "Otros"
+    ],
+    "required": true
+  },
+  {
+    "type": "checkbox",
+    "label": "¿Cuáles son los usos que dan al agua de lluvia captada?",
+    "choices": [
+      "Consumo humano (siempre y cuando se potabilice antes de ingerirla)",
+      "Servicios sanitarios",
+      "Lavado de manos",
+      "Lavado de alimentos en el comedor",
+      "Lavado de trastes",
+      "Limpieza de la institución",
+      "Limpieza de aceras",
+      "Huerta",
+      "Riego de árboles y el jardín",
+      "Agua para mascotas o animales de granja",
+      "Bañar animales de granja o mascotas",
+      "Protección contra incendios",
+      "Otros"
+    ],
+    "required": true
+  },
+  {
+    "type": "radio",
+    "label": "¿Lograron conectar la actividad pedagógica a temas del currículo educativo?",
+    "choices": [
+      "Sí",
+      "No"
+    ],
+    "required": true
+  },
+  {
+    "type": "text",
+    "label": "Sí: ¿a cuál materia?",
+    "required": true,
+    "conditional_logic": {
+      "field": "¿Lograron conectar la actividad pedagógica a temas del currículo educativo?",
+      "operator": "==",
+      "value": "Sí"
+    }
+  },
+  {
+    "type": "text",
+    "label": "No: ¿cuál fue o fueron las barreras?",
+    "required": true,
+    "conditional_logic": {
+      "field": "¿Lograron conectar la actividad pedagógica a temas del currículo educativo?",
+      "operator": "==",
+      "value": "No"
+    }
+  },
+  {
+    "type": "file",
+    "label": "Fotos que demuestran el desarrollo, mejoras o mantenimiento del sistema de captación de agua llovida.",
+    "required": true
+  },
+  {
+    "type": "file",
+    "label": "Fotos de las actividades pedagógicas y de concientización realizadas para este tema.",
+    "required": true
+  },
+  {
+    "type": "file",
+    "label": "Manifestación como guardianes de la naturaleza.",
+    "required": true
+  },
+  {
+    "type": "file",
+    "label": "Evidencias de otras acciones relacionadas (si hubieron).",
+    "required": false
+  }
+]

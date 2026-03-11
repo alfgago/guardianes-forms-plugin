@@ -1,0 +1,67 @@
+[
+  {
+    "type": "number",
+    "label": "¿Cuántos estudiantes y sus familias participaron?",
+    "required": true
+  },
+  {
+    "type": "text",
+    "label": "¿Cuáles fueron los dos eco retos con mayor participación por los estudiantes? 1.",
+    "required": true
+  },
+  {
+    "type": "text",
+    "label": "2.",
+    "required": true
+  },
+  {
+    "type": "checkbox",
+    "label": "¿Cuáles actividades pedagógicas y de sensibilización realizaron?",
+    "choices": [
+      "Presentar las opciones de eco retos para el hogar para estudiantes y padres de familia",
+      "Estrategias educativas para concientizar sobre la importancia de realizar estas acciones en el hogar.",
+      "Involucrar a los estudiantes en otros eco retos llevados a cabo en el centro educativo para ganar la Bandera Azul Ecológica.",
+      "Fortalecer valores y buenas prácticas ambientales"
+    ],
+    "required": true
+  },
+  {
+    "type": "radio",
+    "label": "¿Lograron conectar la actividad pedagógica a temas del currículo educativo?",
+    "choices": [
+      "Sí",
+      "No"
+    ],
+    "required": true
+  },
+  {
+    "type": "text",
+    "label": "Sí: ¿a cuál materia?",
+    "required": true,
+    "conditional_logic": {
+      "field": "¿Lograron conectar la actividad pedagógica a temas del currículo educativo?",
+      "operator": "==",
+      "value": "Sí"
+    }
+  },
+  {
+    "type": "text",
+    "label": "No: ¿Cuál fue o fueron las barreras?",
+    "required": true,
+    "conditional_logic": {
+      "field": "¿Lograron conectar la actividad pedagógica a temas del currículo educativo?",
+      "operator": "==",
+      "value": "No"
+    }
+  },
+  {
+    "type": "file",
+    "label": "Fotos de evidencias de las acciones pedagógicas para educar y motivar a los estudiantes.",
+    "required": true
+  },
+  {
+    "type": "file",
+    "label": "Fotos de los eco retos de los estudiantes desde el hogar",
+    "required": true
+  }
+]

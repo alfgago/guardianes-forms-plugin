@@ -1,0 +1,103 @@
+[
+  {
+    "type": "textarea",
+    "label": "¿Qué consideran que fue lo más significativo de realizar este reto?",
+    "required": true
+  },
+  {
+    "type": "textarea",
+    "label": "Si fue una sola obra o actividad artística ¿Cuál fue el mensaje expresado? Si fueron varias, ¿cuál fue el mensaje más recurrente?",
+    "required": true
+  },
+  {
+    "type": "number",
+    "label": "¿Cuántos estudiantes participaron?",
+    "required": true
+  },
+  {
+    "type": "checkbox",
+    "label": "¿En qué consistió la obra o actividad artística realizada?",
+    "choices": [
+      "Canción",
+      "Dramatización",
+      "Dibujo",
+      "Poesía",
+      "Mural",
+      "Arte con Reciclaje",
+      "Pintura",
+      "Canción \"Yo soy Guardián\" (Youtube)",
+      "Otros"
+    ],
+    "required": true
+  },
+  {
+    "type": "text",
+    "label": "¿Cuáles actividades pedagógicas se realizaron para fomentar la educación y conciencia en este tema? Tema desarrollado:",
+    "required": true
+  },
+  {
+    "type": "select",
+    "label": "Tipo (lección, charla, taller)",
+    "choices": [
+      "Lección",
+      "Charla",
+      "Taller",
+      "Otro"
+    ],
+    "required": true
+  },
+  {
+    "type": "textarea",
+    "label": "En qué consistió:",
+    "required": true
+  },
+  {
+    "type": "number",
+    "label": "Cuántos estudiantes participaron:",
+    "required": true
+  },
+  {
+    "type": "radio",
+    "label": "¿Lograron conectar la actividad pedagógica a temas del currículo educativo?",
+    "choices": [
+      "Sí",
+      "No"
+    ],
+    "required": true
+  },
+  {
+    "type": "text",
+    "label": "Sí: ¿a cuál materia?",
+    "required": true,
+    "conditional_logic": {
+      "field": "¿Lograron conectar la actividad pedagógica a temas del currículo educativo?",
+      "operator": "==",
+      "value": "Sí"
+    }
+  },
+  {
+    "type": "text",
+    "label": "No: ¿cuál fue o fueron las barreras?",
+    "required": true,
+    "conditional_logic": {
+      "field": "¿Lograron conectar la actividad pedagógica a temas del currículo educativo?",
+      "operator": "==",
+      "value": "No"
+    }
+  },
+  {
+    "type": "file",
+    "label": "Mensaje expresado por los estudiantes a través de su obra artística (audio, video, rótulo, foto).",
+    "required": true
+  },
+  {
+    "type": "file",
+    "label": "Fotos de la o las obra (s) o actividad artística que evidencien la participación estudiantil.",
+    "required": true
+  },
+  {
+    "type": "file",
+    "label": "Manifestación como guardianes de la Naturaleza.",
+    "required": true
+  }
+]

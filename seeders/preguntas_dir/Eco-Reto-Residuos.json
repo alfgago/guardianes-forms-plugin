@@ -1,0 +1,152 @@
+[
+  {
+    "type": "radio",
+    "label": "¿Realizaron revisiones periódicas del o los puntos ecológicos para un buen estado y manejo?",
+    "choices": [
+      "Sí",
+      "No"
+    ],
+    "required": true
+  },
+  {
+    "type": "radio",
+    "label": "¿Realizaron reparaciones o mejoras al punto ecológico?",
+    "choices": [
+      "Sí",
+      "No"
+    ],
+    "required": true
+  },
+  {
+    "type": "textarea",
+    "label": "Si la respuesta anterior fue “SÍ” describa las reparaciones o las mejoras realizadas:",
+    "required": true,
+    "conditional_logic": {
+      "field": "¿Realizaron reparaciones o mejoras al punto ecológico?",
+      "operator": "==",
+      "value": "Sí"
+    }
+  },
+  {
+    "type": "text",
+    "label": "¿Cuáles actividades pedagógicas se realizaron para fomentar la educación y conciencia en este tema? Tema desarrollado:",
+    "required": true
+  },
+  {
+    "type": "select",
+    "label": "Tipo (lección, charla, taller)",
+    "choices": [
+      "Lección",
+      "Charla",
+      "Taller",
+      "Otro"
+    ],
+    "required": true
+  },
+  {
+    "type": "textarea",
+    "label": "En qué consistió:",
+    "required": true
+  },
+  {
+    "type": "number",
+    "label": "Cuántos estudiantes participaron:",
+    "required": true
+  },
+  {
+    "type": "checkbox",
+    "label": "¿Cuáles hábitos y buenas prácticas ambientales se promovieron en la comunidad educativa?",
+    "choices": [
+      "Prohibir los desechables",
+      "Prohibir el uso del estereofón, fon y otros materiales no reciclables y dañinos al ambiente.",
+      "Usar correctamente el punto ecológico.",
+      "Lavar los recipientes tetrapack y botellas antes de depositarlos.",
+      "Ser vigilantes y recoger residuos tirados.",
+      "Reciclables: limpios, secos y separados",
+      "Promover eventos cero residuos.",
+      "Reducir mediante la reutilización de papel en el aula.",
+      "Promover las meriendas saludables.",
+      "Mantener pupitres limpios y ordenados.",
+      "Otros"
+    ],
+    "required": true
+  },
+  {
+    "type": "radio",
+    "label": "¿Implementaron nuevas directrices o políticas institucionales para reducir la generación o ingreso de residuos, o para el adecuado manejo de los mismos?",
+    "choices": [
+      "Sí",
+      "No"
+    ],
+    "required": true
+  },
+  {
+    "type": "textarea",
+    "label": "¿Si tu respuesta anterior fue “SÍ” cuáles fueron esas directrices o políticas?",
+    "required": true,
+    "conditional_logic": {
+      "field": "¿Implementaron nuevas directrices o políticas institucionales para reducir la generación o ingreso de residuos, o para el adecuado manejo de los mismos?",
+      "operator": "==",
+      "value": "Sí"
+    }
+  },
+  {
+    "type": "radio",
+    "label": "¿Lograron conectar la actividad pedagógica a temas del currículo educativo?",
+    "choices": [
+      "Sí",
+      "No"
+    ],
+    "required": true
+  },
+  {
+    "type": "text",
+    "label": "Sí: ¿a cuál materia?",
+    "required": true,
+    "conditional_logic": {
+      "field": "¿Lograron conectar la actividad pedagógica a temas del currículo educativo?",
+      "operator": "==",
+      "value": "Sí"
+    }
+  },
+  {
+    "type": "text",
+    "label": "No: ¿Cuál fue o fueron las barreras?",
+    "required": true,
+    "conditional_logic": {
+      "field": "¿Lograron conectar la actividad pedagógica a temas del currículo educativo?",
+      "operator": "==",
+      "value": "No"
+    }
+  },
+  {
+    "type": "file",
+    "label": "Fotos de las buenas prácticas y hábitos para la adecuada gestión de los residuos por parte de estudiantes y del personal.",
+    "required": true
+  },
+  {
+    "type": "file",
+    "label": "Evidencia de las medidas para la sostenibilidad (fotos, documentos, facturas, otros).",
+    "required": true
+  },
+  {
+    "type": "file",
+    "label": "Fotos de todas las actividades pedagógicas realizadas para este tema.",
+    "required": true
+  },
+  {
+    "type": "file",
+    "label": "Manifestación como guardianes de la naturaleza.",
+    "required": true
+  },
+  {
+    "type": "file",
+    "label": "Fotos del o los puntos ecológicos.",
+    "required": true
+  },
+  {
+    "type": "file",
+    "label": "Documentos sobre las políticas institucionales.",
+    "required": false
+  }
+]

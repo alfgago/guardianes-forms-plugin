@@ -1,0 +1,149 @@
+[
+  {
+    "type": "checkbox",
+    "label": "¿Cuáles hábitos y buenas prácticas ambientales se promovieron en la comunidad educativa?",
+    "choices": [
+      "Cerrar la llave mientras no se use el agua.",
+      "Ser vigilantes e informar de fugas o desperdicio del agua.",
+      "Detectar goteos y cerrar bien el tubo.",
+      "Beber suficiente agua",
+      "Regar las plantas con un método ahorrativo.",
+      "Reutilizar aguas grises.",
+      "Recolectar agua de lluvia.",
+      "Colocar botellas de arena en los inodoros.",
+      "Cerrar las llaves con cuidado.",
+      "Otros"
+    ],
+    "required": true
+  },
+  {
+    "type": "radio",
+    "label": "¿Cuentan con tanque de almacenamiento de agua potable?",
+    "choices": [
+      "Sí",
+      "No"
+    ],
+    "required": true
+  },
+  {
+    "type": "radio",
+    "label": "Si su respuesta fue “SÍ” ¿Realizaron mantenimiento y limpieza del tanque?",
+    "choices": [
+      "Sí",
+      "No"
+    ],
+    "required": true,
+    "conditional_logic": {
+      "field": "¿Cuentan con tanque de almacenamiento de agua potable?",
+      "operator": "==",
+      "value": "Sí"
+    }
+  },
+  {
+    "type": "radio",
+    "label": "¿Solicitaron la certificación de análisis de calidad del agua? Si no pueden cumplir con este requisito pueden justificar.",
+    "choices": [
+      "Sí",
+      "No"
+    ],
+    "required": true
+  },
+  {
+    "type": "radio",
+    "label": "¿Realizaron revisiones periódicas para detección temprana de fugas y evitar deterioro?",
+    "choices": [
+      "Sí",
+      "No"
+    ],
+    "required": true
+  },
+  {
+    "type": "select",
+    "label": "¿Realizaron reparaciones de fugas o algún tipo de mejoras al sistema como sustitución de tuberías, cacheras, compra de loza ahorrativa u otros?",
+    "choices": [
+      "Sí",
+      "No",
+      "N/A"
+    ],
+    "required": true
+  },
+  {
+    "type": "textarea",
+    "label": "Si su respuesta fue sí, describa las reparaciones o las mejoras realizadas:",
+    "required": true,
+    "conditional_logic": {
+      "field": "¿Realizaron reparaciones de fugas o algún tipo de mejoras al sistema como sustitución de tuberías, cacheras, compra de loza ahorrativa u otros?",
+      "operator": "==",
+      "value": "Sí"
+    }
+  },
+  {
+    "type": "text",
+    "label": "¿Cuáles actividades pedagógicas se realizaron para fomentar la educación y conciencia en este tema? Tema desarrollado:",
+    "required": true
+  },
+  {
+    "type": "select",
+    "label": "Tipo ( charla, taller)",
+    "choices": [
+      "Charla",
+      "Taller",
+      "Otro"
+    ],
+    "required": true
+  },
+  {
+    "type": "textarea",
+    "label": "En qué consistieron las actividades desarrolladas:",
+    "required": true
+  },
+  {
+    "type": "number",
+    "label": "Cuántos estudiantes participaron:",
+    "required": true
+  },
+  {
+    "type": "radio",
+    "label": "¿Lograron conectar la actividad pedagógica a temas del currículo educativo?",
+    "choices": [
+      "Sí",
+      "No"
+    ],
+    "required": true
+  },
+  {
+    "type": "text",
+    "label": "Sí: ¿a cuál materia?",
+    "required": true,
+    "conditional_logic": {
+      "field": "¿Lograron conectar la actividad pedagógica a temas del currículo educativo?",
+      "operator": "==",
+      "value": "Sí"
+    }
+  },
+  {
+    "type": "text",
+    "label": "No: ¿Cuál fue o fueron las barreras?",
+    "required": true,
+    "conditional_logic": {
+      "field": "¿Lograron conectar la actividad pedagógica a temas del currículo educativo?",
+      "operator": "==",
+      "value": "No"
+    }
+  },
+  {
+    "type": "file",
+    "label": "Fotos de las buenas prácticas y hábitos para el ahorro de agua, actividades pedagógicas realizadas para este tema.",
+    "required": true
+  },
+  {
+    "type": "file",
+    "label": "Manifestación como guardianes de la naturaleza.",
+    "required": true
+  },
+  {
+    "type": "file",
+    "label": "Análisis del agua (si aplica).",
+    "required": false
+  }
+]

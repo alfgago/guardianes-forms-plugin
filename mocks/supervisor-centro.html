@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="es">
+<head>
+	<meta charset="utf-8">
+	<title>Mock Panel Supervisor - Detalle Centro</title>
+	<link rel="stylesheet" href="../assets/css/guardianes.css">
+	<style>
+		body { 
+			font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; 
+			background: #f6f7fb; 
+			padding: 20px;
+			margin: 0;
+		}
+		.container { max-width: 1400px; margin: 0 auto; }
+		.gnf-link { color: var(--gnf-primary); text-decoration: none; }
+		.gnf-link:hover { text-decoration: underline; }
+	</style>
+</head>
+<body>
+	<div class="container">
+		<div class="gnf-panel gnf-supervisor">
+			<a class="gnf-btn gnf-btn--ghost" href="supervisor-panel.html">&larr; Volver</a>
+			<h2>Escuela Verde Esperanza | Año 2025</h2>
+
+			<table class="gnf-table">
+				<thead>
+					<tr>
+						<th>Reto</th>
+						<th>Estado</th>
+						<th>Puntaje</th>
+						<th>Evidencias</th>
+						<th>Notas</th>
+						<th>Acciones</th>
+					</tr>
+				</thead>
+				<tbody>
+					<!-- Agua (Base) - Aprobado -->
+					<tr>
+						<td style="color: #273F80; font-weight: 600;">Agua (Base)</td>
+						<td><span class="gnf-status gnf-status--aprobado">Aprobado</span></td>
+						<td>10 / 10</td>
+						<td>
+							<a class="gnf-link" target="_blank" href="#">informe-agua-2025.pdf</a><br />
+							<a class="gnf-link" target="_blank" href="#">foto-actividad-rio.jpg</a><br />
+							<a class="gnf-link" target="_blank" href="#">foto-taller-agua.jpg</a>
+						</td>
+						<td>
+							<em>Excelente trabajo con la comunidad. Se evidencia participación activa de estudiantes.</em>
+						</td>
+						<td>
+							<form class="gnf-inline-form">
+								<label>Puntaje <input type="number" name="puntaje" value="10" max="10" /></label>
+								<label>Nota <textarea name="nota" rows="2">Excelente trabajo con la comunidad. Se evidencia participación activa de estudiantes.</textarea></label>
+								<button class="gnf-btn" name="estado" value="aprobado" type="button">Aprobar</button>
+								<button class="gnf-btn gnf-btn--ghost" name="estado" value="correccion" type="button">Correccion</button>
+							</form>
+						</td>
+					</tr>
+
+					<!-- Residuos (Base) - Aprobado -->
+					<tr>
+						<td style="color: #A03260; font-weight: 600;">Residuos (Base)</td>
+						<td><span class="gnf-status gnf-status--aprobado">Aprobado</span></td>
+						<td>10 / 10</td>
+						<td>
+							<a class="gnf-link" target="_blank" href="#">reporte-residuos.pdf</a><br />
+							<a class="gnf-link" target="_blank" href="#">foto-reciclaje-1.jpg</a><br />
+							<a class="gnf-link" target="_blank" href="#">foto-reciclaje-2.jpg</a>
+						</td>
+						<td>
+							<em>Buen sistema de reciclaje implementado. Participación de toda la comunidad educativa.</em>
+						</td>
+						<td>
+							<form class="gnf-inline-form">
+								<label>Puntaje <input type="number" name="puntaje" value="10" max="10" /></label>
+								<label>Nota <textarea name="nota" rows="2">Buen sistema de reciclaje implementado. Participación de toda la comunidad educativa.</textarea></label>
+								<button class="gnf-btn" name="estado" value="aprobado" type="button">Aprobar</button>
+								<button class="gnf-btn gnf-btn--ghost" name="estado" value="correccion" type="button">Correccion</button>
+							</form>
+						</td>
+					</tr>
+
+					<!-- Energías limpias (Base) - Enviado (pendiente revisión) -->
+					<tr style="background: #fef3c7;">
+						<td style="color: #99BF12; font-weight: 600;">Energías limpias (Base)</td>
+						<td><span class="gnf-status gnf-status--enviado">Enviado</span></td>
+						<td>0 / 10</td>
+						<td>
+							<a class="gnf-link" target="_blank" href="#">informe-energia.pdf</a><br />
+							<a class="gnf-link" target="_blank" href="#">foto-paneles-solares.jpg</a><br />
+							<a class="gnf-link" target="_blank" href="#">foto-charla-ahorro.jpg</a>
+						</td>
+						<td>
+							<em>—</em>
+						</td>
+						<td>
+							<form class="gnf-inline-form">
+								<label>Puntaje <input type="number" name="puntaje" value="0" max="10" /></label>
+								<label>Nota <textarea name="nota" rows="2" placeholder="Escriba sus observaciones..."></textarea></label>
+								<button class="gnf-btn" name="estado" value="aprobado" type="button">Aprobar</button>
+								<button class="gnf-btn gnf-btn--ghost" name="estado" value="correccion" type="button">Correccion</button>
+							</form>
+						</td>
+					</tr>
+
+					<!-- Vida Marina - Corrección -->
+					<tr>
+						<td style="color: #50AAB1; font-weight: 600;">Vida Marina</td>
+						<td><span class="gnf-status gnf-status--correccion">Corrección</span></td>
+						<td>3 / 5</td>
+						<td>
+							<a class="gnf-link" target="_blank" href="#">reporte-vida-marina.pdf</a><br />
+							<a class="gnf-link" target="_blank" href="#">foto-playa-limpia.jpg</a><br />
+							<small class="gnf-muted">⚠️ Fecha foto: 2024-03-15</small>
+						</td>
+						<td>
+							Las fotos de evidencia no corresponden al año activo (2025). Por favor, sube fotos tomadas este año.
+							<ul class="gnf-muted">
+								<li>Foto requiere validacion de año activo</li>
+							</ul>
+						</td>
+						<td>
+							<form class="gnf-inline-form">
+								<label>Puntaje <input type="number" name="puntaje" value="3" max="5" /></label>
+								<label>Nota <textarea name="nota" rows="2">Las fotos de evidencia no corresponden al año activo (2025). Por favor, sube fotos tomadas este año.</textarea></label>
+								<button class="gnf-btn" name="estado" value="aprobado" type="button">Aprobar</button>
+								<button class="gnf-btn gnf-btn--ghost" name="estado" value="correccion" type="button">Correccion</button>
+							</form>
+						</td>
+					</tr>
+
+					<!-- Compostaje - No iniciado -->
+					<tr>
+						<td style="color: #32A09A; font-weight: 600;">Compostaje</td>
+						<td><span class="gnf-status gnf-status--no_iniciado">No Iniciado</span></td>
+						<td>0 / 15</td>
+						<td>
+							<em>Sin evidencias</em>
+						</td>
+						<td>
+							<em>—</em>
+						</td>
+						<td>
+							<em>Sin envio</em>
+						</td>
+					</tr>
+
+					<!-- Huerta - En progreso -->
+					<tr>
+						<td style="color: #AADA63; font-weight: 600;">Huerta</td>
+						<td><span class="gnf-status gnf-status--en_progreso">En Progreso</span></td>
+						<td>0 / 15</td>
+						<td>
+							<em>Sin evidencias</em>
+						</td>
+						<td>
+							<em>—</em>
+						</td>
+						<td>
+							<em>Sin envio</em>
+						</td>
+					</tr>
+				</tbody>
+			</table>
+		</div>
+	</div>
+</body>
+</html>

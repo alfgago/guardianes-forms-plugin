@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="es">
+<head>
+	<meta charset="utf-8">
+	<title>Mock Panel Docente</title>
+	<link rel="stylesheet" href="../assets/css/guardianes.css">
+	<style>
+		body { 
+			font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; 
+			background: #f6f7fb; 
+			padding: 20px;
+			margin: 0;
+		}
+		.container { max-width: 1200px; margin: 0 auto; }
+	</style>
+</head>
+<body>
+	<div class="container">
+		<div class="gnf-panel gnf-docente">
+			<header class="gnf-panel__header">
+				<div>
+					<h2>Panel Docente</h2>
+					<p class="gnf-muted">Escuela Verde Esperanza | Año 2025</p>
+				</div>
+				<div class="gnf-score">
+					<strong>85 pts</strong>
+					<span>3 ★</span>
+				</div>
+			</header>
+
+			<!-- Info Centro Educativo -->
+			<div class="gnf-card" style="margin-bottom:16px;">
+				<h3>Centro educativo</h3>
+				<p><strong>Nombre:</strong> Escuela Verde Esperanza | <strong>ID:</strong> 142</p>
+				<p><strong>Codigo MEP:</strong> MEP-2024-0142 | <strong>Region:</strong> Central</p>
+				<p><strong>Estado centro:</strong> activo | <strong>Estado docente:</strong> activo</p>
+				<form class="gnf-inline-form">
+					<label>Nombre <input type="text" name="centro_nombre" value="Escuela Verde Esperanza" /></label>
+					<label>Direccion <textarea name="centro_direccion">San José, Montes de Oca, San Pedro, 200m norte del Mall</textarea></label>
+					<label>Provincia <input type="text" name="centro_provincia" value="San José" /></label>
+					<label>Canton <input type="text" name="centro_canton" value="Montes de Oca" /></label>
+					<label>Codigo MEP <input type="text" name="centro_codigo" value="MEP-2024-0142" /></label>
+					<label>Region (ID) <input type="number" name="centro_region" value="1" /></label>
+					<button class="gnf-btn" type="button">Completar informacion del Centro Educativo</button>
+				</form>
+			</div>
+
+			<!-- Resumen de progreso -->
+			<div class="gnf-card" style="margin-bottom:16px; background: linear-gradient(135deg, #369484 0%, #2d7a6d 100%); color: white;">
+				<div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;">
+					<div>
+						<h3 style="color: white; margin: 0;">🎯 Meta: 3 Estrellas</h3>
+						<p style="margin: 8px 0 0; opacity: 0.9;">Año 2025 | 6 retos matriculados</p>
+					</div>
+					<div style="display: flex; gap: 24px; text-align: center;">
+						<div>
+							<strong style="font-size: 24px; display: block;">2</strong>
+							<small>Aprobados</small>
+						</div>
+						<div>
+							<strong style="font-size: 24px; display: block;">1</strong>
+							<small>En revisión</small>
+						</div>
+						<div>
+							<strong style="font-size: 24px; display: block;">2</strong>
+							<small>Pendientes</small>
+						</div>
+						<div style="color: #ffeb3b;">
+							<strong style="font-size: 24px; display: block;">1</strong>
+							<small>Corrección</small>
+						</div>
+					</div>
+				</div>
+				<div style="margin-top: 16px; background: rgba(255,255,255,0.2); border-radius: 8px; height: 8px; overflow: hidden;">
+					<div style="height: 100%; background: #4ade80; width: 33%;"></div>
+				</div>
+				<small style="opacity: 0.8;">33% completado</small>
+			</div>
+
+			<h3 style="margin: 24px 0 16px;">📝 Mis Eco Retos Matriculados</h3>
+
+			<div class="gnf-grid">
+				<!-- Reto: Agua (Base) - Aprobado -->
+				<div class="gnf-card">
+					<div class="gnf-card__header">
+						<img src="https://movimientoguardianes.org/wp-content/uploads/2025/02/Reto-Agua.jpg" alt="" class="gnf-icon" />
+						<div>
+							<h3 style="color: #273F80;">Agua (Base)</h3>
+							<p class="gnf-muted">Implementar estrategias pedagógicas que sensibilicen sobre la importancia del agua, sus desafíos actuales y futuros, y promuevan hábitos sostenibles.</p>
+						</div>
+					</div>
+					<p class="gnf-status gnf-status--aprobado">Estado: Aprobado</p>
+					<p class="gnf-puntaje">Puntaje: 10 / 10</p>
+					<div class="gnf-actions">
+						<a class="gnf-btn" href="#">Llenar formulario</a>
+						<a class="gnf-btn gnf-btn--ghost" href="https://movimientoguardianes.org/wp-content/uploads/2025/03/Eco-Reto-Agua-educar-y-movilizar.pdf" target="_blank">Ver PDF</a>
+					</div>
+				</div>
+
+				<!-- Reto: Residuos (Base) - Aprobado -->
+				<div class="gnf-card">
+					<div class="gnf-card__header">
+						<img src="https://movimientoguardianes.org/wp-content/uploads/2025/02/Reto-residuos.jpg" alt="" class="gnf-icon" />
+						<div>
+							<h3 style="color: #A03260;">Residuos (Base)</h3>
+							<p class="gnf-muted">Impulsar el desarrollo o fortalecimiento de un programa de gestión integral de residuos en el centro educativo.</p>
+						</div>
+					</div>
+					<p class="gnf-status gnf-status--aprobado">Estado: Aprobado</p>
+					<p class="gnf-puntaje">Puntaje: 10 / 10</p>
+					<div class="gnf-actions">
+						<a class="gnf-btn" href="#">Llenar formulario</a>
+						<a class="gnf-btn gnf-btn--ghost" href="https://movimientoguardianes.org/wp-content/uploads/2025/02/Eco-Reto-Residuos.pdf" target="_blank">Ver PDF</a>
+					</div>
+				</div>
+
+				<!-- Reto: Energías limpias (Base) - Enviado -->
+				<div class="gnf-card">
+					<div class="gnf-card__header">
+						<img src="https://movimientoguardianes.org/wp-content/uploads/2025/02/REto-energias-limpias.jpg" alt="" class="gnf-icon" />
+						<div>
+							<h3 style="color: #99BF12;">Energías limpias (Base)</h3>
+							<p class="gnf-muted">Implementar estrategias pedagógicas que sensibilicen sobre la importancia de las energías limpias y promuevan hábitos sostenibles.</p>
+						</div>
+					</div>
+					<p class="gnf-status gnf-status--enviado">Estado: Enviado</p>
+					<p class="gnf-puntaje">Puntaje: 0 / 10</p>
+					<div class="gnf-actions">
+						<a class="gnf-btn" href="#">Llenar formulario</a>
+						<a class="gnf-btn gnf-btn--ghost" href="https://movimientoguardianes.org/wp-content/uploads/2025/03/Eco-reto-energia-educar-y-movilizar.pdf" target="_blank">Ver PDF</a>
+					</div>
+				</div>
+
+				<!-- Reto: Vida Marina - Corrección -->
+				<div class="gnf-card">
+					<div class="gnf-card__header">
+						<img src="https://movimientoguardianes.org/wp-content/uploads/2025/02/Reto-vida-marina.jpg" alt="" class="gnf-icon" />
+						<div>
+							<h3 style="color: #50AAB1;">Vida Marina</h3>
+							<p class="gnf-muted">Realizar actividades pedagógicas sobre la importancia de los océanos y sensibilización sobre problemas que afectan la vida marina.</p>
+						</div>
+					</div>
+					<p class="gnf-status gnf-status--correccion">Estado: Corrección</p>
+					<p class="gnf-puntaje">Puntaje: 3 / 5</p>
+					<div class="gnf-actions">
+						<a class="gnf-btn" href="#">Llenar formulario</a>
+						<button class="gnf-btn gnf-btn--ghost" type="button" onclick="alert('Las fotos de evidencia no corresponden al año activo (2025). Por favor, sube fotos tomadas este año.')">Ver feedback</button>
+						<button class="gnf-btn gnf-btn--ghost" type="button">Reabrir y corregir</button>
+					</div>
+					<ul class="gnf-muted">
+						<li>Foto requiere validacion de año activo.</li>
+						<li>Las fotos de evidencia no corresponden al año activo (2025). Por favor, sube fotos tomadas este año.</li>
+					</ul>
+				</div>
+
+				<!-- Reto: Compostaje - No iniciado -->
+				<div class="gnf-card">
+					<div class="gnf-card__header">
+						<img src="https://movimientoguardianes.org/wp-content/uploads/2025/02/Reto-compostaje.jpg" alt="" class="gnf-icon" />
+						<div>
+							<h3 style="color: #32A09A;">Compostaje</h3>
+							<p class="gnf-muted">Poner en funcionamiento un sistema de compostaje eficiente a largo plazo para producir abono a partir de los residuos orgánicos.</p>
+						</div>
+					</div>
+					<p class="gnf-status gnf-status--no_iniciado">Estado: No Iniciado</p>
+					<p class="gnf-puntaje">Puntaje: 0 / 15</p>
+					<div class="gnf-actions">
+						<a class="gnf-btn" href="#">Llenar formulario</a>
+						<a class="gnf-btn gnf-btn--ghost" href="https://movimientoguardianes.org/wp-content/uploads/2025/02/Reto-compostaje.pdf" target="_blank">Ver PDF</a>
+					</div>
+				</div>
+
+				<!-- Reto: Huerta - En progreso -->
+				<div class="gnf-card">
+					<div class="gnf-card__header">
+						<img src="https://movimientoguardianes.org/wp-content/uploads/2025/02/Reto-huerta-estudiantil.jpg" alt="" class="gnf-icon" />
+						<div>
+							<h3 style="color: #AADA63;">Huerta</h3>
+							<p class="gnf-muted">Cultivar un huerto con la participación de estudiantes para adoptar prácticas de cultivo sostenibles y alimentación saludable.</p>
+						</div>
+					</div>
+					<p class="gnf-status gnf-status--en_progreso">Estado: En Progreso</p>
+					<p class="gnf-puntaje">Puntaje: 0 / 15</p>
+					<div class="gnf-actions">
+						<a class="gnf-btn" href="#">Continuar formulario</a>
+						<a class="gnf-btn gnf-btn--ghost" href="https://movimientoguardianes.org/wp-content/uploads/2025/02/Reto-Huerta-2.pdf" target="_blank">Ver PDF</a>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+</body>
+</html>
