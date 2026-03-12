@@ -8,6 +8,9 @@ export interface Centro {
   direccion?: string;
   provincia?: string;
   canton?: string;
+  telefono?: string;
+  correoInstitucional?: string;
+  codigoPresupuestario?: string;
   nivelEducativo?: string;
   dependencia?: string;
   jornada?: string;
@@ -32,11 +35,16 @@ export interface CentroWithStats extends Centro {
   enviados: number;
   correccion: number;
   enProgreso: number;
+  validado?: boolean;
+  comiteStatus?: string;
 }
 
 export interface CentroSearchResult {
   id: number;
   nombre: string;
   codigoMep: string;
+  regionId?: number;
   regionName?: string;
+  claimed?: boolean;
+  correoInstitucional?: string;
 }

@@ -13,9 +13,8 @@ export function SupervisorRegisterForm() {
   const [nombre, setNombre] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [rolSolicitado, setRolSolicitado] = useState<'supervisor' | 'comite_bae'>('supervisor');
   const [regionId, setRegionId] = useState('');
-  const [cargo, setCargo] = useState('');
-  const [telefono, setTelefono] = useState('');
 
   const { data: regions } = useQuery({
     queryKey: ['regions'],
@@ -29,8 +28,7 @@ export function SupervisorRegisterForm() {
         email,
         password,
         regionId: Number(regionId),
-        cargo,
-        telefono,
+        rolSolicitado,
       }),
     onSuccess: (data) => {
       if (data.redirectUrl) window.location.href = data.redirectUrl;
@@ -39,11 +37,11 @@ export function SupervisorRegisterForm() {
 
   return (
     <form onSubmit={(e) => { e.preventDefault(); mutation.mutate(); }}>
-      <h2 style={{ marginBottom: 'var(--gnf-space-6)', textAlign: 'center' }}>Registro Supervisor</h2>
+      <h2 style={{ marginBottom: 'var(--gnf-space-6)', textAlign: 'center' }}>Registro DRE / Supervisores</h2>
 
       {mutation.isSuccess && (
         <Alert variant="success" title="Registro exitoso">
-          Tu cuenta ha sido creada y está pendiente de aprobación por un administrador.
+          Tu cuenta ha sido creada y ya puedes ingresar al panel correspondiente.
         </Alert>
       )}
 
@@ -52,20 +50,28 @@ export function SupervisorRegisterForm() {
       )}
 
       <Input label="Nombre completo" value={nombre} onChange={(e) => setNombre(e.target.value)} required />
-      <Input label="Correo electrónico" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
-      <Input label="Contraseña" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+      <Input label="Correo electronico" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+      <Input label="Contrasena" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+
+      <Select
+        label="Tipo de cuenta"
+        value={rolSolicitado}
+        onChange={(e) => setRolSolicitado(e.target.value as 'supervisor' | 'comite_bae')}
+        options={[
+          { value: 'supervisor', label: 'Supervisor' },
+          { value: 'comite_bae', label: 'Comité BAE-DRE' },
+        ]}
+        required
+      />
 
       <Select
         label="Dirección Regional de Educación"
         value={regionId}
         onChange={(e) => setRegionId(e.target.value)}
-        options={(regions ?? []).map((r) => ({ value: String(r.id), label: r.name }))}
-        placeholder="Seleccionar región..."
+        options={(regions ?? []).map((region) => ({ value: String(region.id), label: region.name }))}
+        placeholder="Seleccionar region..."
         required
       />
-
-      <Input label="Cargo" value={cargo} onChange={(e) => setCargo(e.target.value)} />
-      <Input label="Teléfono" type="tel" value={telefono} onChange={(e) => setTelefono(e.target.value)} />
 
       <Button
         type="submit"
@@ -73,7 +79,7 @@ export function SupervisorRegisterForm() {
         icon={<UserPlus size={16} />}
         style={{ width: '100%', marginTop: 'var(--gnf-space-4)' }}
       >
-        Registrarse como Supervisor
+        {rolSolicitado === 'comite_bae' ? 'Registrarse como Comité BAE-DRE' : 'Registrarse como Supervisor'}
       </Button>
     </form>
   );

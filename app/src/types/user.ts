@@ -15,7 +15,16 @@ export interface PendingUser {
   name: string;
   email: string;
   role: UserRole;
+  status?: 'activo' | 'pendiente';
+  telefono?: string;
+  cargo?: string;
+  identificacion?: string;
+  centroId?: number;
+  regionId?: number;
   registeredAt: string;
   centroName?: string;
   regionName?: string;
+  panelUrl?: string;
+  canImpersonate?: boolean;
+  impersonateUrl?: string;
 }

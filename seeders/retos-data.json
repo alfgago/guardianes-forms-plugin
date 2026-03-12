@@ -1,242 +1,121 @@
 [
   {
-    "titulo": "Agua (Base)",
+    "titulo": "RETO AGUA",
     "color": "#273F80",
     "puntos": 10,
-    "imagen_url": "https://movimientoguardianes.org/wp-content/uploads/2025/02/Reto-Agua.jpg",
     "descripcion": "Implementar estrategias pedagógicas que sensibilicen sobre la importancia del agua, sus desafíos actuales y futuros, y promuevan hábitos sostenibles que fortalezcan una cultura de conservación y uso responsable del recurso hídrico.",
-    "pdf_url": "https://movimientoguardianes.org/wp-content/uploads/2025/03/Eco-Reto-Agua-educar-y-movilizar.pdf",
-    "pdf_text_dir": "pdf-texts/Eco-Reto-Agua-educar-y-movilizar.txt",
-    "preguntas_file": "preguntas_dir/Eco-Reto-Agua-educar-y-movilizar.json"
+    "years": {
+      "2026": {
+        "anio": 2026,
+        "activo": true,
+        "notas": "Version 2026",
+        "preguntas_file": "preguntas_dir/2026/Eco-Reto-Agua-2026.json",
+        "icon_url": "https://movimientoguardianes.org/wp-content/uploads/2025/02/Reto-Agua.jpg",
+        "pdf_url": "https://movimientoguardianes.org/wp-content/uploads/2025/03/Eco-Reto-Agua-educar-y-movilizar.pdf",
+        "pdf_text_dir": "pdf-texts/Eco-Reto-Agua-educar-y-movilizar.txt"
+      }
+    }
   },
   {
-    "titulo": "Energías limpias (Base)",
+    "titulo": "RETO ELECTRICIDAD",
     "color": "#99BF12",
     "puntos": 10,
-    "imagen_url": "https://movimientoguardianes.org/wp-content/uploads/2025/02/REto-energias-limpias.jpg",
     "descripcion": "Implementar estrategias pedagógicas que sensibilicen sobre la importancia de las energías limpias, los desafíos energéticos actuales y futuros, y promuevan hábitos sostenibles que fortalezcan una cultura de eficiencia, conservación y uso responsable de la energía",
-    "pdf_url": "https://movimientoguardianes.org/wp-content/uploads/2025/03/Eco-reto-energia-educar-y-movilizar.pdf",
-    "pdf_text_dir": "pdf-texts/Eco-reto-energia-educar-y-movilizar.txt",
-    "preguntas_file": "preguntas_dir/Eco-reto-energia-educar-y-movilizar.json"
+    "years": {
+      "2026": {
+        "anio": 2026,
+        "activo": true,
+        "notas": "Version 2026",
+        "preguntas_file": "preguntas_dir/2026/Eco-Reto-Electricidad-2026.json",
+        "icon_url": "https://movimientoguardianes.org/wp-content/uploads/2025/02/REto-energias-limpias.jpg",
+        "pdf_url": "https://movimientoguardianes.org/wp-content/uploads/2025/03/Eco-reto-energia-educar-y-movilizar.pdf",
+        "pdf_text_dir": "pdf-texts/Eco-reto-energia-educar-y-movilizar.txt"
+      }
+    }
   },
   {
-    "titulo": "Residuos (Base)",
+    "titulo": "RETO RESIDUOS",
     "color": "#A03260",
     "puntos": 10,
-    "imagen_url": "https://movimientoguardianes.org/wp-content/uploads/2025/02/Reto-residuos.jpg",
     "descripcion": "Impulsar el desarrollo o fortalecimiento de un programa de gestión integral de residuos en el centro educativo para reducir y dar un manejo responsable, a la vez que se educa y concientiza a estudiantes y funcionarios sobre la problemática ambiental de los residuos.",
-    "pdf_url": "https://movimientoguardianes.org/wp-content/uploads/2025/02/Eco-Reto-Residuos.pdf",
-    "pdf_text_dir": "pdf-texts/Eco-Reto-Residuos.txt",
-    "preguntas_file": "preguntas_dir/Eco-Reto-Residuos.json"
+    "years": {
+      "2026": {
+        "anio": 2026,
+        "activo": true,
+        "notas": "Version 2026",
+        "preguntas_file": "preguntas_dir/2026/Eco-Reto-Residuos-2026.json",
+        "icon_url": "https://movimientoguardianes.org/wp-content/uploads/2025/02/Reto-residuos.jpg",
+        "pdf_url": "https://movimientoguardianes.org/wp-content/uploads/2025/02/Eco-Reto-Residuos.pdf",
+        "pdf_text_dir": "pdf-texts/Eco-Reto-Residuos.txt"
+      }
+    }
   },
   {
-    "titulo": "Registra y Reduce (Base)",
-    "color": "#5C5A57",
-    "puntos": 30,
-    "imagen_url": "https://movimientoguardianes.org/wp-content/uploads/2025/02/Untitled-design-5.png",
-    "descripcion": "Registra y reduce el consumo de energía y agua, así como la generación de residuos, contribuyendo a la disminución de nuestra huella ecológica.",
-    "pdf_url": "https://movimientoguardianes.org/wp-content/uploads/2025/03/Registrar-y-Reducir-Agua-Residuos-y-Electricidad-3.pdf",
-    "pdf_text_dir": "pdf-texts/Registrar-y-Reducir-Agua-Residuos-y-Electricidad-3.txt",
-    "preguntas_file": "preguntas_dir/Registrar-y-Reducir-Agua-Residuos-y-Electricidad-3.json"
-  },
-  {
-    "titulo": "Compostaje",
-    "color": "#32A09A",
-    "puntos": 15,
-    "imagen_url": "https://movimientoguardianes.org/wp-content/uploads/2025/02/Reto-compostaje.jpg",
-    "descripcion": "Poner en funcionamiento un sistema de compostaje eficiente a largo plazo para producir abono a partir de los residuos orgánicos generados en el centro educativo.",
-    "pdf_url": "https://movimientoguardianes.org/wp-content/uploads/2025/02/Reto-compostaje.pdf",
-    "pdf_text_dir": "pdf-texts/Reto-compostaje.txt",
-    "preguntas_file": "preguntas_dir/Reto-compostaje.json"
-  },
-  {
-    "titulo": "Huerta",
-    "color": "#AADA63",
-    "puntos": 15,
-    "imagen_url": "https://movimientoguardianes.org/wp-content/uploads/2025/02/Reto-huerta-estudiantil.jpg",
-    "descripcion": "Cultivar un huerto con la participación de estudiantes para adoptar prácticas de cultivo sostenibles, promoción de una alimentación saludable, protección de la calidad del agua y como espacio de enseñanza aprendizaje sobre distintos procesos naturales.",
-    "pdf_url": "https://movimientoguardianes.org/wp-content/uploads/2025/02/Reto-Huerta-2.pdf",
-    "pdf_text_dir": "pdf-texts/Reto-Huerta-2.txt",
-    "preguntas_file": "preguntas_dir/Reto-Huerta-2.json"
-  },
-  {
-    "titulo": "Del Centro Educativo al Hogar",
-    "color": "#C84D7E",
-    "puntos": 15,
-    "imagen_url": "https://movimientoguardianes.org/wp-content/uploads/2025/02/Reto-del-centro-educativo-al-hogar.jpg",
-    "descripcion": "Promover desde el centro educativo que se practiquen hábitos y buenas prácticas ambientales en el hogar de estudiantes, docentes y otros funcionarios para promover una cultura de hogares sostenibles.",
-    "pdf_url": "https://movimientoguardianes.org/wp-content/uploads/2025/02/Reto-del-CE-al-Hogar.pdf",
-    "pdf_text_dir": "pdf-texts/Reto-del-CE-al-Hogar.txt",
-    "preguntas_file": "preguntas_dir/Reto-del-CE-al-Hogar.json"
-  },
-  {
-    "titulo": "Eco gira",
-    "color": "#599BA2",
-    "puntos": 15,
-    "imagen_url": "https://movimientoguardianes.org/wp-content/uploads/2025/02/Reto-eco-gira.jpg",
-    "descripcion": "Realizar eco giras como experiencias educativas en áreas naturales fuera del centro educativo, diseñadas para que los estudiantes aprendan sobre la naturaleza de manera directa, vivencial y significativa.",
-    "pdf_url": "https://movimientoguardianes.org/wp-content/uploads/2025/02/Reto-eco-gira.pdf",
-    "pdf_text_dir": "pdf-texts/Reto-eco-gira.txt",
-    "preguntas_file": "preguntas_dir/Reto-eco-gira.json"
-  },
-  {
-    "titulo": "Eco Emprendimiento",
-    "color": "#48A445",
-    "puntos": 15,
-    "imagen_url": "https://movimientoguardianes.org/wp-content/uploads/2025/02/Reto-ecoemprendimiento.jpg",
-    "descripcion": "Promover el desarrollo de habilidades emprendedoras en los estudiantes aplicando estrategias de sostenibilidad e innovación en un proyecto de emprendimiento para generar beneficios económicos a la institución.",
-    "pdf_url": "https://movimientoguardianes.org/wp-content/uploads/2025/02/Reto-eco-emprendimiento-1.pdf",
-    "pdf_text_dir": "pdf-texts/Reto-eco-emprendimiento-1.txt",
-    "preguntas_file": "preguntas_dir/Reto-eco-emprendimiento-1.json"
-  },
-  {
-    "titulo": "Siembra de árboles",
+    "titulo": "RETO SIEMBRA DE ÁRBOLES",
     "color": "#45A497",
     "puntos": 15,
-    "imagen_url": "https://movimientoguardianes.org/wp-content/uploads/2025/02/Reto-siembra-de-arboles.jpg",
     "descripcion": "Fomentar la siembra, el cuidado y el mantenimiento de árboles nativos o autóctonos junto a los estudiantes, integrando una educación ecológica práctica. Esta actividad genera beneficios ambientales y fortalece valores comunitarios como el trabajo en equipo y la colaboración.",
-    "pdf_url": "https://movimientoguardianes.org/wp-content/uploads/2025/02/Reto-arboles.pdf",
-    "pdf_text_dir": "pdf-texts/Reto-arboles.txt",
-    "preguntas_file": "preguntas_dir/Reto-arboles.json"
+    "years": {
+      "2026": {
+        "anio": 2026,
+        "activo": true,
+        "notas": "Version 2026",
+        "preguntas_file": "preguntas_dir/2026/Eco-Reto-Siembra-de-Arboles-2026.json",
+        "icon_url": "https://movimientoguardianes.org/wp-content/uploads/2025/02/Reto-siembra-de-arboles.jpg",
+        "pdf_url": "https://movimientoguardianes.org/wp-content/uploads/2025/02/Reto-arboles.pdf",
+        "pdf_text_dir": "pdf-texts/Reto-arboles.txt"
+      }
+    }
   },
   {
-    "titulo": "Comodín",
-    "color": "#D068DC",
-    "puntos": 10,
-    "imagen_url": "https://movimientoguardianes.org/wp-content/uploads/2025/02/Reto-Comodin.jpg",
-    "descripcion": "Presentar un reto distinto a los ya propuestos, que cumpla con los mismos requerimientos para propiciar la innovación al Programa Bandera Azul y brindar mayor oportunidad de reconocimiento de otros proyectos igualmente valiosos para la sostenibilidad del centro educativo.",
-    "pdf_url": "https://movimientoguardianes.org/wp-content/uploads/2025/02/Reto-Comodin.pdf",
-    "pdf_text_dir": "pdf-texts/Reto-Comodin.txt",
-    "preguntas_file": "preguntas_dir/Reto-Comodin.json"
-  },
-  {
-    "titulo": "Aprender Haciendo",
-    "color": "#3C687E",
-    "puntos": 10,
-    "imagen_url": "https://movimientoguardianes.org/wp-content/uploads/2025/02/REto-aprender-haciendo.jpg",
-    "descripcion": "Realizar actividades pedagógicas para fomentar la educación para el desarrollo sostenible a través de temas del currículo de cualquiera de las asignaturas básicas o de idiomas para desarrollar una ciudadanía de guardianes de la naturaleza.",
-    "pdf_url": "https://movimientoguardianes.org/wp-content/uploads/2025/02/Reto-Aprender-Haciendo-1.pdf",
-    "pdf_text_dir": "pdf-texts/Reto-Aprender-Haciendo-1.txt",
-    "preguntas_file": "preguntas_dir/Reto-Aprender-Haciendo-1.json"
-  },
-  {
-    "titulo": "¿Qué es la Bandera Azul Ecológica?",
-    "color": "#0580CE",
-    "puntos": 10,
-    "imagen_url": "https://movimientoguardianes.org/wp-content/uploads/2025/02/Reto-Bandera-Azul-Ecologica.jpg",
-    "descripcion": "Sensibilizar a la comunidad educativa sobre el programa Bandera Azul Ecológica, fomentando su participación activa en las acciones, implementación y celebraciones asociadas.",
-    "pdf_url": "https://movimientoguardianes.org/wp-content/uploads/2025/02/Reto-Bandera-Azul.pdf",
-    "pdf_text_dir": "pdf-texts/Reto-Bandera-Azul.txt",
-    "preguntas_file": "preguntas_dir/Reto-Bandera-Azul.json"
-  },
-  {
-    "titulo": "Eco brigadas estudiantiles",
-    "color": "#04CAA5",
-    "puntos": 10,
-    "imagen_url": "https://movimientoguardianes.org/wp-content/uploads/2025/02/Reto-ecobrigadas-estudiantiles.jpg",
-    "descripcion": "Conformar brigadas estudiantiles guardianes de la naturaleza o comités ambientales estudiantiles para abordar diversas causas ambientales en el centro educativo o la comunidad.",
-    "pdf_url": "https://movimientoguardianes.org/wp-content/uploads/2025/02/Reto-eco-brigadas.pdf",
-    "pdf_text_dir": "pdf-texts/Reto-eco-brigadas.txt",
-    "preguntas_file": "preguntas_dir/Reto-eco-brigadas.json"
-  },
-  {
-    "titulo": "Jardín Polinizador",
-    "color": "#CC6A23",
-    "puntos": 10,
-    "imagen_url": "https://movimientoguardianes.org/wp-content/uploads/2025/02/Reto-jardin-polinizador.jpg",
-    "descripcion": "Crear o expandir jardines que ofrezcan refugio y alimento a especies clave en la polinización. Estos espacios fomentan la biodiversidad y permiten a la comunidad educativa comprender su importancia, posicionando al centro educativo como promotor de la conectividad de los corredores biológicos.",
-    "pdf_url": "https://movimientoguardianes.org/wp-content/uploads/2025/02/Reto-jardines-amigables-con-polinizadores.pdf",
-    "pdf_text_dir": "pdf-texts/Reto-jardines-amigables-con-polinizadores.txt",
-    "preguntas_file": "preguntas_dir/Reto-jardines-amigables-con-polinizadores.json"
-  },
-  {
-    "titulo": "Desarrollo Continuo",
-    "color": "#912FBD",
-    "puntos": 10,
-    "imagen_url": "https://movimientoguardianes.org/wp-content/uploads/2025/02/Reto-desarollo-continuo.jpg",
-    "descripcion": "Fortalecer las capacidades del personal docente, administrativo y de apoyo para que puedan impulsar procesos de sostenibilidad en los centros educativos por medio de proyectos ambientales que permitan construir una cultura ambiental institucional.",
-    "pdf_url": "https://movimientoguardianes.org/wp-content/uploads/2025/02/Reto-jardines-amigables-con-polinizadores.pdf",
-    "pdf_text_dir": "pdf-texts/Reto-jardines-amigables-con-polinizadores.txt",
-    "preguntas_file": "preguntas_dir/Reto-jardines-amigables-con-polinizadores.json"
-  },
-  {
-    "titulo": "Fechas Ambientales",
-    "color": "#769F3B",
-    "puntos": 10,
-    "imagen_url": "https://movimientoguardianes.org/wp-content/uploads/2025/02/Reto-fechas-ambientales.jpg",
-    "descripcion": "Conmemorar fechas ambientales en el centro educativo, como el Día del Agua, el Día del Árbol o el Día Mundial del Medio Ambiente, para concientizar y sensibilizar a la comunidad educativa.",
-    "pdf_url": "https://movimientoguardianes.org/wp-content/uploads/2025/02/Reto-fechas-ambientales.pdf",
-    "pdf_text_dir": "pdf-texts/Reto-fechas-ambientales.txt",
-    "preguntas_file": "preguntas_dir/Reto-fechas-ambientales.json"
-  },
-  {
-    "titulo": "Meriendas Saludables",
+    "titulo": "RETO ECO LONCHERA",
     "color": "#D37178",
     "puntos": 10,
-    "imagen_url": "https://movimientoguardianes.org/wp-content/uploads/2025/02/Reto-meriendas-saludables.jpg",
     "descripcion": "Aplicar estrategias concretas para promover que los estudiantes traigan de sus hogares meriendas basadas en alimentos frescos, naturales y ricos en nutrientes a la vez que se impulsa una reducción de los residuos sólidos que generan las meriendas.",
-    "pdf_url": "https://movimientoguardianes.org/wp-content/uploads/2025/02/Reto-meriendas-saludables.pdf",
-    "pdf_text_dir": "pdf-texts/Reto-meriendas-saludables.txt",
-    "preguntas_file": "preguntas_dir/Reto-meriendas-saludables.json"
+    "years": {
+      "2026": {
+        "anio": 2026,
+        "activo": true,
+        "notas": "Version 2026",
+        "preguntas_file": "preguntas_dir/2026/Eco-Reto-Eco-Lonchera-2026.json",
+        "icon_url": "https://movimientoguardianes.org/wp-content/uploads/2025/02/Reto-meriendas-saludables.jpg",
+        "pdf_url": "https://movimientoguardianes.org/wp-content/uploads/2025/02/Reto-meriendas-saludables.pdf",
+        "pdf_text_dir": "pdf-texts/Reto-meriendas-saludables.txt"
+      }
+    }
   },
   {
-    "titulo": "Ambiente Limpio",
+    "titulo": "RETO LIMPIEZAS",
     "color": "#7CAE46",
     "puntos": 10,
-    "imagen_url": "https://movimientoguardianes.org/wp-content/uploads/2025/02/Reto-ambiente-limpio.jpg",
     "descripcion": "Mantener un espacio escolar limpio y saludable, con hábitos sostenibles que fomenten la responsabilidad ambiental. En zonas seguras y con estudiantes mayores, se promueven campañas comunitarias.",
-    "pdf_url": "https://movimientoguardianes.org/wp-content/uploads/2025/02/Reto-Ambiente-Limpio-1.pdf",
-    "pdf_text_dir": "pdf-texts/Reto-Ambiente-Limpio-1.txt",
-    "preguntas_file": "preguntas_dir/Reto-Ambiente-Limpio-1.json"
+    "years": {
+      "2026": {
+        "anio": 2026,
+        "activo": true,
+        "notas": "Version 2026",
+        "preguntas_file": "preguntas_dir/2026/Eco-Reto-Limpiezas-2026.json",
+        "icon_url": "https://movimientoguardianes.org/wp-content/uploads/2025/02/Reto-ambiente-limpio.jpg",
+        "pdf_url": "https://movimientoguardianes.org/wp-content/uploads/2025/02/Reto-Ambiente-Limpio-1.pdf",
+        "pdf_text_dir": "pdf-texts/Reto-Ambiente-Limpio-1.txt"
+      }
+    }
   },
   {
-    "titulo": "Sistema de Captación de Agua de Lluvia",
-    "color": "#064589",
-    "puntos": 10,
-    "imagen_url": "https://movimientoguardianes.org/wp-content/uploads/2025/02/REto-sistema-de-captacion-agua-de-lluvia.jpg",
-    "descripcion": "Consiste en instalar un sistema para captar agua de lluvia y almacenarla para su uso posterior. Generalmente son sistemas diseñados con canaletas, filtros y depósitos para reducir la demanda de agua potable.",
-    "pdf_url": "https://movimientoguardianes.org/wp-content/uploads/2025/02/Reto-captacion-de-agua-de-llluvia.pdf",
-    "pdf_text_dir": "pdf-texts/Reto-captacion-de-agua-de-llluvia.txt",
-    "preguntas_file": "preguntas_dir/Reto-captacion-de-agua-de-llluvia.json"
-  },
-  {
-    "titulo": "Vida Marina",
-    "color": "#50AAB1",
-    "puntos": 5,
-    "imagen_url": "https://movimientoguardianes.org/wp-content/uploads/2025/02/Reto-vida-marina.jpg",
-    "descripcion": "Realizar actividades pedagógicas sobre la importancia de los océanos y de sensibilización sobre los problemas ambientales que afectan al océano y a la vida marina para que los estudiantes desarrollen un sentido de responsabilidad y respeto hacia este ecosistema.",
-    "pdf_url": "https://movimientoguardianes.org/wp-content/uploads/2025/02/Vida-Marina-1.pdf",
-    "pdf_text_dir": "pdf-texts/Vida-Marina-1.txt",
-    "preguntas_file": "preguntas_dir/Vida-Marina-1.json"
-  },
-  {
-    "titulo": "Artístico",
-    "color": "#6E89D3",
-    "puntos": 5,
-    "imagen_url": "https://movimientoguardianes.org/wp-content/uploads/2025/02/Reto-Artistico.jpg",
-    "descripcion": "Realizar obras o actividades artísticas que expresen el compromiso y conexión de un grupo de estudiantes con el medio ambiente y su identidad como guardianes de la naturaleza.",
-    "pdf_url": "https://movimientoguardianes.org/wp-content/uploads/2025/02/Reto-artistico.pdf",
-    "pdf_text_dir": "pdf-texts/Reto-artistico.txt",
-    "preguntas_file": "preguntas_dir/Reto-artistico.json"
-  },
-  {
-    "titulo": "Evento Sostenible",
-    "color": "#485565",
-    "puntos": 5,
-    "imagen_url": "https://movimientoguardianes.org/wp-content/uploads/2025/02/Reto-evento-sostenible.jpg",
-    "descripcion": "Realizar eventos eco-amigables maximizando el uso de material de reciclaje o mediante el uso de material biodegradable para decorar y reducir o eliminar la generación de residuos durante los eventos organizados por los centros educativos.",
-    "pdf_url": "https://movimientoguardianes.org/wp-content/uploads/2025/02/Reto-evento-sostenible.pdf",
-    "pdf_text_dir": "pdf-texts/Reto-evento-sostenible.txt",
-    "preguntas_file": "preguntas_dir/Reto-evento-sostenible.json"
-  },
-  {
-    "titulo": "Misión y Visión",
-    "color": "#32A09A",
-    "puntos": 5,
-    "imagen_url": "https://movimientoguardianes.org/wp-content/uploads/2025/02/Reto-mision-y-vision.jpg",
-    "descripcion": "Promover el cuidado de la naturaleza como un eje fundamental plasmado en la misión, visión y valores institucionales, así como en el Plan Anual de Trabajo (PAT), para fortalecer la cultura ambiental del centro educativo.",
-    "pdf_url": "https://movimientoguardianes.org/wp-content/uploads/2025/02/Reto-mision-y-vision.pdf",
-    "pdf_text_dir": "pdf-texts/Reto-mision-y-vision.txt",
-    "preguntas_file": "preguntas_dir/Reto-mision-y-vision.json"
+    "titulo": "RETO BIENESTAR ANIMAL",
+    "color": "#8A6B4F",
+    "puntos": 35,
+    "descripcion": "Promover la coexistencia segura, responsable y respetuosa con animales de compañía, fauna silvestre y, cuando aplique, animales de producción dentro del centro educativo.",
+    "years": {
+      "2026": {
+        "anio": 2026,
+        "activo": true,
+        "notas": "Version 2026",
+        "preguntas_file": "preguntas_dir/2026/Reto-Bienestar-Animal-2026.json",
+        "icon_url": "",
+        "pdf_url": "",
+        "pdf_text_dir": ""
+      }
+    }
   }
 ]

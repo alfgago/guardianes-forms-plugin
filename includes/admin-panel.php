@@ -180,6 +180,97 @@ function gnf_get_admin_stats( $anio = null ) {
 	);
 }
 
+function gnf_get_admin_stats_summary_cache_key( $anio = null ) {
+	return 'gnf_admin_stats_summary_' . gnf_normalize_year( $anio );
+}
+
+function gnf_clear_admin_stats_cache( $anio = null ) {
+	$years = array();
+
+	if ( null !== $anio && 0 !== (int) $anio ) {
+		$years[] = gnf_normalize_year( $anio );
+	} else {
+		if ( function_exists( 'gnf_get_available_years' ) ) {
+			$years = array_map( 'intval', (array) gnf_get_available_years() );
+		}
+		$years[] = gnf_get_active_year();
+	}
+
+	$years = array_values( array_unique( array_filter( $years ) ) );
+	foreach ( $years as $year ) {
+		delete_transient( gnf_get_admin_stats_summary_cache_key( $year ) );
+	}
+}
+
+function gnf_get_admin_stats_summary( $anio = null ) {
+	global $wpdb;
+
+	$anio      = gnf_normalize_year( $anio );
+	$cache_key = gnf_get_admin_stats_summary_cache_key( $anio );
+	$cached    = get_transient( $cache_key );
+
+	if ( is_array( $cached ) ) {
+		return $cached;
+	}
+
+	$table_entries        = $wpdb->prefix . 'gn_reto_entries';
+	$centros_activos      = count( (array) gnf_get_centros_with_matricula( $anio ) );
+	$user_counts          = count_users();
+	$total_docentes       = (int) ( $user_counts['avail_roles']['docente'] ?? 0 );
+	$total_supervisors    = (int) ( $user_counts['avail_roles']['supervisor'] ?? 0 );
+	$total_comite         = (int) ( $user_counts['avail_roles']['comite_bae'] ?? 0 );
+	$total_admins         = (int) ( $user_counts['avail_roles']['administrator'] ?? 0 );
+	$pending_docentes     = (int) $wpdb->get_var(
+		$wpdb->prepare(
+			"SELECT COUNT(DISTINCT user_id) FROM {$wpdb->usermeta} WHERE meta_key = %s AND meta_value = %s",
+			'gnf_docente_status',
+			'pendiente'
+		)
+	);
+	$pending_supervisors  = (int) $wpdb->get_var(
+		$wpdb->prepare(
+			"SELECT COUNT(DISTINCT user_id) FROM {$wpdb->usermeta} WHERE meta_key = %s AND meta_value = %s",
+			'gnf_supervisor_status',
+			'pendiente'
+		)
+	);
+	$entry_totals         = $wpdb->get_row(
+		$wpdb->prepare(
+			"SELECT
+				SUM(CASE WHEN estado = 'enviado' THEN 1 ELSE 0 END) AS retos_enviados,
+				SUM(CASE WHEN estado = 'aprobado' THEN 1 ELSE 0 END) AS retos_aprobados,
+				SUM(CASE WHEN estado = 'correccion' THEN 1 ELSE 0 END) AS retos_correccion,
+				SUM(CASE WHEN estado IN ('en_progreso', 'no_iniciado', 'completo') THEN 1 ELSE 0 END) AS retos_en_progreso,
+				SUM(CASE WHEN estado = 'aprobado' THEN puntaje ELSE 0 END) AS puntos_totales
+			FROM {$table_entries}
+			WHERE anio = %d",
+			$anio
+		),
+		ARRAY_A
+	);
+	$summary             = array(
+		'centros_activos'     => (int) $centros_activos,
+		'total_docentes'      => $total_docentes,
+		'total_supervisors'   => $total_supervisors,
+		'total_comite'        => $total_comite,
+		'total_admins'        => $total_admins,
+		'total_users'         => $total_docentes + $total_supervisors + $total_comite + $total_admins,
+		'pending_docentes'    => $pending_docentes,
+		'pending_supervisors' => $pending_supervisors,
+		'pending_users'       => $pending_docentes + $pending_supervisors,
+		'retos_enviados'      => (int) ( $entry_totals['retos_enviados'] ?? 0 ),
+		'retos_aprobados'     => (int) ( $entry_totals['retos_aprobados'] ?? 0 ),
+		'retos_correccion'    => (int) ( $entry_totals['retos_correccion'] ?? 0 ),
+		'retos_en_progreso'   => (int) ( $entry_totals['retos_en_progreso'] ?? 0 ),
+		'puntos_totales'      => (int) ( $entry_totals['puntos_totales'] ?? 0 ),
+		'anio'                => $anio,
+	);
+
+	set_transient( $cache_key, $summary, 10 * MINUTE_IN_SECONDS );
+
+	return $summary;
+}
+
 /**
  * Obtiene usuarios pendientes de aprobación.
  *

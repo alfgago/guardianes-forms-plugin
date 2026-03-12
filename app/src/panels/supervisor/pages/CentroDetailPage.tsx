@@ -37,11 +37,7 @@ export function CentroDetailPage({ centroId, onBack }: CentroDetailPageProps) {
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--gnf-space-4)', margin: 'var(--gnf-space-6) 0 var(--gnf-space-4)' }}>
         <div>
-          <span style={{ fontSize: '0.875rem', color: 'var(--gnf-muted)' }}>Meta:</span>
-          <StarRating rating={centro.annual.metaEstrellas} size={16} />
-        </div>
-        <div>
-          <span style={{ fontSize: '0.875rem', color: 'var(--gnf-muted)' }}>Actual:</span>
+          <span style={{ fontSize: '0.875rem', color: 'var(--gnf-muted)' }}>Galardón actual:</span>
           <StarRating rating={centro.annual.estrellaFinal} size={16} />
         </div>
         <div>

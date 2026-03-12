@@ -8,9 +8,10 @@ interface PanelShellProps {
   nav: ReactNode;
   children: ReactNode;
   topBarActions?: ReactNode;
+  sidebarFooterExtra?: ReactNode;
 }
 
-export function PanelShell({ title, subtitle, nav, children, topBarActions }: PanelShellProps) {
+export function PanelShell({ title, subtitle, nav, children, topBarActions, sidebarFooterExtra }: PanelShellProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
@@ -20,6 +21,7 @@ export function PanelShell({ title, subtitle, nav, children, topBarActions }: Pa
         subtitle={subtitle}
         open={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
+        footerExtra={sidebarFooterExtra}
       >
         {nav}
       </Sidebar>

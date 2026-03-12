@@ -39,20 +39,58 @@ if (! defined('ABSPATH')) {
 class GNF_Retos_Seeder
 {
     /**
-     * Mapeo de retos habilitados para 2026 => archivo JSON especifico.
+     * Obtiene los retos habilitados para un anio a partir del JSON canonico.
+     *
+     * @param int $anio Anio objetivo.
+     * @return array<string,string>
+     */
+    public static function get_reto_json_map_for_year($anio)
+    {
+        $json_path = dirname(__FILE__) . '/retos-data.json';
+        if (! file_exists($json_path)) {
+            return array();
+        }
+
+        $decoded = json_decode((string) file_get_contents($json_path), true);
+        if (! is_array($decoded)) {
+            return array();
+        }
+
+        $map = array();
+        foreach ($decoded as $reto_data) {
+            if (empty($reto_data['titulo']) || empty($reto_data['years']) || ! is_array($reto_data['years'])) {
+                continue;
+            }
+
+            $year_config = $reto_data['years'][(string) $anio] ?? null;
+            if (! is_array($year_config)) {
+                continue;
+            }
+
+            $preguntas_file = trim((string) ($year_config['preguntas_file'] ?? ''));
+            if ('' === $preguntas_file) {
+                continue;
+            }
+
+            $absolute_path = dirname(__FILE__) . '/' . ltrim($preguntas_file, '/');
+            if (! file_exists($absolute_path)) {
+                continue;
+            }
+
+            $map[sanitize_title((string) $reto_data['titulo'])] = $absolute_path;
+        }
+
+        return $map;
+    }
+
+    /**
+     * Mantiene compatibilidad con el cleanup legado de 2026.
      *
      * @return array<string,string>
      */
     public static function get_2026_reto_json_map()
     {
-        return array(
-            'agua-base'             => dirname(__FILE__) . '/preguntas_dir/2026/Eco-Reto-Agua-2026.json',
-            'energias-limpias-base' => dirname(__FILE__) . '/preguntas_dir/2026/Eco-Reto-Electricidad-2026.json',
-            'residuos-base'         => dirname(__FILE__) . '/preguntas_dir/2026/Eco-Reto-Residuos-2026.json',
-            'ambiente-limpio'       => dirname(__FILE__) . '/preguntas_dir/2026/Eco-Reto-Limpiezas-2026.json',
-            'siembra-de-arboles'    => dirname(__FILE__) . '/preguntas_dir/2026/Eco-Reto-Siembra-de-Arboles-2026.json',
-            'meriendas-saludables'  => dirname(__FILE__) . '/preguntas_dir/2026/Eco-Reto-Eco-Lonchera-2026.json',
-        );
+        return self::get_reto_json_map_for_year(2026);
     }
 
 
@@ -159,7 +197,14 @@ class GNF_Retos_Seeder
         $this->log('Encontrados ' . count($retos) . ' retos para importar.');
         $this->log('');
 
+        $catalog_2026 = function_exists('gnf_get_reto_catalog') ? gnf_get_reto_catalog(2026) : array();
+
         foreach ($retos as $index => $reto_data) {
+            $slug = function_exists('gnf_get_reto_canonical_slug') ? gnf_get_reto_canonical_slug($reto_data['titulo'] ?? '') : '';
+            if (! empty($catalog_2026) && empty($catalog_2026[$slug])) {
+                $this->log('[skip] Reto fuera del catalogo 2026: ' . ($reto_data['titulo'] ?? '(sin titulo)'), 'warning');
+                continue;
+            }
             $this->process_reto($reto_data, $index + 1, $dry_run);
         }
 
@@ -182,11 +227,12 @@ class GNF_Retos_Seeder
      */
     private function process_reto($data, $number, $dry_run)
     {
-        $titulo = sanitize_text_field($data['titulo']);
+        $titulo       = sanitize_text_field($data['titulo']);
+        $year_configs = $this->get_year_configs($data);
+        $target_slug  = function_exists('gnf_get_reto_canonical_slug') ? gnf_get_reto_canonical_slug($titulo) : sanitize_title($titulo);
 
         $this->log("[{$number}] Procesando: {$titulo}");
 
-        // Verificar si ya existe.
         $existing = get_posts(
             array(
                 'post_type'      => 'reto',
@@ -196,23 +242,73 @@ class GNF_Retos_Seeder
             )
         );
 
-        if (! empty($existing)) {
-            $existing_id = $existing[0]->ID;
-            $this->log("    ⏭ Ya existe (ID: {$existing_id})", 'warning');
+        if ($target_slug) {
+            $maybe_existing = get_posts(
+                array(
+                    'post_type'      => 'reto',
+                    'post_status'    => 'any',
+                    'posts_per_page' => -1,
+                    'orderby'        => 'ID',
+                    'order'          => 'ASC',
+                )
+            );
 
-            // Marcar obligatorio en matrícula para los tres retos base (Agua, Energía, Residuos).
-            if (! $dry_run && $this->is_reto_obligatorio_por_titulo($titulo)) {
-                if (function_exists('update_field')) {
-                    update_field('obligatorio_en_matricula', 1, $existing_id);
-                } else {
-                    update_post_meta($existing_id, 'obligatorio_en_matricula', '1');
+            $matching = array();
+            foreach ((array) $existing as $candidate) {
+                $matching[(int) $candidate->ID] = $candidate;
+            }
+
+            foreach ((array) $maybe_existing as $candidate) {
+                $candidate_slug = function_exists('gnf_get_reto_canonical_slug') ? gnf_get_reto_canonical_slug($candidate->post_title) : sanitize_title($candidate->post_title);
+                if ($candidate_slug === $target_slug) {
+                    $matching[(int) $candidate->ID] = $candidate;
                 }
             }
 
-            // Verificar si le falta algún formulario WPForms por año.
-            if (! empty($data['preguntas_file'])) {
-                $this->log("    🔄 Verificando formularios WPForms por año...", 'info');
-                $this->create_wpform_and_checklist($data, $existing_id, $dry_run);
+            $matching = array_values($matching);
+            if (count($matching) > 1) {
+                $keeper = array_shift($matching);
+                $this->log('    Eliminando retos duplicados del mismo eco reto canonico...', 'warning');
+                foreach ($matching as $duplicate) {
+                    $this->log('      Duplicado: ' . $duplicate->post_title . ' (ID: ' . $duplicate->ID . ')', 'warning');
+                    if (! $dry_run) {
+                        wp_delete_post((int) $duplicate->ID, true);
+                    }
+                }
+                $existing = array($keeper);
+            } elseif (! empty($matching)) {
+                $existing = array($matching[0]);
+            }
+        }
+
+        if (! empty($existing)) {
+            $existing_id = $existing[0]->ID;
+            $this->log("    Ya existe (ID: {$existing_id})", 'warning');
+
+            if (! $dry_run) {
+                wp_update_post(
+                    array(
+                        'ID'         => $existing_id,
+                        'post_title' => $titulo,
+                    )
+                );
+
+                if (function_exists('update_field')) {
+                    update_field('descripcion', $data['descripcion'], $existing_id);
+                    update_field('color_del_reto', $data['color'], $existing_id);
+                    update_field('tipos_evidencia_permitidos', array('foto', 'pdf', 'video'), $existing_id);
+                    update_field('obligatorio_en_matricula', $this->is_reto_obligatorio_por_titulo($titulo) ? 1 : 0, $existing_id);
+                } else {
+                    update_post_meta($existing_id, 'descripcion', $data['descripcion']);
+                    update_post_meta($existing_id, 'color_del_reto', $data['color']);
+                    update_post_meta($existing_id, 'obligatorio_en_matricula', $this->is_reto_obligatorio_por_titulo($titulo) ? '1' : '0');
+                }
+            }
+
+            if (! empty($year_configs)) {
+                $this->log('    Verificando formularios WPForms por ano...', 'info');
+                $year_assets = $dry_run ? array() : $this->import_year_assets($data, $existing_id, $titulo);
+                $this->create_wpform_and_checklist($data, $existing_id, $dry_run, $year_assets);
             }
 
             $this->skipped++;
@@ -220,12 +316,11 @@ class GNF_Retos_Seeder
         }
 
         if ($dry_run) {
-            $this->log("    ✓ [DRY-RUN] Se crearía con {$data['puntos']} pts", 'success');
+            $this->log("    [DRY-RUN] Se crearia con {$data['puntos']} pts", 'success');
             $this->created++;
             return;
         }
 
-        // Crear el post.
         $post_id = wp_insert_post(
             array(
                 'post_title'  => $titulo,
@@ -235,12 +330,11 @@ class GNF_Retos_Seeder
         );
 
         if (is_wp_error($post_id)) {
-            $this->log('    ✗ Error al crear: ' . $post_id->get_error_message(), 'error');
+            $this->log('    Error al crear: ' . $post_id->get_error_message(), 'error');
             $this->errors++;
             return;
         }
 
-        // Actualizar campos ACF.
         if (function_exists('update_field')) {
             update_field('descripcion', $data['descripcion'], $post_id);
             update_field('color_del_reto', $data['color'], $post_id);
@@ -249,7 +343,6 @@ class GNF_Retos_Seeder
                 update_field('obligatorio_en_matricula', 1, $post_id);
             }
         } else {
-            // Fallback a post meta directo.
             update_post_meta($post_id, 'descripcion', $data['descripcion']);
             update_post_meta($post_id, 'color_del_reto', $data['color']);
             if ($this->is_reto_obligatorio_por_titulo($titulo)) {
@@ -257,44 +350,105 @@ class GNF_Retos_Seeder
             }
         }
 
-        // Descargar e importar PDF (stored per-year in repeater later).
-        $pdf_attachment_id = 0;
-        if (! empty($data['pdf_url'])) {
-            $pdf_attachment_id = $this->import_file($data['pdf_url'], $post_id, 'Reto - ' . $titulo);
-            if ($pdf_attachment_id) {
-                $this->log('    📄 PDF importado (ID: ' . $pdf_attachment_id . ')');
-            }
+        $year_assets = $this->import_year_assets($data, $post_id, $titulo);
+        if (! empty($year_configs)) {
+            $this->create_wpform_and_checklist($data, $post_id, $dry_run, $year_assets);
         }
 
-        // Descargar e importar imagen (Featured Image + used per-year as icon).
-        $icon_attachment_id = 0;
-        if (! empty($data['imagen_url'])) {
-            $icon_attachment_id = $this->import_image($data['imagen_url'], $post_id, $titulo);
-            if ($icon_attachment_id) {
-                set_post_thumbnail($post_id, $icon_attachment_id);
-                $this->log('    📷 Imagen importada (ID: ' . $icon_attachment_id . ')');
-            }
-        }
-
-        // Crear formulario WPForms y checklist desde preguntas_file.
-        if (! empty($data['preguntas_file'])) {
-            $this->create_wpform_and_checklist($data, $post_id, $dry_run, $pdf_attachment_id, $icon_attachment_id);
-        }
-
-        $this->log("    ✓ Creado exitosamente (ID: {$post_id})", 'success');
+        $this->log("    Creado exitosamente (ID: {$post_id})", 'success');
         $this->created++;
     }
 
     /**
-     * Indica si el reto es uno de los tres obligatorios en matrícula (Agua, Energía, Residuos).
+     * Normaliza la configuracion anual del reto.
      *
-     * @param string $titulo Título del reto.
-     * @return bool
+     * @param array $data Datos del reto.
+     * @return array<int,array<string,mixed>>
      */
+    private function get_year_configs($data)
+    {
+        $years = array();
+
+        if (! empty($data['years']) && is_array($data['years'])) {
+            foreach ($data['years'] as $year_key => $config) {
+                $anio = absint($config['anio'] ?? $year_key);
+                if (! $anio) {
+                    continue;
+                }
+
+                $years[$anio] = array(
+                    'anio'                 => $anio,
+                    'activo'               => ! array_key_exists('activo', $config) || ! empty($config['activo']),
+                    'notas'                => isset($config['notas']) ? (string) $config['notas'] : '',
+                    'preguntas_file'       => isset($config['preguntas_file']) ? (string) $config['preguntas_file'] : '',
+                    'icon_url'             => isset($config['icon_url']) ? (string) $config['icon_url'] : '',
+                    'pdf_url'              => isset($config['pdf_url']) ? (string) $config['pdf_url'] : '',
+                );
+            }
+        } elseif (! empty($data['preguntas_file'])) {
+            $years[2026] = array(
+                'anio'                 => 2026,
+                'activo'               => true,
+                'notas'                => '',
+                'preguntas_file'       => (string) $data['preguntas_file'],
+                'icon_url'             => (string) ($data['imagen_url'] ?? ''),
+                'pdf_url'              => (string) ($data['pdf_url'] ?? ''),
+            );
+        }
+
+        ksort($years);
+        return $years;
+    }
+
+    /**
+     * Importa assets por ano y retorna los attachment IDs por fila anual.
+     *
+     * @param array  $data    Datos del reto.
+     * @param int    $post_id ID del post.
+     * @param string $titulo  Titulo del reto.
+     * @return array<int,array<string,int>>
+     */
+    private function import_year_assets($data, $post_id, $titulo)
+    {
+        $assets = array();
+        $cache  = array();
+
+        foreach ($this->get_year_configs($data) as $anio => $config) {
+            $assets[$anio] = array(
+                'pdf_id'  => 0,
+                'icon_id' => 0,
+            );
+
+            $pdf_url = trim((string) ($config['pdf_url'] ?? ''));
+            if ($pdf_url) {
+                $cache_key = 'pdf:' . $pdf_url;
+                if (! array_key_exists($cache_key, $cache)) {
+                    $cache[$cache_key] = $this->import_file($pdf_url, $post_id, 'Reto - ' . $titulo . ' ' . $anio);
+                }
+                $assets[$anio]['pdf_id'] = (int) ($cache[$cache_key] ?: 0);
+            }
+
+            $icon_url = trim((string) ($config['icon_url'] ?? ''));
+            if ($icon_url) {
+                $cache_key = 'icon:' . $icon_url;
+                if (! array_key_exists($cache_key, $cache)) {
+                    $cache[$cache_key] = $this->import_image($icon_url, $post_id, $titulo . ' ' . $anio);
+                }
+                $assets[$anio]['icon_id'] = (int) ($cache[$cache_key] ?: 0);
+                if ($assets[$anio]['icon_id'] && ! has_post_thumbnail($post_id)) {
+                    set_post_thumbnail($post_id, $assets[$anio]['icon_id']);
+                }
+            }
+
+        }
+
+        return $assets;
+    }
+
     private function is_reto_obligatorio_por_titulo($titulo)
     {
-        $obligatorios = array('Agua (Base)', 'Energías limpias (Base)', 'Residuos (Base)');
-        return in_array($titulo, $obligatorios, true);
+        $slug = function_exists('gnf_get_reto_canonical_slug') ? gnf_get_reto_canonical_slug($titulo) : sanitize_title($titulo);
+        return in_array($slug, array('agua', 'electricidad', 'residuos'), true);
     }
 
     /**
@@ -407,7 +561,7 @@ class GNF_Retos_Seeder
 
     /**
      * Crea formularios WPForms y checklist para un reto.
-     * Crea un formulario 2025 (base) y uno 2026 solo cuando existe JSON específico.
+     * Procesa unicamente la configuracion 2026 disponible.
      * Writes to configuracion_por_anio with full field_points, PDF, and icon.
      *
      * @param array $data     Datos del reto.
@@ -416,55 +570,57 @@ class GNF_Retos_Seeder
      * @param int   $pdf_id   Attachment ID del PDF.
      * @param int   $icon_id  Attachment ID del ícono.
      */
-    private function create_wpform_and_checklist($data, $post_id, $dry_run, $pdf_id = 0, $icon_id = 0)
+    private function create_wpform_and_checklist($data, $post_id, $dry_run, $year_assets = array())
     {
         require_once dirname(__FILE__) . '/seed-wpforms.php';
 
         if (! class_exists('GNF_WPForms_Seeder')) {
-            $this->log('    ⚠ Clase GNF_WPForms_Seeder no disponible', 'warning');
+            $this->log('    Clase GNF_WPForms_Seeder no disponible', 'warning');
             return;
         }
 
         $wpforms_seeder = new GNF_WPForms_Seeder();
+        foreach ($this->get_year_configs($data) as $anio => $year_config) {
+            if (empty($year_config['preguntas_file'])) {
+                $this->log('    Ano ' . $anio . ' omitido: sin preguntas_file', 'info');
+                continue;
+            }
 
-        // ── Formulario 2025 ──────────────────────────────────────────
-        $result = $wpforms_seeder->process_single_reto($data, $post_id, $dry_run, 2025);
-
-        if (! $result) {
-            $this->log('    ⚠ No se pudo crear formulario WPForms 2025', 'warning');
-        } elseif (! $dry_run && ! empty($result['form_id'])) {
-            $field_points = $result['gnf_field_points'] ?? array();
-            $wpforms_seeder->register_form_in_repeater($post_id, $result['form_id'], 2025, $field_points, $pdf_id, $icon_id);
-            $this->log('    📝 WPForms 2025 creado (ID: ' . $result['form_id'] . ')');
-        } elseif ($dry_run) {
-            $this->log('    📝 [DRY-RUN] Se crearía formulario WPForms 2025');
-        }
-
-        // ── Formulario 2026 solo para retos con JSON específico ──────────────────
-        $titulo = $data['titulo'] ?? '';
-
-        // Solo crear 2026 cuando exista JSON específico para ese reto.
-        $specific_2026 = $this->get_specific_2026_json_path($titulo);
-
-        if (! empty($specific_2026)) {
-            $result_2026 = $wpforms_seeder->process_single_reto(
+            $result = $wpforms_seeder->process_single_reto(
                 $data,
                 $post_id,
                 $dry_run,
-                2026,
-                $specific_2026
+                $anio,
+                $year_config['preguntas_file']
             );
-            if (! $result_2026) {
-                $this->log('    ⚠ No se pudo crear formulario WPForms 2026', 'warning');
-            } elseif (! $dry_run && ! empty($result_2026['form_id'])) {
-                $field_points_2026 = $result_2026['gnf_field_points'] ?? array();
-                $wpforms_seeder->register_form_in_repeater($post_id, $result_2026['form_id'], 2026, $field_points_2026, $pdf_id, $icon_id);
-                $this->log('    📝 WPForms 2026 creado (ID: ' . $result_2026['form_id'] . ')');
-            } elseif ($dry_run) {
-                $this->log('    📝 [DRY-RUN] Se crearía formulario WPForms 2026');
+
+            if (! $result) {
+                $this->log('    No se pudo crear formulario WPForms ' . $anio, 'warning');
+                continue;
             }
-        } else {
-            $this->log('    ⏭ 2026 omitido: no hay JSON específico configurado para este reto', 'info');
+
+            if ($dry_run) {
+                $this->log('    [DRY-RUN] Se crearia formulario WPForms ' . $anio, 'info');
+                continue;
+            }
+
+            if (empty($result['form_id'])) {
+                continue;
+            }
+
+            $field_points = $result['gnf_field_points'] ?? array();
+            $assets       = $year_assets[$anio] ?? array();
+            $wpforms_seeder->register_form_in_repeater(
+                $post_id,
+                $result['form_id'],
+                $anio,
+                $field_points,
+                (int) ($assets['pdf_id'] ?? 0),
+                (int) ($assets['icon_id'] ?? 0),
+                $year_config['notas'] ?? '',
+                ! empty($year_config['activo'])
+            );
+            $this->log('    WPForms ' . $anio . ' creado (ID: ' . $result['form_id'] . ')');
         }
     }
 }
@@ -492,7 +648,7 @@ function gnf_run_retos_2026_cleanup($dry_run = false)
         $log('*** MODO DRY-RUN: no se guardaran cambios ***');
     }
 
-    $allowed_map = GNF_Retos_Seeder::get_2026_reto_json_map();
+    $allowed_map = GNF_Retos_Seeder::get_reto_json_map_for_year(2026);
     $allowed     = array();
     foreach ($allowed_map as $slug => $path) {
         if (file_exists($path)) {
@@ -650,7 +806,7 @@ if (defined('WP_CLI') && WP_CLI) {
 
 // Ejecución desde navegador (solo admins).
 if ((isset($_GET['gnf_seed_retos']) || isset($_GET['gnf_cleanup_2026'])) && current_user_can('manage_options')) {
-    $seed_key = defined('GNF_SEED_KEY') ? GNF_SEED_KEY : 'bandera2025';
+    $seed_key = defined('GNF_SEED_KEY') ? GNF_SEED_KEY : 'bandera2026';
 
     if (! isset($_GET['gnf_seed_key']) || $_GET['gnf_seed_key'] !== $seed_key) {
         wp_die('Clave de seguridad inválida.');

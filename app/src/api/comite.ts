@@ -7,11 +7,26 @@ interface ComiteDashboard {
 
 interface ComiteCentroDetail {
   centro: CentroWithStats;
-  entries: (RetoEntry & { retoTitulo: string; retoColor: string })[];
+  entries: (RetoEntry & { retoTitulo: string; retoColor: string; retoIconUrl?: string })[];
+  review: {
+    anio: number;
+    status: string;
+    notes: string;
+    userId: number;
+    userName: string;
+    updatedAt: string;
+  };
+  observations: {
+    anio: number;
+    userId: number;
+    userName: string;
+    observation: string;
+    createdAt: string;
+  }[];
 }
 
 interface HistorialItem {
-  id: number;
+  id: string;
   centroId: number;
   centroNombre: string;
   action: string;
@@ -34,12 +49,12 @@ export const comiteApi = {
     return get<ComiteCentroDetail>(`/comite/centros/${centroId}`, { year });
   },
 
-  validateCentro(centroId: number, data: { action: 'validar' | 'rechazar'; notes?: string }) {
-    return post<{ success: boolean }>(`/comite/centros/${centroId}/validate`, data);
+  validateCentro(centroId: number, year: number, data: { action: 'validar' | 'rechazar'; notes?: string }) {
+    return post<{ success: boolean }>(`/comite/centros/${centroId}/validate`, { year, ...data });
   },
 
-  addObservation(centroId: number, data: { observation: string }) {
-    return post<{ success: boolean }>(`/comite/centros/${centroId}/observation`, data);
+  addObservation(centroId: number, year: number, data: { observation: string }) {
+    return post<{ success: boolean }>(`/comite/centros/${centroId}/observation`, { year, ...data });
   },
 
   getHistorial(year: number) {

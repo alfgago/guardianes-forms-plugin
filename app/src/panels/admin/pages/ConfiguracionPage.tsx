@@ -12,12 +12,12 @@ export function ConfiguracionPage() {
 
   return (
     <div>
-      <h2 style={{ marginBottom: 'var(--gnf-space-6)' }}>Configuración</h2>
+      <h2 style={{ marginBottom: 'var(--gnf-space-6)' }}>Regiones</h2>
 
       <Card>
-        <h3 style={{ marginBottom: 'var(--gnf-space-4)' }}>Direcciones Regionales de Educación</h3>
+        <h3 style={{ marginBottom: 'var(--gnf-space-4)' }}>Direcciones Regionales de Educacion</h3>
         <p style={{ color: 'var(--gnf-muted)', fontSize: '0.875rem', marginBottom: 'var(--gnf-space-4)' }}>
-          Habilita o deshabilita las DRE que participan en el programa.
+          Activa o desactiva aqui las regiones que pueden participar en el programa.
         </p>
         {isLoading ? (
           <Spinner />

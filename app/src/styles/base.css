@@ -10,12 +10,13 @@
 }
 
 html {
-  font-size: 16px;
+  font-size: 17px;
   -webkit-text-size-adjust: 100%;
 }
 
 body {
   font-family: var(--gnf-font-body);
+  font-size: 1rem;
   color: var(--gnf-text);
   background: var(--gnf-gray-50);
   line-height: 1.5;

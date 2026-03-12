@@ -32,7 +32,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
           style={{
             width: '100%',
             padding: '10px 14px',
-            border: `1px solid ${error ? 'var(--gnf-coral)' : 'var(--gnf-border)'}`,
+            border: `1.5px solid ${error ? 'var(--gnf-coral)' : 'var(--gnf-field-border)'}`,
             borderRadius: 'var(--gnf-radius)',
             fontSize: '0.9375rem',
             fontFamily: 'var(--gnf-font-body)',
@@ -42,11 +42,11 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
             transition: 'border-color var(--gnf-transition-fast)',
           }}
           onFocus={(e) => {
-            e.currentTarget.style.borderColor = 'var(--gnf-forest)';
-            e.currentTarget.style.boxShadow = '0 0 0 3px rgba(45, 138, 95, 0.1)';
+            e.currentTarget.style.borderColor = 'var(--gnf-ocean)';
+            e.currentTarget.style.boxShadow = '0 0 0 3px rgba(30, 95, 138, 0.12)';
           }}
           onBlur={(e) => {
-            e.currentTarget.style.borderColor = error ? 'var(--gnf-coral)' : 'var(--gnf-border)';
+            e.currentTarget.style.borderColor = error ? 'var(--gnf-coral)' : 'var(--gnf-field-border)';
             e.currentTarget.style.boxShadow = 'none';
           }}
           {...props}

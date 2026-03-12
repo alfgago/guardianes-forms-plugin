@@ -39,7 +39,7 @@ export function RetoCard({ reto, onFillForm, onReopen, onViewFeedback }: RetoCar
             <h4 style={{ margin: 0, color: reto.color || 'var(--gnf-gray-900)' }}>{reto.titulo}</h4>
             <StatusBadge estado={estado} />
             {reto.obligatorio && (
-              <span style={{ fontSize: '0.6875rem', color: 'var(--gnf-ocean)', fontWeight: 600 }}>OBLIGATORIO</span>
+              <span style={{ fontSize: '0.6875rem', color: 'var(--gnf-ocean)', fontWeight: 700 }}>REQUISITO</span>
             )}
           </div>
           <p style={{ color: 'var(--gnf-muted)', fontSize: '0.8125rem', margin: 'var(--gnf-space-2) 0 0' }}>
@@ -50,7 +50,7 @@ export function RetoCard({ reto, onFillForm, onReopen, onViewFeedback }: RetoCar
 
       <div style={{ marginBottom: 'var(--gnf-space-4)' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 'var(--gnf-space-1)' }}>
-          <span style={{ fontSize: '0.8125rem', color: 'var(--gnf-muted)' }}>Puntaje</span>
+          <span style={{ fontSize: '0.8125rem', color: 'var(--gnf-muted)' }}>Eco puntos</span>
           <span style={{ fontSize: '0.8125rem', fontWeight: 600 }}>
             {puntaje} / {reto.puntajeMaximo}
           </span>
@@ -62,11 +62,13 @@ export function RetoCard({ reto, onFillForm, onReopen, onViewFeedback }: RetoCar
         <div
           style={{
             padding: 'var(--gnf-space-3)',
-            background: 'var(--gnf-coral-light)',
+            background: 'var(--gnf-white)',
             borderRadius: 'var(--gnf-radius-sm)',
             fontSize: '0.8125rem',
-            color: '#991b1b',
+            color: 'var(--gnf-gray-800)',
             marginBottom: 'var(--gnf-space-4)',
+            border: '1px solid var(--gnf-border)',
+            borderLeft: '4px solid var(--gnf-coral)',
           }}
         >
           {entry.supervisorNotes}
@@ -76,23 +78,23 @@ export function RetoCard({ reto, onFillForm, onReopen, onViewFeedback }: RetoCar
       <div style={{ display: 'flex', gap: 'var(--gnf-space-2)', flexWrap: 'wrap' }}>
         {isEditable(estado) && onFillForm && (
           <Button size="sm" icon={<FileText size={14} />} onClick={() => onFillForm(reto.id)}>
-            {estado === 'en_progreso' ? 'Continuar' : 'Llenar formulario'}
+            {estado === 'en_progreso' ? 'Continuar reto' : 'Abrir reto'}
           </Button>
         )}
         {canReopen(estado) && onReopen && (
           <Button variant="outline" size="sm" icon={<RotateCcw size={14} />} onClick={() => onReopen(reto.id)}>
-            Reabrir y corregir
+            Reabrir para ajustes
           </Button>
         )}
         {entry?.supervisorNotes && onViewFeedback && (
           <Button variant="ghost" size="sm" onClick={() => onViewFeedback(entry.supervisorNotes!)}>
-            Ver feedback
+            Ver observacion
           </Button>
         )}
         {reto.pdfUrl && (
           <a href={reto.pdfUrl} target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none' }}>
             <Button variant="ghost" size="sm" icon={<ExternalLink size={14} />}>
-              Ver PDF
+              Ver guia PDF
             </Button>
           </a>
         )}

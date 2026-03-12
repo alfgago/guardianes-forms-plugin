@@ -17,17 +17,32 @@ export function CentroTable({ centros, onViewDetail }: CentroTableProps) {
       header: 'Centro',
       sortable: true,
       sortValue: (c) => c.nombre,
-      render: (c) => <strong>{c.nombre}</strong>,
+      render: (c) => (
+        <button
+          type="button"
+          onClick={(event) => {
+            event.stopPropagation();
+            onViewDetail(c.id);
+          }}
+          style={{
+            border: 'none',
+            background: 'none',
+            padding: 0,
+            font: 'inherit',
+            fontWeight: 700,
+            color: 'var(--gnf-ocean-dark)',
+            cursor: 'pointer',
+            textAlign: 'left',
+          }}
+        >
+          {c.nombre}
+        </button>
+      ),
     },
     {
       key: 'codigo',
-      header: 'Código MEP',
-      render: (c) => <span style={{ fontSize: '0.8125rem', color: 'var(--gnf-muted)' }}>{c.codigoMep}</span>,
-    },
-    {
-      key: 'meta',
-      header: 'Meta',
-      render: (c) => <StarRating rating={c.annual.metaEstrellas} size={14} />,
+      header: 'Codigo MEP',
+      render: (c) => <span style={{ fontSize: '0.8125rem', color: 'var(--gnf-muted)' }}>{c.codigoMep || 'Sin código'}</span>,
     },
     {
       key: 'puntaje',
@@ -38,7 +53,7 @@ export function CentroTable({ centros, onViewDetail }: CentroTableProps) {
     },
     {
       key: 'estrella',
-      header: 'Estrella',
+      header: 'Galardón',
       render: (c) => <StarRating rating={c.annual.estrellaFinal} size={14} />,
     },
     {
@@ -58,10 +73,10 @@ export function CentroTable({ centros, onViewDetail }: CentroTableProps) {
       header: 'Estado',
       render: (c) => {
         if (c.enviados > 0) {
-          return <Badge color="#92400e" bg="var(--gnf-sun-light)">{c.enviados} por revisar</Badge>;
+          return <Badge color="#b45309" bg="rgba(245, 158, 11, 0.12)">{c.enviados} por revisar</Badge>;
         }
         if (c.aprobados === c.retosCount && c.retosCount > 0) {
-          return <Badge color="#fff" bg="#22c55e">Completo</Badge>;
+          return <Badge color="#166534" bg="rgba(34, 197, 94, 0.12)">Completo</Badge>;
         }
         return <span style={{ fontSize: '0.8125rem', color: 'var(--gnf-muted)' }}>En progreso</span>;
       },
@@ -83,8 +98,9 @@ export function CentroTable({ centros, onViewDetail }: CentroTableProps) {
       data={centros}
       columns={columns}
       keyExtractor={(c) => c.id}
-      rowHighlight={(c) => (c.enviados > 0 ? 'var(--gnf-sun-light)' : undefined)}
-      emptyMessage="No hay centros con matrícula activa."
+      onRowClick={(c) => onViewDetail(c.id)}
+      rowHighlight={(c) => (c.enviados > 0 ? 'rgba(30, 95, 138, 0.05)' : undefined)}
+      emptyMessage="No hay centros con matricula activa."
     />
   );
 }

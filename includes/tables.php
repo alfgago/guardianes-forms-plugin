@@ -84,7 +84,29 @@ function gnf_create_tables() {
 		UNIQUE KEY centro_anio_unique (centro_id, anio)
 	) {$charset_collate};";
 
+	$table_audit = $wpdb->prefix . 'gn_audit_logs';
+	$sql_audit   = "CREATE TABLE {$table_audit} (
+		id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+		event_key varchar(120) NOT NULL,
+		actor_user_id bigint(20) unsigned NULL,
+		actor_role varchar(60) NULL,
+		target_user_id bigint(20) unsigned NULL,
+		centro_id bigint(20) unsigned NULL,
+		reto_id bigint(20) unsigned NULL,
+		anio int(11) NULL,
+		panel varchar(60) NULL,
+		message text NULL,
+		meta longtext NULL,
+		created_at datetime NOT NULL,
+		PRIMARY KEY (id),
+		KEY event_idx (event_key),
+		KEY actor_idx (actor_user_id),
+		KEY centro_idx (centro_id),
+		KEY anio_idx (anio)
+	) {$charset_collate};";
+
 	dbDelta( $sql_entries );
 	dbDelta( $sql_notif );
 	dbDelta( $sql_matriculas );
+	dbDelta( $sql_audit );
 }

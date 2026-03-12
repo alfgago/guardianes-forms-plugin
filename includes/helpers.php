@@ -34,6 +34,55 @@ function gnf_get_active_year()
 }
 
 /**
+ * Obtiene todos los años disponibles para navegación en paneles React.
+ *
+ * @return int[]
+ */
+function gnf_get_available_years()
+{
+	global $wpdb;
+
+	$years = array( gnf_get_active_year() );
+
+	$table_entries = $wpdb->prefix . 'gn_reto_entries';
+	$table_exists  = $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $table_entries ) );
+	if ( $table_exists === $table_entries ) {
+		$entry_years = $wpdb->get_col( "SELECT DISTINCT anio FROM {$table_entries} WHERE anio IS NOT NULL AND anio > 0" ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+		$years       = array_merge( $years, array_map( 'absint', (array) $entry_years ) );
+	}
+
+	$table_matriculas = $wpdb->prefix . 'gn_matriculas';
+	$table_exists     = $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $table_matriculas ) );
+	if ( $table_exists === $table_matriculas ) {
+		$matricula_years = $wpdb->get_col( "SELECT DISTINCT anio FROM {$table_matriculas} WHERE anio IS NOT NULL AND anio > 0" ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+		$years           = array_merge( $years, array_map( 'absint', (array) $matricula_years ) );
+	}
+
+	$reto_years = $wpdb->get_col(
+		$wpdb->prepare(
+			"SELECT DISTINCT pm.meta_value
+			FROM {$wpdb->postmeta} pm
+			INNER JOIN {$wpdb->posts} p ON p.ID = pm.post_id
+			WHERE p.post_type = 'reto'
+			  AND p.post_status IN ('publish', 'draft', 'pending', 'private')
+			  AND pm.meta_key LIKE %s",
+			$wpdb->esc_like( 'configuracion_por_anio_' ) . '%_anio'
+		)
+	);
+	$years = array_merge( $years, array_map( 'absint', (array) $reto_years ) );
+
+	$years = array_filter(
+		array_unique( $years ),
+		static function ( $year ) {
+			return $year >= 2000 && $year <= 2100;
+		}
+	);
+	rsort( $years, SORT_NUMERIC );
+
+	return array_values( apply_filters( 'gnf_available_years', $years ) );
+}
+
+/**
  * Normaliza un año válido de la plataforma.
  *
  * @param int|string|null $anio Año solicitado.
@@ -59,6 +108,130 @@ function gnf_normalize_geo_name($value)
 	$value = remove_accents((string) $value);
 	$value = strtolower(trim((string) preg_replace('/\s+/', ' ', $value)));
 	return $value;
+}
+
+/**
+ * Catalogo canonico de eco retos por ano.
+ *
+ * @param int|null $anio Ano.
+ * @return array<string,array<string,mixed>>
+ */
+function gnf_get_reto_catalog($anio = null)
+{
+	$anio = gnf_normalize_year($anio);
+
+	if (2026 !== $anio) {
+		return array();
+	}
+
+	return array(
+		'agua'                     => array( 'title' => 'RETO AGUA', 'required' => true ),
+		'electricidad'             => array( 'title' => 'RETO ELECTRICIDAD', 'required' => true ),
+		'residuos'                 => array( 'title' => 'RETO RESIDUOS', 'required' => true ),
+		'limpiezas'                => array( 'title' => 'RETO LIMPIEZAS', 'required' => false ),
+		'siembra-de-arboles'       => array( 'title' => 'RETO SIEMBRA DE ÁRBOLES', 'required' => false ),
+		'eco-lonchera'             => array( 'title' => 'RETO ECO LONCHERA', 'required' => false ),
+		'gestion-de-organicos'     => array( 'title' => 'RETO GESTIÓN DE ORGÁNICOS (compostaje)', 'required' => false ),
+		'artistico-eco-murales'    => array( 'title' => 'RETO ARTÍSTICO ECO MURALES', 'required' => false ),
+		'eco-gira'                 => array( 'title' => 'ECO GIRA', 'required' => false ),
+		'jardines-y-polinizadores' => array( 'title' => 'RETO JARDINES Y POLINIZADORES', 'required' => false ),
+		'huerta'                   => array( 'title' => 'RETO HUERTA', 'required' => false ),
+		'comodin'                  => array( 'title' => 'RETO COMODÍN', 'required' => false ),
+		'eco-emprendimiento'       => array( 'title' => 'RETO ECO EMPRENDIMIENTO', 'required' => false ),
+		'bienestar-animal'         => array( 'title' => 'RETO BIENESTAR ANIMAL', 'required' => false ),
+		'evento-sostenible'        => array( 'title' => 'RETO EVENTO SOSTENIBLE', 'required' => false ),
+	);
+}
+
+/**
+ * Obtiene el slug canonico de un reto a partir del titulo.
+ *
+ * @param string $title Titulo del reto.
+ * @return string
+ */
+function gnf_get_reto_canonical_slug($title)
+{
+	$normalized = gnf_normalize_geo_name((string) $title);
+	$normalized = preg_replace('/\([^)]*\)/', '', $normalized);
+	$normalized = trim((string) preg_replace('/\s+/', ' ', $normalized));
+
+	foreach ( array( 'reto ', 'eco reto ', 'eco-reto ', 'eco ' ) as $prefix ) {
+		if (0 === strpos($normalized, $prefix)) {
+			$normalized = substr($normalized, strlen($prefix));
+			break;
+		}
+	}
+
+	$normalized = trim((string) $normalized);
+
+	if (false !== strpos($normalized, 'captacion de agua')) {
+		return '';
+	}
+	if (false !== strpos($normalized, 'agua')) {
+		return 'agua';
+	}
+	if (false !== strpos($normalized, 'electric') || false !== strpos($normalized, 'energia')) {
+		return 'electricidad';
+	}
+	if (false !== strpos($normalized, 'residuo')) {
+		return 'residuos';
+	}
+	if (false !== strpos($normalized, 'ambiente limpio') || false !== strpos($normalized, 'limpieza')) {
+		return 'limpiezas';
+	}
+	if (false !== strpos($normalized, 'arbol')) {
+		return 'siembra-de-arboles';
+	}
+	if (false !== strpos($normalized, 'lonchera') || false !== strpos($normalized, 'merienda')) {
+		return 'eco-lonchera';
+	}
+	if (false !== strpos($normalized, 'compost') || false !== strpos($normalized, 'organico')) {
+		return 'gestion-de-organicos';
+	}
+	if (false !== strpos($normalized, 'artistico') || false !== strpos($normalized, 'mural')) {
+		return 'artistico-eco-murales';
+	}
+	if (false !== strpos($normalized, 'eco gira')) {
+		return 'eco-gira';
+	}
+	if (false !== strpos($normalized, 'polinizador') || false !== strpos($normalized, 'jardin')) {
+		return 'jardines-y-polinizadores';
+	}
+	if (false !== strpos($normalized, 'huerta')) {
+		return 'huerta';
+	}
+	if (false !== strpos($normalized, 'comod')) {
+		return 'comodin';
+	}
+	if (false !== strpos($normalized, 'emprend')) {
+		return 'eco-emprendimiento';
+	}
+	if (false !== strpos($normalized, 'bienestar animal')) {
+		return 'bienestar-animal';
+	}
+	if (false !== strpos($normalized, 'evento sostenible')) {
+		return 'evento-sostenible';
+	}
+
+	return sanitize_title($normalized);
+}
+
+/**
+ * Indica si el reto es requisito en matricula.
+ *
+ * @param int $reto_id ID del reto.
+ * @param int|null $anio Ano.
+ * @return bool
+ */
+function gnf_is_reto_required($reto_id, $anio = null)
+{
+	$slug    = gnf_get_reto_canonical_slug(get_the_title((int) $reto_id));
+	$catalog = gnf_get_reto_catalog($anio);
+	if ($slug && isset($catalog[$slug]['required'])) {
+		return (bool) $catalog[$slug]['required'];
+	}
+
+	return in_array((int) $reto_id, gnf_get_obligatorio_reto_ids(), true);
 }
 
 /**
@@ -619,8 +792,12 @@ function gnf_set_centro_anual_field($centro_id, $field, $value, $anio = null)
 function gnf_get_centro_retos_seleccionados($centro_id, $anio = null)
 {
 	$retos = gnf_get_centro_anual_field($centro_id, 'retos_seleccionados', $anio, array());
+	if (empty($retos)) {
+		$retos = gnf_get_matricula_selected_retos_fallback($centro_id, $anio);
+	}
 	$retos = gnf_normalize_reto_ids($retos);
-	$retos = gnf_filter_reto_ids_by_year_form($retos, $anio);
+	$retos = array_values(array_unique(array_merge(gnf_get_required_reto_ids_for_year($anio), $retos)));
+	$retos = gnf_resolve_reto_ids_for_year($retos, $anio);
 	return gnf_sort_reto_ids_required_first($retos);
 }
 
@@ -655,7 +832,8 @@ function gnf_get_centro_estrella_final($centro_id, $anio = null)
 function gnf_set_centro_retos_seleccionados($centro_id, $anio, $reto_ids)
 {
 	$reto_ids = gnf_normalize_reto_ids($reto_ids);
-	$reto_ids = gnf_filter_reto_ids_by_year_form($reto_ids, $anio);
+	$reto_ids = array_values(array_unique(array_merge(gnf_get_required_reto_ids_for_year($anio), $reto_ids)));
+	$reto_ids = gnf_resolve_reto_ids_for_year($reto_ids, $anio);
 	$reto_ids = gnf_sort_reto_ids_required_first($reto_ids);
 	return gnf_set_centro_anual_field($centro_id, 'retos_seleccionados', $reto_ids, $anio);
 }
@@ -703,11 +881,22 @@ function gnf_user_has_role($user, $role)
  */
 function gnf_get_user_region($user_id)
 {
-	$region = get_user_meta($user_id, 'region', true);
-	if (empty($region) && function_exists('get_field')) {
-		$region = get_field('region', 'user_' . $user_id);
+	$keys = array( 'region', 'gnf_region_id', 'gnf_region' );
+	foreach ( $keys as $key ) {
+		$region = get_user_meta( $user_id, $key, true );
+		if ( '' !== $region && null !== $region ) {
+			return absint( $region );
+		}
 	}
-	return $region;
+
+	if ( function_exists( 'get_field' ) ) {
+		$region = get_field( 'region', 'user_' . $user_id );
+		if ( ! empty( $region ) ) {
+			return absint( $region );
+		}
+	}
+
+	return 0;
 }
 
 /**
@@ -795,6 +984,169 @@ function gnf_get_registros_drive_url()
  *
  * @return int[]
  */
+function gnf_get_available_retos_for_year($anio = null)
+{
+	$anio    = gnf_normalize_year($anio);
+	$catalog = gnf_get_reto_catalog($anio);
+	$retos   = get_posts(
+		array(
+			'post_type'      => 'reto',
+			'post_status'    => 'publish',
+			'posts_per_page' => -1,
+			'orderby'        => 'title',
+			'order'          => 'ASC',
+		)
+	);
+
+	$grouped = array();
+	foreach ((array) $retos as $reto) {
+		if (! gnf_reto_has_form_for_year($reto->ID, $anio)) {
+			continue;
+		}
+
+		$slug = gnf_get_reto_canonical_slug($reto->post_title);
+		if (! empty($catalog) && empty($catalog[$slug])) {
+			continue;
+		}
+
+		if (empty($slug)) {
+			$slug = 'post-' . (int) $reto->ID;
+		}
+
+		if (! isset($grouped[$slug])) {
+			$grouped[$slug] = array();
+		}
+		$grouped[$slug][] = $reto;
+	}
+
+	$selected = array();
+	foreach ($grouped as $slug => $items) {
+		$preferred_title = $catalog[$slug]['title'] ?? '';
+		$selected_post   = null;
+
+		foreach ($items as $item) {
+			if ($preferred_title && 0 === strcasecmp((string) $item->post_title, (string) $preferred_title)) {
+				$selected_post = $item;
+				break;
+			}
+		}
+
+		if (! $selected_post) {
+			usort(
+				$items,
+				static function ($a, $b) {
+					return strcasecmp(remove_accents((string) $a->post_title), remove_accents((string) $b->post_title));
+				}
+			);
+			$selected_post = $items[0];
+		}
+
+		$selected[] = $selected_post;
+	}
+
+	usort(
+		$selected,
+		static function ($a, $b) use ($anio) {
+			$a_required = gnf_is_reto_required((int) $a->ID, $anio) ? 0 : 1;
+			$b_required = gnf_is_reto_required((int) $b->ID, $anio) ? 0 : 1;
+			if ($a_required !== $b_required) {
+				return $a_required <=> $b_required;
+			}
+			return strcasecmp(remove_accents((string) $a->post_title), remove_accents((string) $b->post_title));
+		}
+	);
+
+	return array_values($selected);
+}
+
+function gnf_get_required_reto_ids_for_year($anio = null)
+{
+	$required = array();
+	foreach (gnf_get_available_retos_for_year($anio) as $reto) {
+		if (gnf_is_reto_required((int) $reto->ID, $anio)) {
+			$required[] = (int) $reto->ID;
+		}
+	}
+
+	return array_values(array_unique($required));
+}
+
+function gnf_get_latest_matricula_row($centro_id, $anio = null)
+{
+	global $wpdb;
+
+	$centro_id = absint($centro_id);
+	$anio      = gnf_normalize_year($anio);
+	if (! $centro_id) {
+		return null;
+	}
+
+	$table  = $wpdb->prefix . 'gn_matriculas';
+	$exists = $wpdb->get_var($wpdb->prepare('SHOW TABLES LIKE %s', $table));
+	if ($exists !== $table) {
+		return null;
+	}
+
+	return $wpdb->get_row(
+		$wpdb->prepare(
+			"SELECT * FROM {$table} WHERE centro_id = %d AND anio = %d ORDER BY id DESC LIMIT 1",
+			$centro_id,
+			$anio
+		)
+	);
+}
+
+function gnf_get_matricula_selected_retos_fallback($centro_id, $anio = null)
+{
+	$row = gnf_get_latest_matricula_row($centro_id, $anio);
+	if (! $row) {
+		return array();
+	}
+
+	$retos = json_decode((string) ($row->retos_seleccionados ?? ''), true);
+	if (! is_array($retos) || empty($retos)) {
+		$data  = json_decode((string) ($row->data ?? ''), true);
+		$retos = is_array($data) ? ($data['bae-retos-seleccionados'] ?? array()) : array();
+	}
+
+	return gnf_normalize_reto_ids((array) $retos);
+}
+
+function gnf_resolve_reto_ids_for_year($reto_ids, $anio = null)
+{
+	$anio          = gnf_normalize_year($anio);
+	$reto_ids      = gnf_normalize_reto_ids((array) $reto_ids);
+	$available     = gnf_get_available_retos_for_year($anio);
+	$available_map = array();
+
+	foreach ($available as $reto) {
+		$slug = gnf_get_reto_canonical_slug($reto->post_title);
+		if ($slug && empty($available_map[$slug])) {
+			$available_map[$slug] = (int) $reto->ID;
+		}
+	}
+
+	$resolved = array();
+	foreach ($reto_ids as $reto_id) {
+		$reto_id = (int) $reto_id;
+		if ($reto_id <= 0) {
+			continue;
+		}
+
+		$slug = gnf_get_reto_canonical_slug(get_the_title($reto_id));
+		if ($slug && ! empty($available_map[$slug])) {
+			$resolved[] = (int) $available_map[$slug];
+			continue;
+		}
+
+		if (gnf_reto_has_form_for_year($reto_id, $anio)) {
+			$resolved[] = $reto_id;
+		}
+	}
+
+	return array_values(array_unique($resolved));
+}
+
 function gnf_get_obligatorio_reto_ids()
 {
 	$query = new WP_Query(array(
@@ -978,12 +1330,11 @@ function gnf_sort_reto_ids_required_first($reto_ids)
 		return array();
 	}
 
-	$required = array_flip(gnf_collapse_retos_a_raiz(gnf_get_obligatorio_reto_ids()));
 	usort(
 		$reto_ids,
-		static function ($a, $b) use ($required) {
-			$a_required = isset($required[(int) $a]) ? 0 : 1;
-			$b_required = isset($required[(int) $b]) ? 0 : 1;
+		static function ($a, $b) {
+			$a_required = gnf_is_reto_required((int) $a) ? 0 : 1;
+			$b_required = gnf_is_reto_required((int) $b) ? 0 : 1;
 			if ($a_required !== $b_required) {
 				return $a_required <=> $b_required;
 			}
@@ -1071,6 +1422,7 @@ function gnf_get_reto_icon_url($reto_id, $size = 'thumbnail', $anio = null)
 	return '';
 }
 
+
 /**
  * Obtiene informacion de los formularios anuales configurados para un reto.
  *
@@ -1137,10 +1489,23 @@ function gnf_get_config_row_for_year($reto_id, $anio = null)
 
 	$config = get_field('configuracion_por_anio', $reto_id);
 	if (!empty($config) && is_array($config)) {
+		$fallback_row = null;
 		foreach ($config as $row) {
-			if (!empty($row['anio']) && absint($row['anio']) === $anio && !empty($row['activo'])) {
+			if (empty($row['activo'])) {
+				continue;
+			}
+			if (!empty($row['anio']) && absint($row['anio']) === $anio) {
 				return $row;
 			}
+			if (null === $fallback_row || absint($row['anio'] ?? 0) > absint($fallback_row['anio'] ?? 0)) {
+				$fallback_row = $row;
+			}
+		}
+
+		$catalog = gnf_get_reto_catalog($anio);
+		$slug    = gnf_get_reto_canonical_slug(get_the_title($reto_id));
+		if (!empty($catalog) && $slug && isset($catalog[$slug]) && null !== $fallback_row) {
+			return $fallback_row;
 		}
 	}
 	return null;
@@ -1198,7 +1563,7 @@ function gnf_get_reto_field_points($reto_id, $anio = null)
  */
 function gnf_get_centro_for_docente($user_id)
 {
-	$args  = array(
+	$args = array(
 		'post_type'      => 'centro_educativo',
 		'posts_per_page' => 1,
 		'meta_query'     => array(
@@ -1214,6 +1579,15 @@ function gnf_get_centro_for_docente($user_id)
 	if ($query->have_posts()) {
 		return (int) $query->posts[0];
 	}
+
+	$meta_candidates = array( 'centro_educativo_id', 'centro_solicitado', 'gnf_centro_id' );
+	foreach ( $meta_candidates as $meta_key ) {
+		$centro_id = absint( get_user_meta( $user_id, $meta_key, true ) );
+		if ( $centro_id && 'centro_educativo' === get_post_type( $centro_id ) ) {
+			return $centro_id;
+		}
+	}
+
 	return 0;
 }
 
@@ -1231,6 +1605,9 @@ function gnf_verify_ajax_nonce()
 function gnf_get_docente_estado($user_id)
 {
 	$status = get_user_meta($user_id, 'gnf_docente_status', true);
+	if ( ! $status ) {
+		$status = get_user_meta( $user_id, 'gnf_docente_estado', true );
+	}
 	if ($status) {
 		return $status;
 	}
@@ -1239,6 +1616,170 @@ function gnf_get_docente_estado($user_id)
 		return 'activo';
 	}
 	return 'pendiente';
+}
+
+/**
+ * Estado de supervisor/comite (activo/pendiente/rechazado).
+ *
+ * @param int $user_id ID del usuario.
+ * @return string
+ */
+function gnf_get_supervisor_estado( $user_id ) {
+	$status = get_user_meta( $user_id, 'gnf_supervisor_status', true );
+	if ( ! $status ) {
+		$status = get_user_meta( $user_id, 'gnf_supervisor_estado', true );
+	}
+	if ( $status ) {
+		return $status;
+	}
+
+	$user = get_userdata( $user_id );
+	if ( $user && ( in_array( 'supervisor', (array) $user->roles, true ) || in_array( 'comite_bae', (array) $user->roles, true ) ) ) {
+		return 'activo';
+	}
+
+	return 'pendiente';
+}
+
+/**
+ * Asocia un docente al centro si aun no pertenece al arreglo docentes_asociados.
+ *
+ * @param int $user_id   ID del docente.
+ * @param int $centro_id ID del centro.
+ * @return void
+ */
+function gnf_attach_docente_to_centro( $user_id, $centro_id ) {
+	$user_id   = absint( $user_id );
+	$centro_id = absint( $centro_id );
+
+	if ( ! $user_id || ! $centro_id || 'centro_educativo' !== get_post_type( $centro_id ) ) {
+		return;
+	}
+
+	$docentes = array();
+	if ( function_exists( 'get_field' ) ) {
+		$docentes = (array) get_field( 'docentes_asociados', $centro_id );
+	} else {
+		$docentes = (array) get_post_meta( $centro_id, 'docentes_asociados', true );
+	}
+
+	$docentes = array_map( 'absint', $docentes );
+	if ( ! in_array( $user_id, $docentes, true ) ) {
+		$docentes[] = $user_id;
+		if ( function_exists( 'update_field' ) ) {
+			update_field( 'docentes_asociados', array_values( $docentes ), $centro_id );
+		} else {
+			update_post_meta( $centro_id, 'docentes_asociados', array_values( $docentes ) );
+		}
+	}
+}
+
+/**
+ * Remueve un docente del arreglo docentes_asociados del centro.
+ *
+ * @param int $user_id   ID del docente.
+ * @param int $centro_id ID del centro.
+ * @return void
+ */
+function gnf_detach_docente_from_centro( $user_id, $centro_id ) {
+	$user_id   = absint( $user_id );
+	$centro_id = absint( $centro_id );
+
+	if ( ! $user_id || ! $centro_id || 'centro_educativo' !== get_post_type( $centro_id ) ) {
+		return;
+	}
+
+	$docentes = array();
+	if ( function_exists( 'get_field' ) ) {
+		$docentes = (array) get_field( 'docentes_asociados', $centro_id );
+	} else {
+		$docentes = (array) get_post_meta( $centro_id, 'docentes_asociados', true );
+	}
+
+	$docentes = array_values(
+		array_filter(
+			array_map( 'absint', $docentes ),
+			static function ( $docente_id ) use ( $user_id ) {
+				return $docente_id && $docente_id !== $user_id;
+			}
+		)
+	);
+
+	if ( function_exists( 'update_field' ) ) {
+		update_field( 'docentes_asociados', $docentes, $centro_id );
+	} else {
+		update_post_meta( $centro_id, 'docentes_asociados', $docentes );
+	}
+}
+
+/**
+ * Obtiene IDs de usuarios docentes que tienen tomado un centro.
+ *
+ * Considera el centro asociado activo, solicitudes pendientes y el arreglo docentes_asociados.
+ *
+ * @param int $centro_id        ID del centro.
+ * @param int $exclude_user_id  Usuario a excluir del chequeo.
+ * @return int[]
+ */
+function gnf_get_claiming_docente_ids_for_centro( $centro_id, $exclude_user_id = 0 ) {
+	$centro_id       = absint( $centro_id );
+	$exclude_user_id = absint( $exclude_user_id );
+
+	if ( ! $centro_id || 'centro_educativo' !== get_post_type( $centro_id ) ) {
+		return array();
+	}
+
+	$user_ids = array();
+	$meta_keys = array( 'centro_educativo_id', 'centro_solicitado', 'gnf_centro_id' );
+	foreach ( $meta_keys as $meta_key ) {
+		$users = get_users(
+			array(
+				'fields'     => 'ids',
+				'role'       => 'docente',
+				'number'     => -1,
+				'meta_key'   => $meta_key,
+				'meta_value' => $centro_id,
+			)
+		);
+		if ( ! empty( $users ) ) {
+			$user_ids = array_merge( $user_ids, array_map( 'absint', $users ) );
+		}
+	}
+
+	$asociados = function_exists( 'get_field' )
+		? (array) get_field( 'docentes_asociados', $centro_id )
+		: (array) get_post_meta( $centro_id, 'docentes_asociados', true );
+
+	$user_ids = array_merge( $user_ids, array_map( 'absint', $asociados ) );
+	$user_ids = array_values(
+		array_filter(
+			array_unique( $user_ids ),
+			static function ( $user_id ) use ( $exclude_user_id ) {
+				if ( ! $user_id ) {
+					return false;
+				}
+				if ( $exclude_user_id && $user_id === $exclude_user_id ) {
+					return false;
+				}
+
+				$user = get_userdata( $user_id );
+				return $user instanceof WP_User && in_array( 'docente', (array) $user->roles, true );
+			}
+		)
+	);
+
+	return $user_ids;
+}
+
+/**
+ * Indica si un centro ya fue tomado por otro usuario docente.
+ *
+ * @param int $centro_id        ID del centro.
+ * @param int $exclude_user_id  Usuario a excluir del chequeo.
+ * @return bool
+ */
+function gnf_is_centro_claimed_by_other_docente( $centro_id, $exclude_user_id = 0 ) {
+	return ! empty( gnf_get_claiming_docente_ids_for_centro( $centro_id, $exclude_user_id ) );
 }
 
 /**
@@ -1251,6 +1792,127 @@ function gnf_approve_docente($user_id)
 	update_user_meta($user_id, 'gnf_docente_status', 'activo');
 	gnf_insert_notification($user_id, 'docente_aprobado', 'Tu cuenta fue aprobada.', 'docente', $user_id);
 }
+
+/**
+ * Marca supervisor o comité como aprobado sin alterar su rol solicitado.
+ *
+ * @param int $user_id ID del usuario.
+ * @return void
+ */
+function gnf_approve_supervisor( $user_id ) {
+	update_user_meta( $user_id, 'gnf_supervisor_status', 'activo' );
+	gnf_insert_notification( $user_id, 'cuenta_aprobada', 'Tu cuenta ha sido aprobada. Ya puedes acceder al sistema.', 'usuario', $user_id );
+}
+
+/**
+ * Copia un meta legacy a su clave canonica si la canonica aun no existe.
+ *
+ * @param int    $user_id     ID del usuario.
+ * @param string $legacy_key  Meta legacy.
+ * @param string $target_key  Meta canonica.
+ * @return bool
+ */
+function gnf_copy_user_meta_if_missing( $user_id, $legacy_key, $target_key ) {
+	$current = get_user_meta( $user_id, $target_key, true );
+	if ( '' !== $current && null !== $current ) {
+		return false;
+	}
+
+	$legacy = get_user_meta( $user_id, $legacy_key, true );
+	if ( '' === $legacy || null === $legacy ) {
+		return false;
+	}
+
+	update_user_meta( $user_id, $target_key, $legacy );
+	return true;
+}
+
+/**
+ * Ejecuta backfill de la alineacion React/ACF una sola vez.
+ *
+ * @return void
+ */
+function gnf_maybe_run_alignment_migration() {
+	$version = get_option( 'gnf_alignment_migration_version', '' );
+	if ( '2026-03-react-yearly-acf' === $version ) {
+		return;
+	}
+
+	if ( ! function_exists( 'get_field' ) || ! function_exists( 'update_field' ) ) {
+		return;
+	}
+
+	$reto_ids = get_posts(
+		array(
+			'post_type'      => 'reto',
+			'post_status'    => array( 'publish', 'draft', 'pending', 'private' ),
+			'posts_per_page' => -1,
+			'fields'         => 'ids',
+		)
+	);
+
+	foreach ( (array) $reto_ids as $reto_id ) {
+		$rows    = get_field( 'configuracion_por_anio', $reto_id );
+		$changed = false;
+		$rows    = is_array( $rows ) ? $rows : array();
+
+		foreach ( $rows as &$row ) {
+			$field_points  = is_array( $row['field_points'] ?? null ) ? $row['field_points'] : array();
+			$puntaje_total = 0;
+			foreach ( $field_points as $field_point ) {
+				$puntaje_total += absint( $field_point['puntos'] ?? 0 );
+			}
+
+			if ( (int) ( $row['puntaje_total'] ?? 0 ) !== $puntaje_total ) {
+				$row['puntaje_total'] = $puntaje_total;
+				$changed              = true;
+			}
+		}
+		unset( $row );
+
+		if ( $changed ) {
+			update_field( 'configuracion_por_anio', array_values( $rows ), $reto_id );
+		}
+	}
+
+	$user_ids = get_users(
+		array(
+			'fields' => 'ids',
+		)
+	);
+
+	foreach ( (array) $user_ids as $user_id ) {
+		gnf_copy_user_meta_if_missing( $user_id, 'gnf_docente_estado', 'gnf_docente_status' );
+		gnf_copy_user_meta_if_missing( $user_id, 'gnf_supervisor_estado', 'gnf_supervisor_status' );
+		gnf_copy_user_meta_if_missing( $user_id, 'gnf_centro_id', 'centro_solicitado' );
+		gnf_copy_user_meta_if_missing( $user_id, 'gnf_region_id', 'region' );
+		gnf_copy_user_meta_if_missing( $user_id, 'gnf_region', 'region' );
+	}
+
+	$terms = get_terms(
+		array(
+			'taxonomy'   => 'gn_region',
+			'hide_empty' => false,
+		)
+	);
+
+	if ( ! is_wp_error( $terms ) ) {
+		foreach ( $terms as $term ) {
+			$current = get_term_meta( $term->term_id, 'gnf_dre_activa', true );
+			if ( '' !== $current && null !== $current ) {
+				continue;
+			}
+
+			$legacy = get_term_meta( $term->term_id, 'gnf_enabled', true );
+			if ( '' !== $legacy && null !== $legacy ) {
+				update_term_meta( $term->term_id, 'gnf_dre_activa', $legacy );
+			}
+		}
+	}
+
+	update_option( 'gnf_alignment_migration_version', '2026-03-react-yearly-acf', false );
+}
+add_action( 'init', 'gnf_maybe_run_alignment_migration', 25 );
 
 /**
  * Crea notificaciones a admins.
@@ -1338,7 +2000,7 @@ function gnf_render_auth_block($args = array())
 	<div class="gnf-auth gnf-auth--wide">
 		<div class="gnf-auth__card gnf-auth__card--wide">
 			<div class="gnf-auth__logo">
-				<img src="<?php echo esc_url(GNF_URL . 'assets/logo-guardiana.png'); ?>" alt="Guardianes" />
+				<img src="<?php echo esc_url(GNF_LOGO_URL); ?>" alt="Guardianes" style="background: #fff; border-radius: 4px;" />
 			</div>
 			<h2><?php echo esc_html($args['title']); ?></h2>
 			<p class="gnf-muted"><?php echo esc_html($args['description']); ?></p>
@@ -2272,5 +2934,4 @@ function gnf_get_puntos_potenciales($centro_id, $anio)
 
 	return $potencial;
 }
-
 

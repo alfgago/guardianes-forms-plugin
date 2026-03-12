@@ -15,8 +15,11 @@ function gnf_collect_evidencias( $fields, $anio, $centro_id, $reto_id ) {
 	$evidencias  = array();
 	$upload_dir  = wp_upload_dir();
 	$target_base = trailingslashit( $upload_dir['basedir'] ) . 'guardianes/' . $anio . '/' . $centro_id . '/' . $reto_id . '/';
+	$base_dir    = wp_normalize_path( $upload_dir['basedir'] );
+	$base_url    = trailingslashit( $upload_dir['baseurl'] );
 
 	wp_mkdir_p( $target_base );
+	$target_base = wp_normalize_path( $target_base );
 
 	foreach ( $fields as $field_id => $field ) {
 		$type = isset( $field['type'] ) ? $field['type'] : '';
@@ -31,8 +34,30 @@ function gnf_collect_evidencias( $fields, $anio, $centro_id, $reto_id ) {
 
 		$files = is_array( $value ) ? $value : array( $value );
 		foreach ( $files as $file_path ) {
+			$file_path = is_string( $file_path ) ? trim( $file_path ) : '';
+			if ( '' === $file_path ) {
+				continue;
+			}
+
 			// Normaliza path absoluto.
-			$abs_path = ( false === strpos( $file_path, ABSPATH ) ) ? $upload_dir['basedir'] . '/' . ltrim( $file_path, '/' ) : $file_path;
+			if ( 0 === strpos( $file_path, $base_url ) ) {
+				$abs_path = str_replace( $base_url, trailingslashit( $upload_dir['basedir'] ), $file_path );
+			} elseif ( 0 === strpos( wp_normalize_path( $file_path ), $base_dir ) ) {
+				$abs_path = $file_path;
+			} elseif ( 0 === strpos( $file_path, 'http' ) ) {
+				$parsed_path = wp_parse_url( $file_path, PHP_URL_PATH );
+				$uploads_rel = wp_parse_url( $base_url, PHP_URL_PATH );
+				if ( $parsed_path && $uploads_rel && 0 === strpos( $parsed_path, $uploads_rel ) ) {
+					$relative = ltrim( substr( $parsed_path, strlen( $uploads_rel ) ), '/' );
+					$abs_path = trailingslashit( $upload_dir['basedir'] ) . $relative;
+				} else {
+					$abs_path = $file_path;
+				}
+			} elseif ( false === strpos( $file_path, ABSPATH ) ) {
+				$abs_path = trailingslashit( $upload_dir['basedir'] ) . ltrim( $file_path, '/' );
+			} else {
+				$abs_path = $file_path;
+			}
 			$abs_path = wp_normalize_path( $abs_path );
 
 			if ( ! file_exists( $abs_path ) ) {
@@ -40,9 +65,20 @@ function gnf_collect_evidencias( $fields, $anio, $centro_id, $reto_id ) {
 			}
 
 			$filename = wp_basename( $abs_path );
-			$unique   = wp_unique_filename( $target_base, $filename );
-			$dest     = $target_base . $unique;
-			if ( $abs_path !== $dest ) {
+			if ( 0 === strpos( $abs_path, $target_base ) ) {
+				$unique = wp_basename( $abs_path );
+				$dest   = $abs_path;
+			} else {
+				$existing_dest = $target_base . $filename;
+				if ( file_exists( $existing_dest ) && filesize( $existing_dest ) === filesize( $abs_path ) ) {
+					$unique = $filename;
+					$dest   = $existing_dest;
+				} else {
+					$unique = wp_unique_filename( $target_base, $filename );
+					$dest   = $target_base . $unique;
+				}
+			}
+			if ( $abs_path !== $dest && ! file_exists( $dest ) ) {
 				copy( $abs_path, $dest );
 			}
 

@@ -61,10 +61,10 @@ const icons: Record<ToastType, typeof Info> = {
   info: Info,
 };
 
-const colors: Record<ToastType, { bg: string; border: string; icon: string }> = {
-  success: { bg: '#dcfce7', border: '#22c55e', icon: '#16a34a' },
-  error: { bg: 'var(--gnf-coral-light)', border: 'var(--gnf-coral)', icon: '#991b1b' },
-  info: { bg: '#e0f2fe', border: '#0ea5e9', icon: '#0369a1' },
+const colors: Record<ToastType, { border: string; icon: string }> = {
+  success: { border: '#22c55e', icon: '#16a34a' },
+  error: { border: 'var(--gnf-coral)', icon: '#dc2626' },
+  info: { border: '#0ea5e9', icon: '#0369a1' },
 };
 
 function ToastMessage({ item, onDismiss }: { item: ToastItem; onDismiss: (id: number) => void }) {
@@ -82,8 +82,9 @@ function ToastMessage({ item, onDismiss }: { item: ToastItem; onDismiss: (id: nu
         alignItems: 'center',
         gap: 'var(--gnf-space-3)',
         padding: 'var(--gnf-space-3) var(--gnf-space-4)',
-        background: c.bg,
-        border: `1px solid ${c.border}`,
+        background: 'var(--gnf-white)',
+        border: '1px solid var(--gnf-border)',
+        borderLeft: `4px solid ${c.border}`,
         borderRadius: 'var(--gnf-radius)',
         boxShadow: 'var(--gnf-shadow-md)',
         minWidth: 300,

@@ -38,7 +38,7 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
           style={{
             width: '100%',
             padding: '10px 14px',
-            border: `1px solid ${error ? 'var(--gnf-coral)' : 'var(--gnf-border)'}`,
+            border: `1.5px solid ${error ? 'var(--gnf-coral)' : 'var(--gnf-field-border)'}`,
             borderRadius: 'var(--gnf-radius)',
             fontSize: '0.9375rem',
             fontFamily: 'var(--gnf-font-body)',
@@ -46,6 +46,14 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
             background: 'var(--gnf-white)',
             outline: 'none',
             cursor: 'pointer',
+          }}
+          onFocus={(e) => {
+            e.currentTarget.style.borderColor = 'var(--gnf-ocean)';
+            e.currentTarget.style.boxShadow = '0 0 0 3px rgba(30, 95, 138, 0.12)';
+          }}
+          onBlur={(e) => {
+            e.currentTarget.style.borderColor = error ? 'var(--gnf-coral)' : 'var(--gnf-field-border)';
+            e.currentTarget.style.boxShadow = 'none';
           }}
           {...props}
         >

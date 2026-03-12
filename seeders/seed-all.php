@@ -485,14 +485,14 @@ function gnf_run_all_seeders($dry_run = false)
     $log('');
 
     // ═══════════════════════════════════════════════════════════════
-    // PASO 4: Validación multi-año de consistencia (puntaje BD vs ACF)
+    // PASO 4: Validacion 2026 de consistencia (puntaje BD vs ACF)
     // ═══════════════════════════════════════════════════════════════
     $log('═══════════════════════════════════════════════════════════════', 'header');
-    $log('PASO 4: Validando consistencia multi-año (2025/2026)', 'header');
+    $log('PASO 4: Validando consistencia 2026', 'header');
     $log('═══════════════════════════════════════════════════════════════', 'header');
     if (function_exists('gnf_validate_multi_year_consistency')) {
-        $validation = gnf_validate_multi_year_consistency(array(2025, 2026));
-        $log('  ✓ Validación multi-año ejecutada', 'success');
+        $validation = gnf_validate_multi_year_consistency(array(2026));
+        $log('  ✓ Validacion 2026 ejecutada', 'success');
         foreach ((array) ($validation['years'] ?? array()) as $row) {
             $log(
                 '  • Año ' . intval($row['year'] ?? 0) .
@@ -559,7 +559,7 @@ if (defined('WP_CLI') && WP_CLI) {
 
 // Ejecución desde navegador.
 if (isset($_GET['gnf_seed_all']) && current_user_can('manage_options')) {
-    $seed_key = defined('GNF_SEED_KEY') ? GNF_SEED_KEY : 'bandera2025';
+    $seed_key = defined('GNF_SEED_KEY') ? GNF_SEED_KEY : 'bandera2026';
 
     if (! isset($_GET['gnf_seed_key']) || $_GET['gnf_seed_key'] !== $seed_key) {
         wp_die('Clave de seguridad inválida.');

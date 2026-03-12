@@ -1,5 +1,5 @@
 import { get, post } from './client';
-import type { RetoWithEntry } from '@/types';
+import type { Reto, RetoEntry, RetoWithEntry } from '@/types';
 
 interface DocenteDashboard {
   centro: {
@@ -27,10 +27,34 @@ interface WizardStep {
   retoTitulo: string;
   retoColor: string;
   retoIconUrl: string;
+  pdfUrl?: string;
   formId: number;
   estado: string;
   puntaje: number;
   puntajeMaximo: number;
+}
+
+export interface RetoFieldPoint {
+  fieldId: number;
+  label: string;
+  puntos: number;
+  tipo: string;
+}
+
+export interface AutosaveFieldPayload {
+  type: string;
+  name: string;
+  value: string | string[];
+}
+
+export interface RetoFormResponse {
+  html: string;
+  formId: number;
+  fieldPoints: RetoFieldPoint[];
+  savedValues: Record<string, string | string[]>;
+  savedAt?: string;
+  entry: RetoEntry | null;
+  reto: Pick<Reto, 'id' | 'titulo' | 'color' | 'iconUrl' | 'pdfUrl' | 'puntajeMaximo'>;
 }
 
 export const retosApi = {
@@ -47,15 +71,22 @@ export const retosApi = {
   },
 
   getFormHtml(retoId: number, year: number) {
-    return get<{ html: string }>(`/docente/retos/${retoId}/form-html`, { year });
+    return get<RetoFormResponse>(`/docente/retos/${retoId}/form-html`, { year });
   },
 
-  finalizeReto(retoId: number) {
-    return post<{ success: boolean }>(`/docente/retos/${retoId}/finalize`);
+  autosaveReto(retoId: number, year: number, formId: number, fields: Record<string, AutosaveFieldPayload>) {
+    return post<{ success: boolean; savedAt?: string; entry: RetoEntry | null }>(
+      `/docente/retos/${retoId}/autosave`,
+      { year, formId, fields },
+    );
   },
 
-  reopenReto(retoId: number) {
-    return post<{ success: boolean }>(`/docente/retos/${retoId}/reopen`);
+  finalizeReto(retoId: number, year: number) {
+    return post<{ success: boolean }>(`/docente/retos/${retoId}/finalize`, { year });
+  },
+
+  reopenReto(retoId: number, year: number) {
+    return post<{ success: boolean }>(`/docente/retos/${retoId}/reopen`, { year });
   },
 
   submitAll(year: number) {

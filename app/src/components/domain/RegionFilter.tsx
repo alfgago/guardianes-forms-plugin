@@ -11,10 +11,10 @@ export function RegionFilter({ regions, value, onChange }: RegionFilterProps) {
     <select
       value={value}
       onChange={(e) => onChange(e.target.value)}
-      aria-label="Filtrar por región"
+      aria-label="Filtrar por region"
       style={{
         padding: '8px 14px',
-        border: '1px solid var(--gnf-border)',
+        border: '1.5px solid var(--gnf-field-border)',
         borderRadius: 'var(--gnf-radius)',
         fontSize: '0.9375rem',
         fontFamily: 'var(--gnf-font-body)',

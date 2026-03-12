@@ -36,7 +36,7 @@ export function DashboardPage({ onViewCentro }: DashboardPageProps) {
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--gnf-space-6)' }}>
         <div>
-          <h2>Dashboard</h2>
+          <h2>Escritorio</h2>
           <p style={{ color: 'var(--gnf-muted)' }}>Año {year} | {dashboard?.regionName}</p>
         </div>
       </div>

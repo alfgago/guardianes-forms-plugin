@@ -138,54 +138,76 @@ def main():
     # Contadores
     success_count = 0
     error_count = 0
-    
-    # Procesar cada reto
+    processed_targets = set()
+
+    # Procesar cada reto y cada configuracion anual
     for index, reto in enumerate(retos, 1):
         titulo = reto.get('titulo', f'Reto {index}')
-        pdf_url = reto.get('pdf_url', '')
-        
-        if not pdf_url:
-            print(f"[{index}/{len(retos)}] [SKIP] Omitiendo '{titulo}': Sin URL de PDF")
+        years = reto.get('years', {})
+
+        if not isinstance(years, dict) or not years:
+            print(f"[{index}/{len(retos)}] [SKIP] Omitiendo '{titulo}': Sin configuracion anual")
             continue
-        
+
         print(f"[{index}/{len(retos)}] [>>] Procesando: {titulo}")
-        
-        # Descargar PDF
-        pdf_path = download_pdf(pdf_url, temp_pdfs_dir)
-        if not pdf_path:
-            error_count += 1
-            print()
-            continue
-        
-        # Extraer texto
-        text = extract_text_from_pdf(pdf_path)
-        if not text:
-            error_count += 1
-            # Limpiar PDF temporal
+
+        for year_key in sorted(years.keys(), key=lambda value: int(value)):
+            year_config = years.get(year_key, {})
+            if not isinstance(year_config, dict):
+                continue
+
+            pdf_url = year_config.get('pdf_url', '')
+            pdf_text_dir = year_config.get('pdf_text_dir', '')
+
+            if not pdf_url:
+                print(f"  [{year_key}] [SKIP] Sin URL de PDF")
+                continue
+
+            if pdf_text_dir:
+                txt_path = script_dir / pdf_text_dir
+            else:
+                pdf_filename = get_pdf_filename_from_url(pdf_url)
+                txt_path = pdf_texts_dir / pdf_filename.replace('.pdf', '.txt')
+
+            txt_path.parent.mkdir(parents=True, exist_ok=True)
+            target_key = str(txt_path.resolve())
+
+            if target_key in processed_targets:
+                print(f"  [{year_key}] [SKIP] Ya procesado: {txt_path.name}")
+                continue
+
+            print(f"  [{year_key}] [>>] Procesando PDF anual")
+
+            # Descargar PDF
+            pdf_path = download_pdf(pdf_url, temp_pdfs_dir)
+            if not pdf_path:
+                error_count += 1
+                print()
+                continue
+
+            # Extraer texto
+            text = extract_text_from_pdf(pdf_path)
+            if not text:
+                error_count += 1
+                try:
+                    os.remove(pdf_path)
+                except Exception:
+                    pass
+                print()
+                continue
+
+            if save_text_file(text, txt_path):
+                processed_targets.add(target_key)
+                success_count += 1
+            else:
+                error_count += 1
+
             try:
                 os.remove(pdf_path)
-            except:
+            except Exception:
                 pass
+
             print()
-            continue
-        
-        # Guardar texto
-        pdf_filename = get_pdf_filename_from_url(pdf_url)
-        txt_filename = pdf_filename.replace('.pdf', '.txt')
-        txt_path = pdf_texts_dir / txt_filename
-        
-        if save_text_file(text, txt_path):
-            success_count += 1
-        else:
-            error_count += 1
-        
-        # Limpiar PDF temporal
-        try:
-            os.remove(pdf_path)
-        except:
-            pass
-        
-        print()
     
     # Resumen
     print("=" * 60)

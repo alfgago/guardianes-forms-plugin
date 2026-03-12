@@ -373,7 +373,7 @@ if (defined('WP_CLI') && WP_CLI) {
 }
 
 if (isset($_GET['gnf_seed_sample']) && current_user_can('manage_options')) {
-    $seed_key = defined('GNF_SEED_KEY') ? GNF_SEED_KEY : 'bandera2025';
+    $seed_key = defined('GNF_SEED_KEY') ? GNF_SEED_KEY : 'bandera2026';
 
     if (! isset($_GET['gnf_seed_key']) || $_GET['gnf_seed_key'] !== $seed_key) {
         wp_die('Clave de seguridad invalida.');
@@ -390,4 +390,3 @@ if (isset($_GET['gnf_seed_sample']) && current_user_can('manage_options')) {
     echo '</div></body></html>';
     exit;
 }
-

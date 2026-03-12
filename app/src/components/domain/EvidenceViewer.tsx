@@ -9,12 +9,17 @@ interface EvidenceViewerProps {
 
 export function EvidenceViewer({ evidencias }: EvidenceViewerProps) {
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
-  const selected = selectedIndex !== null ? evidencias[selectedIndex] : null;
+  const normalized = evidencias.map((ev) => ({
+    url: ev.url ?? ev.ruta ?? '',
+    filename: ev.filename ?? ev.nombre ?? 'Evidencia',
+    type: ev.type ?? (ev.tipo === 'archivo' ? 'documento' : ev.tipo ?? 'documento'),
+  }));
+  const selected = selectedIndex !== null ? normalized[selectedIndex] : null;
 
-  if (evidencias.length === 0) return null;
+  if (normalized.length === 0) return null;
 
-  const images = evidencias.filter((e) => e.type === 'imagen');
-  const others = evidencias.filter((e) => e.type !== 'imagen');
+  const images = normalized.filter((e) => e.type === 'imagen');
+  const others = normalized.filter((e) => e.type !== 'imagen');
 
   return (
     <div>
@@ -23,7 +28,7 @@ export function EvidenceViewer({ evidencias }: EvidenceViewerProps) {
           {images.map((ev, i) => (
             <div
               key={i}
-              onClick={() => setSelectedIndex(evidencias.indexOf(ev))}
+              onClick={() => setSelectedIndex(normalized.indexOf(ev))}
               style={{
                 position: 'relative',
                 aspectRatio: '1',
@@ -107,12 +112,12 @@ export function EvidenceViewer({ evidencias }: EvidenceViewerProps) {
                 <ChevronLeft size={24} />
               </button>
               <span style={{ fontSize: '0.875rem', color: 'var(--gnf-muted)' }}>
-                {(selectedIndex ?? 0) + 1} / {evidencias.length}
+                {(selectedIndex ?? 0) + 1} / {normalized.length}
               </span>
               <button
-                disabled={selectedIndex === evidencias.length - 1}
-                onClick={() => setSelectedIndex((i) => (i !== null && i < evidencias.length - 1 ? i + 1 : i))}
-                style={{ border: 'none', background: 'none', cursor: 'pointer', opacity: selectedIndex === evidencias.length - 1 ? 0.3 : 1 }}
+                disabled={selectedIndex === normalized.length - 1}
+                onClick={() => setSelectedIndex((i) => (i !== null && i < normalized.length - 1 ? i + 1 : i))}
+                style={{ border: 'none', background: 'none', cursor: 'pointer', opacity: selectedIndex === normalized.length - 1 ? 0.3 : 1 }}
               >
                 <ChevronRight size={24} />
               </button>

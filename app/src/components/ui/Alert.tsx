@@ -9,15 +9,15 @@ interface AlertProps {
   title?: string;
 }
 
-const config: Record<AlertVariant, { bg: string; border: string; color: string; Icon: typeof Info }> = {
-  info: { bg: '#e0f2fe', border: '#0ea5e9', color: '#0369a1', Icon: Info },
-  success: { bg: '#dcfce7', border: '#22c55e', color: '#16a34a', Icon: CheckCircle2 },
-  warning: { bg: 'var(--gnf-sun-light)', border: 'var(--gnf-sun)', color: '#92400e', Icon: AlertTriangle },
-  error: { bg: 'var(--gnf-coral-light)', border: 'var(--gnf-coral)', color: '#991b1b', Icon: AlertCircle },
+const config: Record<AlertVariant, { border: string; color: string; Icon: typeof Info }> = {
+  info: { border: '#0ea5e9', color: '#0369a1', Icon: Info },
+  success: { border: '#22c55e', color: '#16a34a', Icon: CheckCircle2 },
+  warning: { border: 'var(--gnf-sun)', color: '#b45309', Icon: AlertTriangle },
+  error: { border: 'var(--gnf-coral)', color: '#dc2626', Icon: AlertCircle },
 };
 
 export function Alert({ variant = 'info', children, title }: AlertProps) {
-  const { bg, border, color, Icon } = config[variant];
+  const { border, color, Icon } = config[variant];
 
   return (
     <div
@@ -27,14 +27,16 @@ export function Alert({ variant = 'info', children, title }: AlertProps) {
         gap: 'var(--gnf-space-3)',
         padding: 'var(--gnf-space-4)',
         borderRadius: 'var(--gnf-radius)',
-        backgroundColor: bg,
+        backgroundColor: 'var(--gnf-white)',
+        border: '1px solid var(--gnf-border)',
         borderLeft: `4px solid ${border}`,
-        color,
+        boxShadow: 'var(--gnf-shadow-sm)',
+        color: 'var(--gnf-gray-800)',
       }}
     >
-      <Icon size={20} style={{ flexShrink: 0, marginTop: 2 }} />
+      <Icon size={20} style={{ flexShrink: 0, marginTop: 2, color }} />
       <div>
-        {title && <strong style={{ display: 'block', marginBottom: 4 }}>{title}</strong>}
+        {title && <strong style={{ display: 'block', marginBottom: 4, color: 'var(--gnf-gray-900)' }}>{title}</strong>}
         <div style={{ fontSize: '0.875rem' }}>{children}</div>
       </div>
     </div>

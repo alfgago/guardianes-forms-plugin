@@ -375,8 +375,8 @@ class GNF_WPForms_Seeder
                         $choice_label = mb_convert_encoding($choice_label, 'UTF-8', 'auto');
                     }
                     $field['choices'][$choice_index + 1] = array(
-                        'label' => $choice_label,
-                        'value' => '',
+                        'label' => $this->format_choice_label($choice_label),
+                        'value' => $this->normalize_choice_value($choice_label),
                     );
                 }
             }
@@ -414,7 +414,7 @@ class GNF_WPForms_Seeder
                             1 => array(
                                 'field'    => (string) $parent_field_id,
                                 'operator' => $this->map_operator($cond_raw['operator'] ?? '=='),
-                                'value'    => $cond_raw['value'] ?? '',
+                                'value'    => $this->normalize_choice_value((string) ($cond_raw['value'] ?? '')),
                             ),
                         ),
                     );
@@ -516,6 +516,46 @@ class GNF_WPForms_Seeder
     }
 
     /**
+     * Formatea opciones binarias para que se vean como "Sí" / "No".
+     *
+     * @param string $label Texto original.
+     * @return string
+     */
+    private function format_choice_label($label)
+    {
+        $normalized = $this->normalize_choice_value($label);
+        if ('si' === $normalized) {
+            return 'Sí';
+        }
+        if ('no' === $normalized) {
+            return 'No';
+        }
+        return trim((string) $label);
+    }
+
+    /**
+     * Normaliza el valor interno de una opción para WPForms.
+     *
+     * @param string $value Valor original.
+     * @return string
+     */
+    private function normalize_choice_value($value)
+    {
+        $value = trim((string) $value);
+        $ascii = function_exists('remove_accents') ? remove_accents($value) : $value;
+        $ascii = strtolower((string) $ascii);
+
+        if (in_array($ascii, array('si', 'sí'), true)) {
+            return 'si';
+        }
+        if ('no' === $ascii) {
+            return 'no';
+        }
+
+        return $value;
+    }
+
+    /**
      * Extrae items de checklist de los campos tipo file.
      * Soporta formato original (type/label) y nuevo formato (tipo_de_campo/pregunta).
      *
@@ -586,8 +626,8 @@ class GNF_WPForms_Seeder
             'settings' => array(
                 'form_title'                => $title,
                 'form_desc'                 => '',
-                'submit_text'               => 'Enviar Reto',
-                'submit_text_processing'    => 'Enviando...',
+                'submit_text'               => 'Guardar progreso',
+                'submit_text_processing'    => 'Guardando...',
                 'ajax_submit'               => '1',
                 'notification_enable'       => '1',
                 'notifications'             => array(
@@ -661,22 +701,21 @@ class GNF_WPForms_Seeder
      */
     public function run_all($dry_run = false)
     {
-        $this->log('=== Iniciando creación de formularios WPForms ===');
+        $this->log('=== Iniciando creacion de formularios WPForms ===');
 
         if ($dry_run) {
-            $this->log('*** MODO DRY-RUN: No se crearán registros ***', 'warning');
+            $this->log('*** MODO DRY-RUN: No se crearan registros ***', 'warning');
         }
 
-        // Cargar datos de retos.
         $json_path = dirname(__FILE__) . '/retos-data.json';
         if (! file_exists($json_path)) {
-            $this->log('Error: No se encontró retos-data.json', 'error');
+            $this->log('Error: No se encontro retos-data.json', 'error');
             return false;
         }
 
         $retos = json_decode(file_get_contents($json_path), true);
         if (json_last_error() !== JSON_ERROR_NONE) {
-            $this->log('Error: JSON inválido - ' . json_last_error_msg(), 'error');
+            $this->log('Error: JSON invalido - ' . json_last_error_msg(), 'error');
             return false;
         }
 
@@ -685,13 +724,12 @@ class GNF_WPForms_Seeder
 
         foreach ($retos as $index => $reto_data) {
             $this->log('[' . ($index + 1) . '/' . count($retos) . '] Reto: ' . $reto_data['titulo']);
-
-            if (empty($reto_data['preguntas_file'])) {
-                $this->log('  ⚠ Sin archivo de preguntas, omitiendo...', 'warning');
+            $year_configs = $this->get_year_configs($reto_data);
+            if (empty($year_configs)) {
+                $this->log('  Sin configuracion anual, omitiendo...', 'warning');
                 continue;
             }
 
-            // Buscar el post del reto.
             $reto_post = get_posts(array(
                 'post_type'      => 'reto',
                 'post_status'    => 'any',
@@ -700,32 +738,84 @@ class GNF_WPForms_Seeder
             ));
             $reto_post_id = ! empty($reto_post) ? $reto_post[0]->ID : 0;
 
-            // Crear formulario 2025.
-            $result = $this->create_form_from_json(
-                $reto_data['preguntas_file'],
-                'Reto: ' . $reto_data['titulo'],
-                $reto_post_id,
-                $dry_run,
-                2025
-            );
+            foreach ($year_configs as $anio => $year_config) {
+                if (empty($year_config['preguntas_file']) || (array_key_exists('activo', $year_config) && ! $year_config['activo'])) {
+                    continue;
+                }
 
-            if ($result && $reto_post_id && ! $dry_run) {
-                if (function_exists('update_field') && ! empty($result['form_id'])) {
+                $result = $this->create_form_from_json(
+                    $year_config['preguntas_file'],
+                    'Reto: ' . $reto_data['titulo'],
+                    $reto_post_id,
+                    $dry_run,
+                    $anio
+                );
+
+                if ($result && $reto_post_id && ! $dry_run && function_exists('update_field') && ! empty($result['form_id'])) {
                     $field_points = $result['gnf_field_points'] ?? array();
-                    $this->register_form_in_repeater($reto_post_id, $result['form_id'], 2025, $field_points);
+                    $this->register_form_in_repeater(
+                        $reto_post_id,
+                        $result['form_id'],
+                        $anio,
+                        $field_points,
+                        0,
+                        0,
+                        $year_config['notas'] ?? '',
+                        ! empty($year_config['activo'])
+                    );
                 }
             }
 
             $this->log('');
         }
 
-        // Resumen.
         $this->log('=== Resumen ===');
         $this->log("Formularios creados: {$this->created}", 'success');
-        $this->log("Omitidos (ya existían): {$this->skipped}", 'warning');
+        $this->log("Omitidos (ya existian): {$this->skipped}", 'warning');
         $this->log("Errores: {$this->errors}", $this->errors > 0 ? 'error' : 'info');
 
         return true;
+    }
+
+    /**
+     * Normaliza la configuracion anual del reto.
+     *
+     * @param array $reto_data Datos del reto.
+     * @return array<int,array<string,mixed>>
+     */
+    private function get_year_configs($reto_data)
+    {
+        $years = array();
+
+        if (! empty($reto_data['years']) && is_array($reto_data['years'])) {
+            foreach ($reto_data['years'] as $year_key => $config) {
+                $anio = absint($config['anio'] ?? $year_key);
+                if (! $anio) {
+                    continue;
+                }
+
+                $years[$anio] = array(
+                    'anio'                 => $anio,
+                    'activo'               => ! array_key_exists('activo', $config) || ! empty($config['activo']),
+                    'notas'                => isset($config['notas']) ? (string) $config['notas'] : '',
+                    'preguntas_file'       => isset($config['preguntas_file']) ? (string) $config['preguntas_file'] : '',
+                    'icon_url'             => isset($config['icon_url']) ? (string) $config['icon_url'] : '',
+                    'pdf_url'              => isset($config['pdf_url']) ? (string) $config['pdf_url'] : '',
+                );
+            }
+        } elseif (! empty($reto_data['preguntas_file'])) {
+            $years[2026] = array(
+                'anio'                 => 2026,
+                'activo'               => true,
+                'notas'                => '',
+                'preguntas_file'       => (string) $reto_data['preguntas_file'],
+                'icon_url'             => (string) ($reto_data['imagen_url'] ?? ''),
+                'pdf_url'              => (string) ($reto_data['pdf_url'] ?? ''),
+            );
+        }
+
+        ksort($years);
+        return $years;
     }
 
     /**
@@ -738,14 +828,13 @@ class GNF_WPForms_Seeder
      * @param int   $pdf_id           Attachment ID del PDF (0 si ninguno).
      * @param int   $icon_id          Attachment ID del ícono (0 si ninguno).
      */
-    public function register_form_in_repeater($reto_post_id, $form_id, $anio, $gnf_field_points = array(), $pdf_id = 0, $icon_id = 0)
+    public function register_form_in_repeater($reto_post_id, $form_id, $anio, $gnf_field_points = array(), $pdf_id = 0, $icon_id = 0, $notas = '', $activo = true)
     {
         if (! function_exists('get_field') || ! function_exists('update_field')) {
             return;
         }
 
-        // Build field_points sub-repeater rows.
-        $fp_rows      = array();
+        $fp_rows       = array();
         $puntaje_total = 0;
         foreach ($gnf_field_points as $fid => $info) {
             $puntos = absint($info['puntos'] ?? 0);
@@ -762,21 +851,21 @@ class GNF_WPForms_Seeder
         $rows = is_array($rows) ? $rows : array();
 
         $new_row_data = array(
-            'anio'          => (int) $anio,
-            'activo'        => true,
-            'notas'         => '',
-            'icono'         => $icon_id ?: '',
-            'pdf'           => $pdf_id ?: '',
-            'wpforms_id'    => $form_id,
-            'field_points'  => $fp_rows,
-            'puntaje_total' => $puntaje_total,
+            'anio'              => (int) $anio,
+            'activo'            => (bool) $activo,
+            'notas'             => (string) $notas,
+            'icono'             => $icon_id ?: '',
+            'pdf'               => $pdf_id ?: '',
+            'wpforms_id'        => $form_id,
+            'field_points'      => $fp_rows,
+            'puntaje_total'     => $puntaje_total,
         );
 
-        // Buscar si el año ya está registrado; update if so.
-        foreach ($rows as $idx => &$row) {
+        foreach ($rows as &$row) {
             if (absint($row['anio'] ?? 0) === absint($anio)) {
                 $row['wpforms_id']    = $form_id;
-                $row['activo']        = true;
+                $row['activo']        = (bool) $activo;
+                $row['notas']         = (string) $notas;
                 $row['field_points']  = $fp_rows;
                 $row['puntaje_total'] = $puntaje_total;
                 if ($pdf_id) {
@@ -786,16 +875,15 @@ class GNF_WPForms_Seeder
                     $row['icono'] = $icon_id;
                 }
                 update_field('configuracion_por_anio', $rows, $reto_post_id);
-                $this->log("  📅 configuracion_por_anio [{$anio}] actualizado (ID: {$form_id}, {$puntaje_total} pts)");
+                $this->log("  configuracion_por_anio [{$anio}] actualizado (ID: {$form_id}, {$puntaje_total} pts)");
                 return;
             }
         }
         unset($row);
 
-        // Año no existía, agregar nueva fila.
         $rows[] = $new_row_data;
         update_field('configuracion_por_anio', $rows, $reto_post_id);
-        $this->log("  📅 configuracion_por_anio [{$anio}] registrado (ID: {$form_id}, {$puntaje_total} pts)");
+        $this->log("  configuracion_por_anio [{$anio}] registrado (ID: {$form_id}, {$puntaje_total} pts)");
     }
 
     /**
@@ -810,7 +898,9 @@ class GNF_WPForms_Seeder
      */
     public function process_single_reto($reto_data, $reto_post_id, $dry_run = false, $anio = 0, $preguntas_file_override = '')
     {
-        $preguntas_file = ! empty($preguntas_file_override) ? $preguntas_file_override : ($reto_data['preguntas_file'] ?? '');
+        $year_configs   = $this->get_year_configs($reto_data);
+        $year_config    = $anio > 0 ? ($year_configs[$anio] ?? array()) : array();
+        $preguntas_file = ! empty($preguntas_file_override) ? $preguntas_file_override : ($year_config['preguntas_file'] ?? ($reto_data['preguntas_file'] ?? ''));
         if (empty($preguntas_file)) {
             return false;
         }
@@ -858,7 +948,7 @@ if (defined('WP_CLI') && WP_CLI) {
 
 // Ejecución desde navegador (solo admins).
 if (isset($_GET['gnf_seed_wpforms']) && current_user_can('manage_options')) {
-    $seed_key = defined('GNF_SEED_KEY') ? GNF_SEED_KEY : 'bandera2025';
+    $seed_key = defined('GNF_SEED_KEY') ? GNF_SEED_KEY : 'bandera2026';
 
     if (! isset($_GET['gnf_seed_key']) || $_GET['gnf_seed_key'] !== $seed_key) {
         wp_die('Clave de seguridad inválida.');

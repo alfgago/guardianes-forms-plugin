@@ -82,6 +82,8 @@ function gnf_render_react_panel( $panel, $data = array() ) {
 			'nonce'     => wp_create_nonce( 'wp_rest' ),
 			'anio'      => $active_year,
 			'pluginUrl' => GNF_URL,
+			'logoUrl'   => defined( 'GNF_APP_LOGO_URL' ) ? GNF_APP_LOGO_URL : GNF_LOGO_URL,
+			'authLogoUrl' => defined( 'GNF_AUTH_LOGO_URL' ) ? GNF_AUTH_LOGO_URL : ( defined( 'GNF_APP_LOGO_URL' ) ? GNF_APP_LOGO_URL : GNF_LOGO_URL ),
 			'user'      => $user_data,
 		),
 		$data
@@ -210,6 +212,7 @@ function gnf_render_react_panel( $panel, $data = array() ) {
 	// ── Hide WP theme chrome ────────────────────────────────────────
 	$hide_css = '
 		.footer.elementor.elementor-location-footer { display: none; }
+		footer#colophon { display: none !important; }
 		.subheader { display: none !important; }
 		header#masthead { display: none !important; }
 		div#wpadminbar { display: none !important; }

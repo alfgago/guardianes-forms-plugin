@@ -12,7 +12,7 @@ export function CircuitoFilter({ circuitos, value, onChange }: CircuitoFilterPro
       aria-label="Filtrar por circuito"
       style={{
         padding: '8px 14px',
-        border: '1px solid var(--gnf-border)',
+        border: '1.5px solid var(--gnf-field-border)',
         borderRadius: 'var(--gnf-radius)',
         fontSize: '0.9375rem',
         fontFamily: 'var(--gnf-font-body)',

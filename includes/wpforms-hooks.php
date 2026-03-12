@@ -94,6 +94,8 @@ function gnf_wpforms_validate_upload_types( $field_id, $field_submit, $form_data
 			break;
 		}
 	}
+
+	return $entry_row;
 }
 add_action( 'wpforms_process_validate_file-upload', 'gnf_wpforms_validate_upload_types', 10, 4 );
 
@@ -436,6 +438,83 @@ function gnf_build_fields_summary( $raw_fields ) {
 }
 
 /**
+ * Conserva valores crudos por field_id para rehidratar el formulario en React.
+ *
+ * @param array $raw_fields Campos WPForms indexados por field_id.
+ * @return array
+ */
+function gnf_build_raw_field_values( $raw_fields ) {
+	$values = array();
+	foreach ( (array) $raw_fields as $field_id => $field ) {
+		$value                    = $field['value'] ?? '';
+		$values[ (int) $field_id ] = is_array( $value ) ? array_values( $value ) : $value;
+	}
+	return $values;
+}
+
+/**
+ * Fusiona la data persistida del entry con el snapshot actual del formulario.
+ *
+ * @param array $existing_data     JSON previo decodificado.
+ * @param array $normalized_fields Campos normalizados del request actual.
+ * @param array $fields_summary    Resumen compacto para scoring.
+ * @param array $raw_field_values  Valores crudos por field_id.
+ * @return array
+ */
+function gnf_merge_reto_entry_data( $existing_data, $normalized_fields, $fields_summary, $raw_field_values ) {
+	$merged = is_array( $existing_data ) ? $existing_data : array();
+
+	foreach ( (array) $normalized_fields as $key => $value ) {
+		if ( '_raw' === $key ) {
+			continue;
+		}
+		$merged[ $key ] = $value;
+	}
+
+	$merged['__fields__']     = array_replace( (array) ( $merged['__fields__'] ?? array() ), $fields_summary );
+	$merged['__raw_values__'] = array_replace( (array) ( $merged['__raw_values__'] ?? array() ), $raw_field_values );
+	$merged['__saved_at']     = current_time( 'mysql' );
+
+	return $merged;
+}
+
+/**
+ * Fusiona evidencias persistidas con nuevas evidencias sin duplicarlas.
+ *
+ * @param array $existing Lista previa.
+ * @param array $incoming Lista nueva.
+ * @return array
+ */
+function gnf_merge_reto_evidencias( $existing, $incoming ) {
+	$merged = array();
+	$seen   = array();
+
+	foreach ( array_merge( (array) $existing, (array) $incoming ) as $evidencia ) {
+		if ( ! is_array( $evidencia ) ) {
+			continue;
+		}
+
+		$key = implode(
+			'|',
+			array(
+				(string) ( $evidencia['field_id'] ?? '' ),
+				(string) ( $evidencia['ruta'] ?? '' ),
+				(string) ( $evidencia['nombre'] ?? '' ),
+			)
+		);
+
+		if ( isset( $seen[ $key ] ) ) {
+			continue;
+		}
+
+		$seen[ $key ] = true;
+		$merged[]     = $evidencia;
+	}
+
+	return array_values( $merged );
+}
+
+/**
  * Procesa un envío de reto y lo almacena en wp_gn_reto_entries.
  *
  * El puntaje se calcula automáticamente basado en field_points de configuracion_por_anio (ACF).
@@ -459,7 +538,7 @@ function gnf_handle_reto_submission( $reto_post, $normalized_fields, $entry_id, 
 		$centro_id = absint( $normalized_fields['centro-id'] );
 	}
 
-	gnf_store_reto_entry( $reto_post, $normalized_fields, $entry_id, $form_data, $raw_fields, 'enviado', $centro_id );
+	gnf_store_reto_entry( $reto_post, $normalized_fields, $entry_id, $form_data, $raw_fields, 'en_progreso', $centro_id );
 }
 
 /**
@@ -513,15 +592,21 @@ function gnf_store_reto_entry( $reto_post, $normalized_fields, $entry_id, $form_
 
 	// Mapa compacto { field_id => value_summary } para scoring automático.
 	$fields_summary = gnf_build_fields_summary( $raw_fields );
+	$raw_values     = gnf_build_raw_field_values( $raw_fields );
 
 	// Guard: no sobrescribir una entrada ya aprobada.
 	if ( $found && 'aprobado' === $found->estado ) {
-		return;
+		return $found;
 	}
 	// Guard: no degradar estado de enviado/completo a en_progreso.
 	if ( $found && 'en_progreso' === $estado && in_array( $found->estado, array( 'enviado', 'completo' ), true ) ) {
 		$estado = $found->estado;
 	}
+
+	$existing_data       = $found && ! empty( $found->data ) ? json_decode( $found->data, true ) : array();
+	$existing_evidencias = $found && ! empty( $found->evidencias ) ? json_decode( $found->evidencias, true ) : array();
+	$merged_data         = gnf_merge_reto_entry_data( $existing_data, $normalized_fields, $fields_summary, $raw_values );
+	$merged_evidencias   = gnf_merge_reto_evidencias( $existing_evidencias, $evidencias );
 
 	$data = array(
 		'wpforms_entry_id' => (int) $entry_id,
@@ -529,8 +614,8 @@ function gnf_store_reto_entry( $reto_post, $normalized_fields, $entry_id, $form_
 		'centro_id'        => (int) $centro_id,
 		'reto_id'          => (int) $reto_post->ID,
 		'anio'             => (int) $anio,
-		'data'             => wp_json_encode( array_merge( $normalized_fields, array( '__fields__' => $fields_summary ) ), JSON_UNESCAPED_UNICODE ),
-		'evidencias'       => wp_json_encode( $evidencias, JSON_UNESCAPED_UNICODE ),
+		'data'             => wp_json_encode( $merged_data, JSON_UNESCAPED_UNICODE ),
+		'evidencias'       => wp_json_encode( $merged_evidencias, JSON_UNESCAPED_UNICODE ),
 		'estado'           => $estado,
 		'updated_at'       => current_time( 'mysql' ),
 	);
@@ -588,4 +673,3 @@ function gnf_store_reto_entry( $reto_post, $normalized_fields, $entry_id, $form_
 		gnf_insert_notification( $user_id, 'invalid_photo_date', 'Hay evidencias de foto que requieren validar el año.', 'reto_entry', $entry_row->id );
 	}
 }
-

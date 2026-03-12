@@ -26,9 +26,12 @@ export function EntryReviewCard({ entry, year }: EntryReviewCardProps) {
     mutationFn: (action: 'aprobar' | 'correccion') =>
       supervisorApi.updateEntry(entry.id, { action, notes: action === 'correccion' ? notes : undefined }),
     onSuccess: (_, action) => {
-      toast('success', action === 'aprobar' ? 'Reto aprobado.' : 'Corrección solicitada.');
+      toast('success', action === 'aprobar' ? 'Reto aprobado.' : 'Correccion solicitada.');
       queryClient.invalidateQueries({ queryKey: ['supervisor-centro'] });
       queryClient.invalidateQueries({ queryKey: ['supervisor-centros', year] });
+      queryClient.invalidateQueries({ queryKey: ['admin-centros', year] });
+      queryClient.invalidateQueries({ queryKey: ['admin-stats', year] });
+      queryClient.invalidateQueries({ queryKey: ['admin-reports', year] });
       setShowNotes(false);
       setNotes('');
     },
@@ -51,7 +54,7 @@ export function EntryReviewCard({ entry, year }: EntryReviewCardProps) {
           <div style={{ marginTop: 'var(--gnf-space-2)' }}>
             <ProgressBar value={entry.puntaje} max={entry.puntajeMaximo} height={6} />
             <span style={{ fontSize: '0.75rem', color: 'var(--gnf-muted)' }}>
-              {entry.puntaje} / {entry.puntajeMaximo} pts
+              {entry.puntaje} / {entry.puntajeMaximo} eco puntos
             </span>
           </div>
         </div>
@@ -65,13 +68,17 @@ export function EntryReviewCard({ entry, year }: EntryReviewCardProps) {
       )}
 
       {entry.supervisorNotes && (
-        <div style={{
-          padding: 'var(--gnf-space-3)',
-          background: entry.estado === 'correccion' ? 'var(--gnf-coral-light)' : 'var(--gnf-gray-50)',
-          borderRadius: 'var(--gnf-radius-sm)',
-          fontSize: '0.8125rem',
-          marginBottom: 'var(--gnf-space-4)',
-        }}>
+        <div
+          style={{
+            padding: 'var(--gnf-space-3)',
+            background: 'var(--gnf-white)',
+            borderRadius: 'var(--gnf-radius-sm)',
+            fontSize: '0.8125rem',
+            marginBottom: 'var(--gnf-space-4)',
+            border: '1px solid var(--gnf-border)',
+            borderLeft: `4px solid ${entry.estado === 'correccion' ? 'var(--gnf-coral)' : 'var(--gnf-ocean)'}`,
+          }}
+        >
           <strong>Notas previas:</strong> {entry.supervisorNotes}
         </div>
       )}
@@ -81,10 +88,10 @@ export function EntryReviewCard({ entry, year }: EntryReviewCardProps) {
           {showNotes ? (
             <div>
               <Textarea
-                label="Notas de corrección"
+                label="Notas de correccion"
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
-                placeholder="Explica qué debe corregir el docente..."
+                placeholder="Explica que debe ajustar el centro educativo..."
               />
               <div style={{ display: 'flex', gap: 'var(--gnf-space-2)' }}>
                 <Button
@@ -95,7 +102,7 @@ export function EntryReviewCard({ entry, year }: EntryReviewCardProps) {
                   onClick={() => mutation.mutate('correccion')}
                   disabled={!notes.trim()}
                 >
-                  Enviar corrección
+                  Enviar correccion
                 </Button>
                 <Button variant="ghost" size="sm" onClick={() => setShowNotes(false)}>
                   Cancelar
@@ -113,7 +120,7 @@ export function EntryReviewCard({ entry, year }: EntryReviewCardProps) {
                 Aprobar
               </Button>
               <Button variant="outline" size="sm" icon={<RotateCcw size={14} />} onClick={() => setShowNotes(true)}>
-                Solicitar corrección
+                Solicitar correccion
               </Button>
             </div>
           )}

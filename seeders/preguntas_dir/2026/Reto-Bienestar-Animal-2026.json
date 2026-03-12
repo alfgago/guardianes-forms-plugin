@@ -1,0 +1,119 @@
+[
+  {
+    "id": "q1",
+    "pregunta": "1. ¿Realizaron capacitación sobre bienestar animal y coexistencia segura? - (si/no)",
+    "tipo_de_campo": "seleccion_unica",
+    "opciones": ["si", "no"],
+    "required": true,
+    "depends_on": null,
+    "suma_puntos": false
+  },
+  {
+    "id": "q1_e1",
+    "pregunta": "Fotografía o mini video (1 minuto) de estudiantes y personal durante una capacitación que aborde convivencia responsable, prevención de riesgos con animales de compañía, observación de fauna silvestre sin manipulación y, cuando aplique, manejo responsable de animales de producción.\n10 eco pt",
+    "tipo_de_campo": "subida_archivo",
+    "opciones": null,
+    "required": false,
+    "depends_on": {
+      "field": "q1",
+      "value": "si"
+    },
+    "suma_puntos": true,
+    "puntos": 10
+  },
+  {
+    "id": "q2",
+    "pregunta": "2. ¿Cuentan con Protocolo de Bienestar Animal y Coexistencia Segura? - (si/no)",
+    "tipo_de_campo": "seleccion_unica",
+    "opciones": ["si", "no"],
+    "required": true,
+    "depends_on": null,
+    "suma_puntos": false
+  },
+  {
+    "id": "q2_e1",
+    "pregunta": "PDF del Protocolo institucional de Bienestar Animal que defina manejo seguro de animales que ingresan al centro y lineamientos para fauna silvestre. Si cuentan con granja, incluir procedimientos ante emergencias y medidas de higiene y bioseguridad.\n5 eco pt",
+    "tipo_de_campo": "subida_archivo",
+    "opciones": null,
+    "required": false,
+    "depends_on": {
+      "field": "q2",
+      "value": "si"
+    },
+    "suma_puntos": true,
+    "puntos": 5
+  },
+  {
+    "id": "q2_e2",
+    "pregunta": "Foto del protocolo colocado en un lugar visible para estudiantes y docentes.\n5 eco pt",
+    "tipo_de_campo": "subida_archivo",
+    "opciones": null,
+    "required": false,
+    "depends_on": {
+      "field": "q2",
+      "value": "si"
+    },
+    "suma_puntos": true,
+    "puntos": 5
+  },
+  {
+    "id": "q3",
+    "pregunta": "3. ¿Implementaron el protocolo? - (si/no)",
+    "tipo_de_campo": "seleccion_unica",
+    "opciones": ["si", "no"],
+    "required": true,
+    "depends_on": null,
+    "suma_puntos": false
+  },
+  {
+    "id": "q3_1",
+    "pregunta": "3.1 Puede agregar un comentario corto sobre este eco reto.",
+    "tipo_de_campo": "textarea",
+    "opciones": null,
+    "required": false,
+    "depends_on": {
+      "field": "q3",
+      "value": "si"
+    },
+    "suma_puntos": false
+  },
+  {
+    "id": "q3_e1",
+    "pregunta": "Foto de mascota(s) que coexisten de forma responsable y segura con estudiantes diariamente en el centro educativo.\n5 eco pt",
+    "tipo_de_campo": "subida_archivo",
+    "opciones": null,
+    "required": false,
+    "depends_on": {
+      "field": "q3",
+      "value": "si"
+    },
+    "suma_puntos": true,
+    "puntos": 5
+  },
+  {
+    "id": "q3_e2",
+    "pregunta": "Foto de algún área en donde se mantienen animales de granja de forma responsable y segura para la convivencia con estudiantes, si aplica.\n5 eco pt",
+    "tipo_de_campo": "subida_archivo",
+    "opciones": null,
+    "required": false,
+    "depends_on": {
+      "field": "q3",
+      "value": "si"
+    },
+    "suma_puntos": true,
+    "puntos": 5
+  },
+  {
+    "id": "q3_e3",
+    "pregunta": "Foto de algún área en donde se mantienen animales de producción de forma responsable y segura para la convivencia con estudiantes, si aplica.\n5 eco pt",
+    "tipo_de_campo": "subida_archivo",
+    "opciones": null,
+    "required": false,
+    "depends_on": {
+      "field": "q3",
+      "value": "si"
+    },
+    "suma_puntos": true,
+    "puntos": 5
+  }
+]

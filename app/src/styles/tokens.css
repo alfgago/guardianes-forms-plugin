@@ -39,6 +39,7 @@
   --gnf-text: var(--gnf-gray-800);
   --gnf-muted: var(--gnf-gray-500);
   --gnf-border: var(--gnf-gray-200);
+  --gnf-field-border: var(--gnf-gray-300);
 
   /* Estado colors */
   --gnf-estado-no_iniciado: var(--gnf-gray-400);

@@ -47,7 +47,7 @@ $active_tab = isset($_GET['view']) ? sanitize_key($_GET['view']) : 'centros';
 	<!-- Sidebar -->
 	<aside class="gnf-sidebar">
 		<div class="gnf-sidebar__logo">
-			<img src="<?php echo esc_url(GNF_URL . 'assets/logo-guardiana.png'); ?>" alt="Guardianes" style="height: 40px; width: auto;" />
+			<img src="<?php echo esc_url(GNF_LOGO_URL); ?>" alt="Guardianes" style="height: 40px; width: auto; background: #fff; border-radius: 4px;" />
 			<div>
 				<small style="opacity: 0.7; font-size: 0.75rem;">Comité BAE DRE</small>
 			</div>

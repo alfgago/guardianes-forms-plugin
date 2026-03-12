@@ -10,7 +10,10 @@ export function FormulariosPage({ retoId }: FormulariosPageProps) {
 
   return (
     <div>
-      <h2 style={{ marginBottom: 'var(--gnf-space-6)' }}>Formularios</h2>
+      <h2 style={{ marginBottom: 'var(--gnf-space-2)' }}>Eco retos y evidencias</h2>
+      <p style={{ color: 'var(--gnf-muted)', marginBottom: 'var(--gnf-space-6)' }}>
+        Completa cada reto al ritmo de tu centro educativo. El progreso se guarda automaticamente.
+      </p>
       <WizardView year={year} initialRetoId={retoId} />
     </div>
   );

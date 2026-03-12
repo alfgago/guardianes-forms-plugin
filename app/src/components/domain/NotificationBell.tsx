@@ -19,11 +19,11 @@ export function NotificationBell({ onClick }: NotificationBellProps) {
         justifyContent: 'center',
         width: 40,
         height: 40,
-        border: 'none',
-        background: 'none',
+        border: '1px solid rgba(148, 163, 184, 0.26)',
+        background: 'rgba(30, 95, 138, 0.08)',
         cursor: 'pointer',
-        borderRadius: 'var(--gnf-radius-sm)',
-        color: 'var(--gnf-gray-600)',
+        borderRadius: '12px',
+        color: 'var(--gnf-ocean-dark)',
       }}
     >
       <Bell size={20} />

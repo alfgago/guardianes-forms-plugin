@@ -1,6 +1,0 @@
-import{j as r}from"./query-GzUKkhGG.js";import{c as i,i as t,h as d,I as g}from"./components-DQxeVk7U.js";/**
- * @license lucide-react v0.468.0 - ISC
- *
- * This source code is licensed under the ISC license.
- * See the LICENSE file in the root directory of this source tree.
- */const f=i("TriangleAlert",[["path",{d:"m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3",key:"wmoenq"}],["path",{d:"M12 9v4",key:"juzpu7"}],["path",{d:"M12 17h.01",key:"p32p05"}]]),p={info:{bg:"#e0f2fe",border:"#0ea5e9",color:"#0369a1",Icon:g},success:{bg:"#dcfce7",border:"#22c55e",color:"#16a34a",Icon:d},warning:{bg:"var(--gnf-sun-light)",border:"var(--gnf-sun)",color:"#92400e",Icon:f},error:{bg:"var(--gnf-coral-light)",border:"var(--gnf-coral)",color:"#991b1b",Icon:t}};function u({variant:e="info",children:n,title:o}){const{bg:a,border:c,color:s,Icon:l}=p[e];return r.jsxs("div",{role:"alert",style:{display:"flex",gap:"var(--gnf-space-3)",padding:"var(--gnf-space-4)",borderRadius:"var(--gnf-radius)",backgroundColor:a,borderLeft:`4px solid ${c}`,color:s},children:[r.jsx(l,{size:20,style:{flexShrink:0,marginTop:2}}),r.jsxs("div",{children:[o&&r.jsx("strong",{style:{display:"block",marginBottom:4},children:o}),r.jsx("div",{style:{fontSize:"0.875rem"},children:n})]})]})}export{u as A};

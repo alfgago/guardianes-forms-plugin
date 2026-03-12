@@ -56,7 +56,7 @@ wp eval-file wp-content/plugins/guardianes-formularios/seeders/seed-retos.php
 
 Como administrador logueado:
 ```
-https://tu-sitio.com/?gnf_seed_retos=1&gnf_seed_key=bandera2025
+https://tu-sitio.com/?gnf_seed_retos=1&gnf_seed_key=bandera2026
 ```
 
 ---

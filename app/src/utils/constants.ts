@@ -1,12 +1,12 @@
 import type { Estado, UserRole } from '@/types';
 
 export const ESTADO_LABELS: Record<Estado, string> = {
-  no_iniciado: 'No Iniciado',
-  en_progreso: 'En Progreso',
+  no_iniciado: 'No iniciado',
+  en_progreso: 'En progreso',
   completo: 'Completo',
   enviado: 'Enviado',
   aprobado: 'Aprobado',
-  correccion: 'Corrección',
+  correccion: 'Correccion',
 };
 
 export const ESTADO_COLORS: Record<Estado, string> = {
@@ -20,17 +20,17 @@ export const ESTADO_COLORS: Record<Estado, string> = {
 
 export const ESTADO_BG_COLORS: Record<Estado, string> = {
   no_iniciado: 'var(--gnf-gray-100)',
-  en_progreso: '#e0f2fe',
-  completo: '#dcfce7',
-  enviado: 'var(--gnf-sun-light)',
-  aprobado: '#dcfce7',
-  correccion: 'var(--gnf-coral-light)',
+  en_progreso: 'rgba(14, 165, 233, 0.12)',
+  completo: 'rgba(34, 197, 94, 0.12)',
+  enviado: 'rgba(245, 158, 11, 0.14)',
+  aprobado: 'rgba(34, 197, 94, 0.12)',
+  correccion: 'rgba(239, 68, 68, 0.12)',
 };
 
 export const ROLE_LABELS: Record<UserRole, string> = {
-  docente: 'Docente',
+  docente: 'Centro Educativo',
   supervisor: 'Supervisor',
-  comite_bae: 'Comité BAE',
+  comite_bae: 'Comite BAE',
   administrator: 'Administrador',
 };
 
@@ -49,7 +49,7 @@ export const NIVELES_EDUCATIVOS = [
 ] as const;
 
 export const DEPENDENCIAS = [
-  'Público',
+  'Publico',
   'Privado',
   'Subvencionado',
 ] as const;

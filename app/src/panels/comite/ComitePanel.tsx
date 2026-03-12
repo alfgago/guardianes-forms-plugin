@@ -3,6 +3,7 @@ import { PanelShell } from '@/components/layout/PanelShell';
 import { SidebarLink } from '@/components/layout/SidebarLink';
 import { YearSelector } from '@/components/domain/YearSelector';
 import { usePanel } from '@/hooks/usePanel';
+import { useTrackPageView } from '@/hooks/useTrackPageView';
 import { useYearStore } from '@/stores/useYearStore';
 import { CentrosPage } from './pages/CentrosPage';
 import { CentroDetailPage } from './pages/CentroDetailPage';
@@ -16,15 +17,11 @@ const NAV_ITEMS = [
 export function ComitePanel() {
   const { page, params, navigate } = usePanel('centros');
   const year = useYearStore((s) => s.selectedYear);
+  useTrackPageView({ panel: 'comite', page, year });
 
   function renderPage() {
     if (page === 'centro' && params.centro_id) {
-      return (
-        <CentroDetailPage
-          centroId={Number(params.centro_id)}
-          onBack={() => navigate('centros')}
-        />
-      );
+      return <CentroDetailPage centroId={Number(params.centro_id)} onBack={() => navigate('centros')} />;
     }
 
     switch (page) {
@@ -39,9 +36,9 @@ export function ComitePanel() {
 
   return (
     <PanelShell
-      title="Comité BAE"
-      subtitle={`Año ${year}`}
-      topBarActions={<YearSelector />}
+      title="Comite BAE"
+      subtitle={`Ano ${year}`}
+      sidebarFooterExtra={<YearSelector />}
       nav={
         <>
           {NAV_ITEMS.map((item) => (

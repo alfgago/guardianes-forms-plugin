@@ -13,7 +13,7 @@ export function CentroCard({ centro }: CentroCardProps) {
       <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--gnf-space-2)', fontSize: '0.875rem', color: 'var(--gnf-muted)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--gnf-space-2)' }}>
           <Hash size={14} />
-          <span>Código MEP: {centro.codigoMep}</span>
+          <span>Código MEP: {centro.codigoMep || 'Sin código'}</span>
         </div>
         {centro.regionName && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--gnf-space-2)' }}>

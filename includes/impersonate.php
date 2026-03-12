@@ -76,6 +76,14 @@ function gnf_handle_impersonate_start() {
 	}
 
 	$original_id = get_current_user_id();
+	gnf_log_audit_event(
+		'admin_start_impersonation',
+		array(
+			'actor_user_id'  => $original_id,
+			'target_user_id' => $target_id,
+			'message'        => 'Admin inicio impersonacion de usuario.',
+		)
+	);
 
 	// Guardar cookie firmada con ID original.
 	$signature = wp_hash( 'gnf_impersonate_' . $original_id );
@@ -120,6 +128,13 @@ function gnf_handle_impersonate_stop() {
 	wp_clear_auth_cookie();
 	wp_set_current_user( $original_id );
 	wp_set_auth_cookie( $original_id, false );
+	gnf_log_audit_event(
+		'admin_stop_impersonation',
+		array(
+			'actor_user_id' => $original_id,
+			'message'       => 'Admin volvio a su cuenta original.',
+		)
+	);
 
 	// Redirigir al panel admin.
 	wp_safe_redirect( home_url( '/panel-admin/' ) );
@@ -155,36 +170,38 @@ function gnf_render_impersonate_bar() {
 	?>
 	<div id="gnf-impersonate-bar" style="
 		position: fixed;
-		top: 0;
-		left: 0;
-		right: 0;
+		right: 16px;
+		bottom: 16px;
 		z-index: 99999;
-		background: #e67e22;
+		max-width: min(420px, calc(100vw - 32px));
+		background: rgba(35, 51, 84, 0.94);
 		color: #fff;
 		font-family: 'League Spartan', -apple-system, BlinkMacSystemFont, sans-serif;
 		font-size: 13px;
-		padding: 8px 16px;
+		padding: 12px 14px;
 		display: flex;
-		align-items: center;
+		align-items: flex-end;
+		gap: 12px;
 		justify-content: space-between;
-		box-shadow: 0 2px 6px rgba(0,0,0,0.25);
+		border-radius: 14px;
+		box-shadow: 0 12px 34px rgba(15,23,42,0.28);
+		backdrop-filter: blur(10px);
 	">
-		<span>
-			<strong>Vista como:</strong>
-			<?php echo esc_html( $current_user->display_name ); ?>
-			<span style="opacity: 0.8;">(<?php echo esc_html( $roles_label ); ?>)</span>
+		<span style="line-height: 1.4;">
+			<strong style="display:block; margin-bottom:2px;">Visto como: <?php echo esc_html( $current_user->display_name ); ?></strong>
+			<span style="opacity: 0.78; font-size: 12px;">Rol actual: <?php echo esc_html( $roles_label ); ?></span>
 		</span>
 		<a href="<?php echo esc_url( $stop_url ); ?>" style="
-			background: #fff;
-			color: #e67e22;
-			padding: 4px 12px;
-			border-radius: 4px;
+			background: rgba(255,255,255,0.14);
+			color: #fff;
+			padding: 8px 12px;
+			border-radius: 999px;
 			text-decoration: none;
 			font-weight: 600;
 			font-size: 12px;
+			white-space: nowrap;
 		">Volver a mi cuenta</a>
 	</div>
-	<style>body { margin-top: 36px !important; }</style>
 	<?php
 }
 add_action( 'wp_footer', 'gnf_render_impersonate_bar' );

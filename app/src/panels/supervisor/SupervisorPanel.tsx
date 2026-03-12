@@ -4,6 +4,7 @@ import { SidebarLink } from '@/components/layout/SidebarLink';
 import { YearSelector } from '@/components/domain/YearSelector';
 import { NotificationBell } from '@/components/domain/NotificationBell';
 import { usePanel } from '@/hooks/usePanel';
+import { useTrackPageView } from '@/hooks/useTrackPageView';
 import { useYearStore } from '@/stores/useYearStore';
 import { useNotificationStore } from '@/stores/useNotificationStore';
 import { DashboardPage } from './pages/DashboardPage';
@@ -11,7 +12,7 @@ import { CentroDetailPage } from './pages/CentroDetailPage';
 import { NotificacionesPage } from './pages/NotificacionesPage';
 
 const NAV_ITEMS = [
-  { page: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard size={18} /> },
+  { page: 'dashboard', label: 'Escritorio', icon: <LayoutDashboard size={18} /> },
   { page: 'notificaciones', label: 'Notificaciones', icon: <Bell size={18} />, badgeKey: 'notifications' as const },
 ];
 
@@ -19,15 +20,11 @@ export function SupervisorPanel() {
   const { page, params, navigate } = usePanel('dashboard');
   const year = useYearStore((s) => s.selectedYear);
   const unreadCount = useNotificationStore((s) => s.unreadCount);
+  useTrackPageView({ panel: 'supervisor', page, year });
 
   function renderPage() {
     if (page === 'centro' && params.centro_id) {
-      return (
-        <CentroDetailPage
-          centroId={Number(params.centro_id)}
-          onBack={() => navigate('dashboard')}
-        />
-      );
+      return <CentroDetailPage centroId={Number(params.centro_id)} onBack={() => navigate('dashboard')} />;
     }
 
     switch (page) {
@@ -43,13 +40,9 @@ export function SupervisorPanel() {
   return (
     <PanelShell
       title="Panel Supervisor"
-      subtitle={`Año ${year}`}
-      topBarActions={
-        <>
-          <YearSelector />
-          <NotificationBell onClick={() => navigate('notificaciones')} />
-        </>
-      }
+      subtitle={`Ano ${year}`}
+      sidebarFooterExtra={<YearSelector />}
+      topBarActions={<NotificationBell onClick={() => navigate('notificaciones')} />}
       nav={
         <>
           {NAV_ITEMS.map((item) => (

@@ -16,6 +16,9 @@ if (! defined('ABSPATH')) {
 define('GNF_VERSION', '1.2.3');
 define('GNF_PATH', plugin_dir_path(__FILE__));
 define('GNF_URL', plugin_dir_url(__FILE__));
+define('GNF_APP_LOGO_URL', 'https://movimientoguardianes.org/wp-content/uploads/2026/03/logo-guardianes-bandera.jpg');
+define('GNF_AUTH_LOGO_URL', 'https://movimientoguardianes.org/wp-content/uploads/2026/03/Screenshot-2026-03-11-at-2.58.57-PM.png');
+define('GNF_LOGO_URL', GNF_APP_LOGO_URL);
 
 /**
  * Carga todos los archivos necesarios.
@@ -25,6 +28,7 @@ require_once 'includes/migrations/center-annual-data.php';
 require_once 'includes/impersonate.php';
 require_once 'includes/roles.php';
 require_once 'includes/tables.php';
+require_once 'includes/audit.php';
 require_once 'includes/cpts.php';
 require_once 'includes/acf-fields.php';
 require_once 'includes/puntajes.php';
@@ -67,12 +71,28 @@ function gnf_activate()
 	if (function_exists('gnf_create_tables')) {
 		gnf_create_tables();
 	}
+	update_option( 'gnf_plugin_version', GNF_VERSION );
 	if (function_exists('gnf_register_cpts')) {
 		// gnf_register_cpts(); //Commented, was already being executed in init hook
 	}
 	flush_rewrite_rules();
 }
 register_activation_hook(__FILE__, 'gnf_activate');
+
+function gnf_maybe_upgrade_plugin()
+{
+	$installed_version = get_option( 'gnf_plugin_version', '' );
+	if ( $installed_version === GNF_VERSION ) {
+		return;
+	}
+
+	if ( function_exists( 'gnf_create_tables' ) ) {
+		gnf_create_tables();
+	}
+
+	update_option( 'gnf_plugin_version', GNF_VERSION );
+}
+add_action( 'plugins_loaded', 'gnf_maybe_upgrade_plugin', 5 );
 
 /**
  * Deactivación: sólo flush (no borrar datos).
@@ -104,9 +124,7 @@ function gnf_enqueue_assets()
 		'gn_comite_panel',
 		'gn_notificaciones',
 		'gn_wizard',
-		'gn_registro_supervisor',
-		'mock_docente',
-		'mock_supervisor',
+		'gn_registro_supervisor'
 	);
 	$found      = false;
 	$has_wizard = false;
@@ -472,4 +490,3 @@ function gnf_handle_reset_db()
 	exit;
 }
 add_action('admin_post_gnf_reset_db', 'gnf_handle_reset_db');
-

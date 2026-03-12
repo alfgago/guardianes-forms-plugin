@@ -49,7 +49,7 @@ $icons = array(
 	<!-- Sidebar -->
 	<aside class="gnf-sidebar">
 		<div class="gnf-sidebar__logo">
-			<img src="<?php echo esc_url(GNF_URL . 'assets/logo-guardiana.png'); ?>" alt="Guardianes" style="height: 40px; width: auto;" />
+			<img src="<?php echo esc_url(GNF_LOGO_URL); ?>" alt="Guardianes" style="height: 40px; width: auto; background: #fff; border-radius: 4px;" />
 			<div>
 				<small style="opacity: 0.7; font-size: 0.75rem;">Panel Admin</small>
 			</div>
@@ -816,7 +816,7 @@ $icons = array(
 						$icono = gnf_get_reto_icon_url($reto->ID);
 						$reto_color_admin = gnf_get_reto_color($reto->ID);
 						$puntaje_max = gnf_get_reto_max_points($reto->ID, $data['anio']);
-						$default_icon = GNF_URL . 'assets/logo-guardiana.png';
+						$default_icon = GNF_LOGO_URL;
 					?>
 						<div class="gnf-reto-card" style="border-top: 3px solid <?php echo esc_attr($reto_color_admin); ?>;">
 							<div class="gnf-reto-card__header">

@@ -7,9 +7,18 @@ import type { CentroSearchResult } from '@/types';
 interface CentroSearchProps {
   onSelect: (centro: CentroSearchResult) => void;
   placeholder?: string;
+  regionId?: number;
+  disabled?: boolean;
+  includeClaimed?: boolean;
 }
 
-export function CentroSearch({ onSelect, placeholder = 'Buscar centro educativo...' }: CentroSearchProps) {
+export function CentroSearch({
+  onSelect,
+  placeholder = 'Buscar centro educativo...',
+  regionId,
+  disabled = false,
+  includeClaimed = false,
+}: CentroSearchProps) {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<CentroSearchResult[]>([]);
   const [loading, setLoading] = useState(false);
@@ -19,8 +28,9 @@ export function CentroSearch({ onSelect, placeholder = 'Buscar centro educativo.
   const abortRef = useRef<AbortController>();
 
   useEffect(() => {
-    if (debouncedQuery.length < 2) {
+    if (disabled || !regionId || debouncedQuery.length < 2) {
       setResults([]);
+      setShowDropdown(false);
       return;
     }
 
@@ -30,7 +40,7 @@ export function CentroSearch({ onSelect, placeholder = 'Buscar centro educativo.
 
     setLoading(true);
     centrosApi
-      .search(debouncedQuery, controller.signal)
+      .search(debouncedQuery, { region: regionId, includeClaimed, signal: controller.signal })
       .then((data) => {
         setResults(data);
         setShowDropdown(true);
@@ -39,7 +49,7 @@ export function CentroSearch({ onSelect, placeholder = 'Buscar centro educativo.
         if (err instanceof DOMException && err.name === 'AbortError') return;
       })
       .finally(() => setLoading(false));
-  }, [debouncedQuery]);
+  }, [debouncedQuery, disabled, includeClaimed, regionId]);
 
   useEffect(() => {
     function handleClick(e: MouseEvent) {
@@ -50,6 +60,12 @@ export function CentroSearch({ onSelect, placeholder = 'Buscar centro educativo.
     document.addEventListener('mousedown', handleClick);
     return () => document.removeEventListener('mousedown', handleClick);
   }, []);
+
+  useEffect(() => {
+    setQuery('');
+    setResults([]);
+    setShowDropdown(false);
+  }, [regionId]);
 
   return (
     <div ref={containerRef} style={{ position: 'relative' }}>
@@ -69,15 +85,18 @@ export function CentroSearch({ onSelect, placeholder = 'Buscar centro educativo.
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           onFocus={() => results.length > 0 && setShowDropdown(true)}
-          placeholder={placeholder}
+          placeholder={disabled || !regionId ? 'Primero selecciona una region...' : placeholder}
+          disabled={disabled || !regionId}
           style={{
             width: '100%',
             padding: '10px 14px 10px 42px',
-            border: '1px solid var(--gnf-border)',
+            border: '1.5px solid var(--gnf-field-border)',
             borderRadius: 'var(--gnf-radius)',
             fontSize: '0.9375rem',
             fontFamily: 'var(--gnf-font-body)',
             outline: 'none',
+            background: disabled || !regionId ? 'var(--gnf-gray-50)' : 'var(--gnf-white)',
+            cursor: disabled || !regionId ? 'not-allowed' : 'text',
           }}
         />
         {loading && (
@@ -131,10 +150,33 @@ export function CentroSearch({ onSelect, placeholder = 'Buscar centro educativo.
               onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--gnf-gray-50)'; }}
               onMouseLeave={(e) => { e.currentTarget.style.background = ''; }}
             >
-              <strong>{centro.nombre}</strong>
-              <span style={{ color: 'var(--gnf-muted)', marginLeft: 8, fontSize: '0.8125rem' }}>
-                {centro.codigoMep}
-              </span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                <strong>{centro.nombre}</strong>
+                <span style={{ color: 'var(--gnf-muted)', fontSize: '0.8125rem' }}>
+                  {centro.codigoMep || 'Sin código'}
+                </span>
+                {centro.regionName && (
+                  <span style={{ color: 'var(--gnf-muted)', fontSize: '0.8125rem' }}>
+                    {centro.regionName}
+                  </span>
+                )}
+                {centro.claimed && (
+                  <span
+                    style={{
+                      fontSize: '0.75rem',
+                      fontWeight: 700,
+                      color: 'var(--gnf-danger)',
+                    }}
+                  >
+                    Ya en uso
+                  </span>
+                )}
+              </div>
+              {centro.claimed && centro.correoInstitucional && (
+                <div style={{ marginTop: 6, color: 'var(--gnf-muted)', fontSize: '0.8125rem' }}>
+                  Correo institucional: {centro.correoInstitucional}
+                </div>
+              )}
             </li>
           ))}
         </ul>

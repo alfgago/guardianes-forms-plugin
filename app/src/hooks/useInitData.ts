@@ -6,6 +6,8 @@ interface PanelInitData {
   nonce: string;
   anio: number;
   pluginUrl: string;
+  logoUrl: string;
+  authLogoUrl?: string;
   user: User | null;
   [key: string]: unknown;
 }
@@ -24,6 +26,8 @@ export function useInitData(panel: string): PanelInitData {
         nonce: '',
         anio: new Date().getFullYear(),
         pluginUrl: '',
+        logoUrl: '',
+        authLogoUrl: '',
         user: null,
       }
     );

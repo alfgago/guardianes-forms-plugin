@@ -34,9 +34,15 @@ export interface RetoWithEntry extends Reto {
 }
 
 export interface Evidencia {
-  url: string;
-  filename: string;
-  type: 'imagen' | 'video' | 'pdf' | 'documento';
+  url?: string;
+  ruta?: string;
+  filename?: string;
+  nombre?: string;
+  type?: 'imagen' | 'video' | 'pdf' | 'documento';
+  tipo?: 'imagen' | 'video' | 'pdf' | 'documento' | 'archivo';
   size?: number;
   exifYear?: number;
+  field_id?: number;
+  requires_year_validation?: boolean;
+  warning?: string;
 }

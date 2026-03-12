@@ -23,10 +23,10 @@ export function HistorialPage() {
     description: `${h.details} (por ${h.userName})`,
     timestamp: h.createdAt,
     icon: h.action.includes('aprobado') ? <CheckCircle2 size={12} /> :
-          h.action.includes('correccion') ? <AlertCircle size={12} /> :
+          h.action.includes('rechazado') || h.action.includes('correccion') ? <AlertCircle size={12} /> :
           <FileText size={12} />,
     color: h.action.includes('aprobado') ? '#22c55e' :
-           h.action.includes('correccion') ? 'var(--gnf-coral)' :
+           h.action.includes('rechazado') || h.action.includes('correccion') ? 'var(--gnf-coral)' :
            'var(--gnf-ocean)',
   }));
 

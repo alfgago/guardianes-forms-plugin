@@ -267,6 +267,7 @@ add_action('admin_post_gnf_docente_reopen', 'gnf_docente_reopen_entry');
  */
 function gnf_get_default_panel_url( $user ) {
 	$roles = (array) $user->roles;
+	$active_year = function_exists( 'gnf_get_active_year' ) ? gnf_get_active_year() : (int) gmdate( 'Y' );
 
 	if ( in_array( 'administrator', $roles, true ) ) {
 		return home_url( '/panel-admin/' );
@@ -278,6 +279,19 @@ function gnf_get_default_panel_url( $user ) {
 		return home_url( '/panel-supervisor/' );
 	}
 	if ( in_array( 'docente', $roles, true ) ) {
+		$centro_id = function_exists( 'gnf_get_centro_for_docente' ) ? gnf_get_centro_for_docente( $user->ID ) : 0;
+		if ( ! $centro_id ) {
+			$centro_id = (int) get_user_meta( $user->ID, 'centro_solicitado', true );
+		}
+
+		$matricula_estado = $centro_id && function_exists( 'gnf_get_centro_matricula_estado' )
+			? gnf_get_centro_matricula_estado( $centro_id, $active_year )
+			: 'no_iniciado';
+
+		if ( 'no_iniciado' === $matricula_estado ) {
+			return add_query_arg( 'p', 'matricula', home_url( '/panel-docente/' ) );
+		}
+
 		return home_url( '/panel-docente/' );
 	}
 	return home_url();

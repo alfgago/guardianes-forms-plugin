@@ -452,8 +452,7 @@ function gnf_register_acf_fields()
 							'preview_size'  => 'thumbnail',
 							'library'       => 'all',
 							'instructions'  => 'Ícono específico para este año. Si no se define, se usa la imagen destacada del reto.',
-						),
-						array(
+						),						array(
 							'key'           => 'field_gnf_cpa_pdf',
 							'label'         => 'PDF del reto',
 							'name'          => 'pdf',
@@ -718,3 +717,4 @@ function gnf_ajax_fetch_form_fields() {
 	wp_send_json_success( $fields );
 }
 add_action( 'wp_ajax_gnf_fetch_form_fields', 'gnf_ajax_fetch_form_fields' );
+

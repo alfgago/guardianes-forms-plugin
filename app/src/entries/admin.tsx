@@ -6,6 +6,7 @@ import { AdminPanel } from '@/panels/admin/AdminPanel';
 import { useInitData } from '@/hooks/useInitData';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useYearStore } from '@/stores/useYearStore';
+import { useAppStore } from '@/stores/useAppStore';
 import '@/styles/base.css';
 import '@/styles/components.css';
 
@@ -19,11 +20,19 @@ function App() {
   const initData = useInitData('admin');
   const setUser = useAuthStore((s) => s.setUser);
   const initYear = useYearStore((s) => s.init);
+  const setLogoUrl = useAppStore((s) => s.setLogoUrl);
 
   useEffect(() => {
     if (initData.user) setUser(initData.user);
-    if (initData.anio) initYear(initData.anio, initData.availableYears as number[] | undefined);
-  }, [initData, setUser, initYear]);
+    if (initData.anio) {
+      initYear(
+        initData.anio,
+        initData.availableYears as number[] | undefined,
+        initData.selectedYear as number | undefined,
+      );
+    }
+    if (initData.logoUrl) setLogoUrl(initData.logoUrl);
+  }, [initData, setUser, initYear, setLogoUrl]);
 
   return <AdminPanel />;
 }

@@ -29,12 +29,13 @@ export function ResumenPage({ onFillForm, onReopen, onViewFeedback }: ResumenPag
 
   if (loadingDashboard || loadingRetos) return <Spinner />;
 
-  if (!dashboard) return <Alert variant="error">Error al cargar datos del panel.</Alert>;
+  if (!dashboard) return <Alert variant="error">Error al cargar los datos del panel.</Alert>;
 
   if (dashboard.docenteEstado === 'pendiente') {
     return (
-      <Alert variant="warning" title="Cuenta pendiente">
-        Tu cuenta de docente está pendiente de aprobación por un administrador. Una vez aprobada, podrás acceder al panel completo.
+      <Alert variant="warning" title="Acceso pendiente">
+        Tu acceso para gestionar este centro educativo esta pendiente de aprobacion administrativa. En cuanto se apruebe
+        podras continuar con la matricula y los eco retos.
       </Alert>
     );
   }
@@ -65,7 +66,7 @@ export function ResumenPage({ onFillForm, onReopen, onViewFeedback }: ResumenPag
         />
       </div>
 
-      <h3 style={{ marginBottom: 'var(--gnf-space-4)' }}>Mis Eco Retos</h3>
+      <h3 style={{ marginBottom: 'var(--gnf-space-4)' }}>Retos de mi centro educativo</h3>
       <RetoGrid
         retos={(retos ?? []) as RetoWithEntry[]}
         onFillForm={onFillForm}

@@ -1,17 +1,21 @@
 import { get, post, del } from './client';
-import type { MatriculaPrefill } from '@/types';
+import type { MatriculaFormValues, MatriculaPrefill } from '@/types';
 
 export const matriculaApi = {
   getPrefill(year: number) {
     return get<MatriculaPrefill>('/docente/matricula', { year });
   },
 
-  addReto(retoId: number) {
-    return post<{ success: boolean }>('/docente/matricula/retos', { retoId });
+  save(fields: MatriculaFormValues & { retosSeleccionados: number[] }, year: number) {
+    return post<{ success: boolean; message: string }>('/docente/matricula', { year, fields });
   },
 
-  removeReto(retoId: number) {
-    return del<{ success: boolean }>(`/docente/matricula/retos/${retoId}`);
+  addReto(retoId: number, year: number) {
+    return post<{ success: boolean }>('/docente/matricula/retos', { retoId, year });
+  },
+
+  removeReto(retoId: number, year: number) {
+    return del<{ success: boolean }>(`/docente/matricula/retos/${retoId}?year=${year}`);
   },
 
   saveWizardProgress(data: Record<string, unknown>) {

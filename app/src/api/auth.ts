@@ -14,6 +14,7 @@ interface RegisterDocentePayload {
   centroNombre?: string;
   centroCodigoMep?: string;
   centroDireccion?: string;
+  centroRegionId?: number;
   centroProvincia?: string;
   centroCanton?: string;
   centroNivelEducativo?: string;
@@ -25,6 +26,7 @@ interface RegisterSupervisorPayload {
   email: string;
   password: string;
   regionId: number;
+  rolSolicitado?: 'supervisor' | 'comite_bae';
   cargo?: string;
   telefono?: string;
 }
@@ -32,6 +34,22 @@ interface RegisterSupervisorPayload {
 interface AuthResponse {
   user: User;
   redirectUrl?: string;
+}
+
+interface ForgotPasswordPayload {
+  identifier: string;
+  redirectUrl: string;
+}
+
+interface MessageResponse {
+  success: boolean;
+  message: string;
+}
+
+interface ResetPasswordPayload {
+  login: string;
+  key: string;
+  password: string;
 }
 
 export const authApi = {
@@ -53,5 +71,13 @@ export const authApi = {
 
   logout() {
     return post<void>('/auth/logout');
+  },
+
+  forgotPassword(data: ForgotPasswordPayload) {
+    return post<MessageResponse>('/auth/forgot-password', data);
+  },
+
+  resetPassword(data: ResetPasswordPayload) {
+    return post<MessageResponse>('/auth/reset-password', data);
   },
 };
