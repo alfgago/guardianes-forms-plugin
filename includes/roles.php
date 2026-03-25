@@ -181,6 +181,36 @@ function gnf_get_primary_panel_slug( $user ) {
 }
 
 /**
+ * Registra contexto de acceso en el error log para depurar permisos.
+ *
+ * @param string  $context Contexto.
+ * @param WP_User $user    Usuario.
+ * @param array   $extra   Datos extra.
+ * @return void
+ */
+function gnf_log_panel_access_context( $context, $user, $extra = array() ) {
+	if ( ! $user instanceof WP_User ) {
+		return;
+	}
+
+	$payload = array_merge(
+		array(
+			'context'      => (string) $context,
+			'user_id'      => (int) $user->ID,
+			'user_login'   => (string) $user->user_login,
+			'roles'        => array_values( (array) $user->roles ),
+			'primary'      => gnf_get_primary_panel_slug( $user ),
+			'panel_admin'  => gnf_user_can_access_panel( $user, 'panel-admin' ),
+			'panel_sup'    => gnf_user_can_access_panel( $user, 'panel-supervisor' ),
+			'panel_doc'    => gnf_user_can_access_panel( $user, 'panel-docente' ),
+		),
+		(array) $extra
+	);
+
+	error_log( '[GNF access] ' . wp_json_encode( $payload ) );
+}
+
+/**
  * Redirige wp-login.php al panel de autenticación React.
  *
  * Evita que los usuarios vean el formulario nativo de WordPress
@@ -230,6 +260,16 @@ function gnf_block_admin_for_frontend_roles() {
 			$redirect = function_exists( 'gnf_get_default_panel_url' )
 				? gnf_get_default_panel_url( $user )
 				: home_url();
+			if ( function_exists( 'gnf_log_panel_access_context' ) ) {
+				gnf_log_panel_access_context(
+					'wp_admin_redirect',
+					$user,
+					array(
+						'matched_role' => $role,
+						'redirect'     => $redirect,
+					)
+				);
+			}
 			wp_safe_redirect( $redirect );
 			exit;
 		}
@@ -323,6 +363,17 @@ function gnf_protect_frontend_panels() {
 	}
 
 	// No tiene permiso → redirigir al panel correcto.
+	if ( function_exists( 'gnf_log_panel_access_context' ) ) {
+		gnf_log_panel_access_context(
+			'template_redirect_denied',
+			$user,
+			array(
+				'requested_panel' => $slug,
+				'request_uri'     => isset( $_SERVER['REQUEST_URI'] ) ? (string) wp_unslash( $_SERVER['REQUEST_URI'] ) : '',
+			)
+		);
+	}
+
 	if ( function_exists( 'gnf_get_default_panel_url' ) ) {
 		$target = gnf_get_default_panel_url( $user );
 

@@ -318,6 +318,23 @@ function gnf_handle_auth_login()
 
 	// Si hay redirect explícito que apunte a un panel permitido para el rol, respetarlo.
 	// Si no, redirigir al panel por defecto del rol.
+	if ( function_exists( 'gnf_get_primary_panel_slug' ) && '' === gnf_get_primary_panel_slug( $user ) ) {
+		if ( function_exists( 'gnf_log_panel_access_context' ) ) {
+			gnf_log_panel_access_context(
+				'form_auth_login_denied',
+				$user,
+				array(
+					'redirect' => $redirect,
+				)
+			);
+		}
+
+		wp_logout();
+		$error_redirect = $redirect ?: home_url( '/panel-docente/' );
+		wp_safe_redirect( add_query_arg( 'gnf_err', rawurlencode( 'La cuenta se autentico, pero no tiene un rol o permisos validos para un panel en este sitio.' ), $error_redirect ) );
+		exit;
+	}
+
 	$default_url = gnf_get_default_panel_url( $user );
 
 	if ( $redirect ) {

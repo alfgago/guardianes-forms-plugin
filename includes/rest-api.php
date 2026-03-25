@@ -952,6 +952,26 @@ function gnf_rest_auth_login( WP_REST_Request $request ) {
 	}
 
 	wp_set_current_user( $user->ID );
+	if ( function_exists( 'gnf_get_primary_panel_slug' ) && '' === gnf_get_primary_panel_slug( $user ) ) {
+		if ( function_exists( 'gnf_log_panel_access_context' ) ) {
+			gnf_log_panel_access_context(
+				'rest_auth_login_denied',
+				$user,
+				array(
+					'route' => '/gnf/v1/auth/login',
+				)
+			);
+		}
+
+		wp_logout();
+
+		return new WP_Error(
+			'no_panel_access',
+			'La cuenta se autentico, pero no tiene un rol o permisos validos para un panel en este sitio.',
+			array( 'status' => 403 )
+		);
+	}
+
 	gnf_log_audit_event(
 		'auth_login',
 		array(
