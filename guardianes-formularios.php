@@ -21,6 +21,26 @@ define('GNF_AUTH_LOGO_URL', 'https://movimientoguardianes.org/wp-content/uploads
 define('GNF_LOGO_URL', GNF_APP_LOGO_URL);
 
 /**
+ * Versiona assets del plugin por timestamp del archivo.
+ *
+ * Evita depender de GNF_VERSION para que cambios en JS/CSS generen
+ * automaticamente una nueva URL ?ver=... y no queden pegados en cache.
+ *
+ * @param string $relative_path Ruta relativa desde la raiz del plugin.
+ * @return string
+ */
+function gnf_asset_version( $relative_path ) {
+	$relative_path = ltrim( (string) $relative_path, '/\\' );
+	$absolute_path = GNF_PATH . str_replace( array( '/', '\\' ), DIRECTORY_SEPARATOR, $relative_path );
+
+	if ( file_exists( $absolute_path ) ) {
+		return (string) filemtime( $absolute_path );
+	}
+
+	return GNF_VERSION;
+}
+
+/**
  * Carga todos los archivos necesarios.
  */
 require_once 'includes/helpers.php';
@@ -253,7 +273,7 @@ function gnf_enqueue_assets()
 		return;
 	}
 
-	wp_enqueue_style('gnf-styles', GNF_URL . 'assets/css/guardianes.css', array(), GNF_VERSION);
+	wp_enqueue_style('gnf-styles', GNF_URL . 'assets/css/guardianes.css', array(), gnf_asset_version( 'assets/css/guardianes.css' ));
 
 	// Ocultar header, subheader y barra de admin en pantallas de shortcodes del plugin.
 	$gnf_hide_theme_ui = '
@@ -267,7 +287,7 @@ function gnf_enqueue_assets()
 	';
 	wp_add_inline_style('gnf-styles', $gnf_hide_theme_ui);
 
-	wp_enqueue_script('gnf-scripts', GNF_URL . 'assets/js/guardianes.js', array('jquery'), GNF_VERSION, true);
+	wp_enqueue_script('gnf-scripts', GNF_URL . 'assets/js/guardianes.js', array('jquery'), gnf_asset_version( 'assets/js/guardianes.js' ), true);
 
 	wp_localize_script(
 		'gnf-scripts',
@@ -291,7 +311,7 @@ function gnf_admin_enqueue_assets($hook)
 			'gnf-centros-import-admin',
 			GNF_URL . 'assets/js/centros-import-admin.js',
 			array(),
-			GNF_VERSION,
+			gnf_asset_version( 'assets/js/centros-import-admin.js' ),
 			true
 		);
 		wp_localize_script('gnf-centros-import-admin', 'gnfCentrosImportAdmin', array(
@@ -314,7 +334,7 @@ function gnf_admin_enqueue_assets($hook)
 		'gnf-acf-field-points',
 		GNF_URL . 'assets/js/acf-field-points.js',
 		array('jquery', 'acf-input'),
-		GNF_VERSION,
+		gnf_asset_version( 'assets/js/acf-field-points.js' ),
 		true
 	);
 	wp_localize_script('gnf-acf-field-points', 'gnfAcfFieldPoints', array(

@@ -365,7 +365,7 @@ function gnf_render_react_panel( $panel, $data = array() ) {
 					'gnf-react-' . $panel_key . '-css-' . $i,
 					$dist_url . $css_file,
 					array(),
-					GNF_VERSION
+					function_exists( 'gnf_asset_version' ) ? gnf_asset_version( 'assets/dist/' . $css_file ) : GNF_VERSION
 				);
 			}
 		}
@@ -378,7 +378,7 @@ function gnf_render_react_panel( $panel, $data = array() ) {
 					$chunk      = $manifest[ $import_key ];
 					$chunk_handle = 'gnf-chunk-' . sanitize_key( basename( $chunk['file'], '.js' ) );
 					if ( ! wp_script_is( $chunk_handle, 'registered' ) ) {
-						wp_register_script( $chunk_handle, $dist_url . $chunk['file'], array(), GNF_VERSION, true );
+						wp_register_script( $chunk_handle, $dist_url . $chunk['file'], array(), function_exists( 'gnf_asset_version' ) ? gnf_asset_version( 'assets/dist/' . $chunk['file'] ) : GNF_VERSION, true );
 						// Enqueue chunk CSS if any.
 						if ( ! empty( $chunk['css'] ) ) {
 							foreach ( $chunk['css'] as $ci => $chunk_css ) {
@@ -386,7 +386,7 @@ function gnf_render_react_panel( $panel, $data = array() ) {
 									$chunk_handle . '-css-' . $ci,
 									$dist_url . $chunk_css,
 									array(),
-									GNF_VERSION
+									function_exists( 'gnf_asset_version' ) ? gnf_asset_version( 'assets/dist/' . $chunk_css ) : GNF_VERSION
 								);
 							}
 						}
@@ -402,7 +402,7 @@ function gnf_render_react_panel( $panel, $data = array() ) {
 			'gnf-react-' . $panel_key,
 			$dist_url . $entry['file'],
 			$deps,
-			GNF_VERSION,
+			function_exists( 'gnf_asset_version' ) ? gnf_asset_version( 'assets/dist/' . $entry['file'] ) : GNF_VERSION,
 			true
 		);
 
