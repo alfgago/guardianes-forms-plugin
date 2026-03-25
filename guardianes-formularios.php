@@ -51,6 +51,123 @@ require_once 'includes/react-loader.php';
 require_once 'includes/rest-api.php';
 
 /**
+ * Devuelve el path de la request actual.
+ *
+ * @return string
+ */
+function gnf_get_request_path() {
+	$request_uri = isset( $_SERVER['REQUEST_URI'] ) ? (string) wp_unslash( $_SERVER['REQUEST_URI'] ) : '';
+	$path        = wp_parse_url( $request_uri, PHP_URL_PATH );
+
+	return is_string( $path ) ? $path : '';
+}
+
+/**
+ * Indica si la request apunta a uno de los paneles frontend.
+ *
+ * @param string|null $path Path opcional.
+ * @return bool
+ */
+function gnf_is_panel_request_path( $path = null ) {
+	$path = is_string( $path ) ? $path : gnf_get_request_path();
+
+	return 1 === preg_match( '#/(panel-docente|panel-supervisor|panel-admin|panel-comite)(/|$)#', $path );
+}
+
+/**
+ * Indica si la request es de la API REST del plugin.
+ *
+ * @param string|null $path Path opcional.
+ * @return bool
+ */
+function gnf_is_plugin_rest_request_path( $path = null ) {
+	$path = is_string( $path ) ? $path : gnf_get_request_path();
+
+	return 1 === preg_match( '#/wp-json/gnf/v1(/|$)#', $path );
+}
+
+/**
+ * Determina si debemos forzar no-cache desde origen.
+ *
+ * @return bool
+ */
+function gnf_should_bypass_cache() {
+	$path = gnf_get_request_path();
+
+	if ( gnf_is_panel_request_path( $path ) || gnf_is_plugin_rest_request_path( $path ) ) {
+		return true;
+	}
+
+	return isset( $_GET['refresh_session'] );
+}
+
+/**
+ * Marca requests sensibles para que Breeze/Varnish/otros plugins no los cacheen.
+ *
+ * @return void
+ */
+function gnf_maybe_disable_page_cache() {
+	if ( ! gnf_should_bypass_cache() ) {
+		return;
+	}
+
+	if ( ! defined( 'DONOTCACHEPAGE' ) ) {
+		define( 'DONOTCACHEPAGE', true );
+	}
+	if ( ! defined( 'DONOTCACHEOBJECT' ) ) {
+		define( 'DONOTCACHEOBJECT', true );
+	}
+	if ( ! defined( 'DONOTCACHEDB' ) ) {
+		define( 'DONOTCACHEDB', true );
+	}
+	if ( ! defined( 'DONOTMINIFY' ) ) {
+		define( 'DONOTMINIFY', true );
+	}
+}
+add_action( 'init', 'gnf_maybe_disable_page_cache', 0 );
+
+/**
+ * Envia headers no-cache para paneles y requests de refresh_session.
+ *
+ * @return void
+ */
+function gnf_send_nocache_headers() {
+	if ( ! gnf_should_bypass_cache() ) {
+		return;
+	}
+
+	nocache_headers();
+	header( 'Cache-Control: no-store, no-cache, must-revalidate, max-age=0, s-maxage=0', true );
+	header( 'Pragma: no-cache', true );
+	header( 'Expires: Wed, 11 Jan 1984 05:00:00 GMT', true );
+	header( 'X-GNF-Cache-Bypass: 1', true );
+}
+add_action( 'send_headers', 'gnf_send_nocache_headers', 0 );
+
+/**
+ * Fuerza headers no-cache en la API REST del plugin.
+ *
+ * @param WP_HTTP_Response $response Response.
+ * @param WP_REST_Server   $server   Server.
+ * @param WP_REST_Request  $request  Request.
+ * @return WP_HTTP_Response
+ */
+function gnf_rest_add_nocache_headers( $response, $server, $request ) {
+	$route = $request instanceof WP_REST_Request ? $request->get_route() : '';
+	if ( 0 !== strpos( (string) $route, '/gnf/v1/' ) ) {
+		return $response;
+	}
+
+	$response->header( 'Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0, s-maxage=0' );
+	$response->header( 'Pragma', 'no-cache' );
+	$response->header( 'Expires', 'Wed, 11 Jan 1984 05:00:00 GMT' );
+	$response->header( 'X-GNF-Cache-Bypass', '1' );
+
+	return $response;
+}
+add_filter( 'rest_post_dispatch', 'gnf_rest_add_nocache_headers', 10, 3 );
+
+/**
  * Carga textdomain.
  */
 function gnf_load_textdomain()
