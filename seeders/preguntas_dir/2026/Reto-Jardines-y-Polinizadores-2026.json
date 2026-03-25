@@ -1,0 +1,138 @@
+[
+  {
+    "id": "q1",
+    "pregunta": "1. ¿Celebraron el Día Mundial de las Abejas (20 de mayo) o el Día Internacional de la Diversidad Biológica (22 de mayo)? - (si/no)",
+    "tipo_de_campo": "seleccion_unica",
+    "opciones": ["si", "no"],
+    "required": true,
+    "depends_on": null,
+    "suma_puntos": false
+  },
+  {
+    "id": "q1_1",
+    "pregunta": "1.1 Puede agregar un comentario corto sobre este eco reto.",
+    "tipo_de_campo": "textarea",
+    "opciones": null,
+    "required": false,
+    "depends_on": { "field": "q1", "value": "si" },
+    "suma_puntos": false
+  },
+  {
+    "id": "q1_e1",
+    "pregunta": "Fotografía de la pizarra o mural conmemorativo para esta celebración.\n5 eco pt",
+    "tipo_de_campo": "subida_archivo",
+    "opciones": null,
+    "required": false,
+    "depends_on": { "field": "q1", "value": "si" },
+    "suma_puntos": true,
+    "puntos": 5
+  },
+  {
+    "id": "q1_e2",
+    "pregunta": "Fotografía de actividad realizada donde se observe claramente que está relacionada a la celebración de este día.\n5 eco pt",
+    "tipo_de_campo": "subida_archivo",
+    "opciones": null,
+    "required": false,
+    "depends_on": { "field": "q1", "value": "si" },
+    "suma_puntos": true,
+    "puntos": 5
+  },
+  {
+    "id": "q2",
+    "pregunta": "2. ¿Realizaron actividad educativa relacionada a polinizadores y sus hábitats? - (si/no)",
+    "tipo_de_campo": "seleccion_unica",
+    "opciones": ["si", "no"],
+    "required": true,
+    "depends_on": null,
+    "suma_puntos": false
+  },
+  {
+    "id": "q2_e1",
+    "pregunta": "Fotografía de la sección del planeamiento docente de esta actividad (si lo tienen).\n5 eco pt",
+    "tipo_de_campo": "subida_archivo",
+    "opciones": null,
+    "required": false,
+    "depends_on": { "field": "q2", "value": "si" },
+    "suma_puntos": true,
+    "puntos": 5
+  },
+  {
+    "id": "q2_e2",
+    "pregunta": "Fotografía o mini video (1 minuto) de los estudiantes durante la actividad educativa, que se vea claramente que es del tema de polinizadores.\n5 eco pt",
+    "tipo_de_campo": "subida_archivo",
+    "opciones": null,
+    "required": false,
+    "depends_on": { "field": "q2", "value": "si" },
+    "suma_puntos": true,
+    "puntos": 5
+  },
+  {
+    "id": "q2_e3",
+    "pregunta": "Fotografía que se vea que el recurso educativo usado está relacionado al tema de polinizadores (video, presentación, hoja de trabajo u otro).\n5 eco pt",
+    "tipo_de_campo": "subida_archivo",
+    "opciones": null,
+    "required": false,
+    "depends_on": { "field": "q2", "value": "si" },
+    "suma_puntos": true,
+    "puntos": 5
+  },
+  {
+    "id": "q2_e4",
+    "pregunta": "Foto de hotel(es) de abejas que evidencie que está activo o de hotel de insectos (si tienen).\n5 eco pt",
+    "tipo_de_campo": "subida_archivo",
+    "opciones": null,
+    "required": false,
+    "depends_on": { "field": "q2", "value": "si" },
+    "suma_puntos": true,
+    "puntos": 5
+  },
+  {
+    "id": "q2_e5",
+    "pregunta": "Foto del celular de algunos estudiantes que evidencien el uso de la app iNaturalist o de una hoja de trabajo para monitoreo de polinizadores.\n10 eco pt",
+    "tipo_de_campo": "subida_archivo",
+    "opciones": null,
+    "required": false,
+    "depends_on": { "field": "q2", "value": "si" },
+    "suma_puntos": true,
+    "puntos": 10
+  },
+  {
+    "id": "q3",
+    "pregunta": "3. ¿Cuentan con áreas de jardín amigables con polinizadores? - (si/no)",
+    "tipo_de_campo": "seleccion_unica",
+    "opciones": ["si", "no"],
+    "required": true,
+    "depends_on": null,
+    "suma_puntos": false
+  },
+  {
+    "id": "q3_e1",
+    "pregunta": "Fotografía de la comunicación a los padres de familia solicitando donación de plantas y tierra negra.\n5 eco pt",
+    "tipo_de_campo": "subida_archivo",
+    "opciones": null,
+    "required": false,
+    "depends_on": { "field": "q3", "value": "si" },
+    "suma_puntos": true,
+    "puntos": 5
+  },
+  {
+    "id": "q3_e2",
+    "pregunta": "Fotografía de actividad de siembra con participación de estudiantes de las plantas donadas.\n5 eco pt",
+    "tipo_de_campo": "subida_archivo",
+    "opciones": null,
+    "required": false,
+    "depends_on": { "field": "q3", "value": "si" },
+    "suma_puntos": true,
+    "puntos": 5
+  },
+  {
+    "id": "q3_e3",
+    "pregunta": "Fotografía de la mejor área de jardín amigable con polinizadores con que cuenta el centro educativo.\n5 eco pt",
+    "tipo_de_campo": "subida_archivo",
+    "opciones": null,
+    "required": false,
+    "depends_on": { "field": "q3", "value": "si" },
+    "suma_puntos": true,
+    "puntos": 5
+  }
+]

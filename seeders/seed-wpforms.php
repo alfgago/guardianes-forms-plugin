@@ -92,10 +92,14 @@ class GNF_WPForms_Seeder
         'file'           => 'file-upload',
         'email'          => 'email',
         'date'           => 'date-time',
-        // Nuevos tipos (formato 2026)
+        // Formato 2026 (tipo_de_campo)
         'seleccion_unica' => 'radio',
         'subida_archivo'  => 'file-upload',
         'numero_entero'   => 'text',
+        // Formato v3 (tipo_pregunta)
+        'radio_si_no'     => 'radio',
+        'texto_corto'     => 'text',
+        'numero'          => 'text',
     );
 
     /**
@@ -304,13 +308,17 @@ class GNF_WPForms_Seeder
         $field_id_map     = array();
         $gnf_field_points = array();
 
-        // Detectar formato: nuevo formato tiene 'tipo_de_campo'.
-        $is_new_format = ! empty($preguntas) && isset($preguntas[0]['tipo_de_campo']);
+        // Detectar formato:
+        // v3: tiene 'tipo_pregunta' (formato usuario 2026 actualizado)
+        // v2: tiene 'tipo_de_campo' (formato 2026 original)
+        // v1: tiene 'type'/'label' (formato legacy)
+        $is_v3_format  = ! empty($preguntas) && isset($preguntas[0]['tipo_pregunta']);
+        $is_new_format = ! $is_v3_format && ! empty($preguntas) && isset($preguntas[0]['tipo_de_campo']);
 
         // Primera pasada: construir mapa de referencias para lógica condicional.
         foreach ($preguntas as $pregunta) {
             $field_id++;
-            if ($is_new_format) {
+            if ($is_v3_format || $is_new_format) {
                 if (! empty($pregunta['id'])) {
                     $field_id_map[$pregunta['id']] = $field_id;
                 }
@@ -324,7 +332,39 @@ class GNF_WPForms_Seeder
         foreach ($preguntas as $index => $pregunta) {
             $field_id++;
 
-            if ($is_new_format) {
+            if ($is_v3_format) {
+                // Formato v3: tipo_pregunta, mostrar_si, puntaje, requerido, allowed_files
+                $type        = $pregunta['tipo_pregunta'] ?? 'text';
+                $label       = $pregunta['pregunta'] ?? 'Pregunta ' . ($index + 1);
+                $required    = ! empty($pregunta['requerido']);
+
+                // radio_si_no gets automatic Si/No choices
+                if ('radio_si_no' === $type) {
+                    $raw_choices = array('Sí', 'No');
+                } else {
+                    $raw_choices = $pregunta['opciones'] ?? null;
+                }
+
+                // Conditional logic via mostrar_si
+                $cond_raw = null;
+                if (! empty($pregunta['mostrar_si'])) {
+                    $cond_raw = array(
+                        'field'    => $pregunta['mostrar_si']['pregunta_id'],
+                        'operator' => '==',
+                        'value'    => $pregunta['mostrar_si']['valor'],
+                    );
+                }
+
+                // Points via puntaje field
+                $puntos = absint($pregunta['puntaje'] ?? 0);
+                if ($puntos > 0) {
+                    $gnf_field_points[$field_id] = array(
+                        'puntos' => $puntos,
+                        'tipo'   => $this->field_type_map[$type] ?? 'text',
+                        'label'  => $label,
+                    );
+                }
+            } elseif ($is_new_format) {
                 $type        = $pregunta['tipo_de_campo'] ?? 'text';
                 $raw_choices = $pregunta['opciones'] ?? null;
                 $required    = ! empty($pregunta['required']);
@@ -366,7 +406,7 @@ class GNF_WPForms_Seeder
             );
 
             // Procesar opciones para radio, select, checkbox.
-            $choice_types = array('radio', 'select', 'checkbox', 'seleccion_unica');
+            $choice_types = array('radio', 'select', 'checkbox', 'seleccion_unica', 'radio_si_no');
             if (! empty($raw_choices) && in_array($type, $choice_types, true)) {
                 $field['choices'] = array();
                 foreach ($raw_choices as $choice_index => $choice) {
@@ -385,14 +425,24 @@ class GNF_WPForms_Seeder
             switch ($type) {
                 case 'number':
                 case 'numero_entero':
+                case 'numero':
                     $field['type']          = 'text';
                     $field['limit_enabled'] = '1';
+                    $field['limit_count']   = '100';
                     $field['limit_type']    = 'characters';
+                    break;
+
+                case 'texto_corto':
+                    $field['type'] = 'text';
+                    break;
+
+                case 'radio_si_no':
+                    $field['type'] = 'radio';
                     break;
 
                 case 'file':
                 case 'subida_archivo':
-                    $field['extensions']      = 'jpg,jpeg,png,gif,pdf,mp4,mov';
+                    $field['extensions']      = $this->resolve_extensions($pregunta['allowed_files'] ?? null);
                     $field['max_size']        = '10';
                     $field['max_file_number'] = '5';
                     $field['style']           = 'modern';
@@ -496,6 +546,48 @@ class GNF_WPForms_Seeder
     }
 
     /**
+     * Convierte allowed_files (MIME types / extensions) a extensiones WPForms.
+     *
+     * @param array|null $allowed_files Array de MIME types o null.
+     * @return string Comma-separated extensions.
+     */
+    private function resolve_extensions($allowed_files)
+    {
+        if (empty($allowed_files) || ! is_array($allowed_files)) {
+            return 'jpg,jpeg,png,gif,pdf,mp4,mov';
+        }
+
+        $ext_map = array(
+            'image/*'         => 'jpg,jpeg,png,gif',
+            'video/*'         => 'mp4,mov',
+            'application/pdf' => 'pdf',
+            '.pdf'            => 'pdf',
+            '.xls'            => 'xls',
+            '.xlsx'           => 'xlsx',
+            '.csv'            => 'csv',
+            '.doc'            => 'doc',
+            '.docx'           => 'docx',
+        );
+
+        $extensions = array();
+        foreach ($allowed_files as $mime) {
+            $mime = trim(strtolower((string) $mime));
+            if (isset($ext_map[$mime])) {
+                $extensions[] = $ext_map[$mime];
+            } else {
+                // Treat as raw extension if starts with dot
+                $ext = ltrim($mime, '.');
+                if (strlen($ext) > 0 && strlen($ext) <= 5) {
+                    $extensions[] = $ext;
+                }
+            }
+        }
+
+        $result = implode(',', $extensions);
+        return ! empty($result) ? $result : 'jpg,jpeg,png,gif,pdf,mp4,mov';
+    }
+
+    /**
      * Mapea operadores de conditional logic.
      *
      * @param string $operator Operador original.
@@ -523,11 +615,13 @@ class GNF_WPForms_Seeder
      */
     private function format_choice_label($label)
     {
-        $normalized = $this->normalize_choice_value($label);
-        if ('si' === $normalized) {
+        $ascii = function_exists('remove_accents') ? remove_accents(trim((string) $label)) : trim((string) $label);
+        $ascii = strtolower((string) $ascii);
+
+        if ('si' === $ascii) {
             return 'Sí';
         }
-        if ('no' === $normalized) {
+        if ('no' === $ascii) {
             return 'No';
         }
         return trim((string) $label);
@@ -535,6 +629,10 @@ class GNF_WPForms_Seeder
 
     /**
      * Normaliza el valor interno de una opción para WPForms.
+     *
+     * Importante: usamos "Sí"/"No" como valor final para mantener
+     * compatibilidad con la lógica condicional de WPForms y con los
+     * hooks del plugin, que ya procesan esas respuestas en ese formato.
      *
      * @param string $value Valor original.
      * @return string
@@ -546,10 +644,10 @@ class GNF_WPForms_Seeder
         $ascii = strtolower((string) $ascii);
 
         if (in_array($ascii, array('si', 'sí'), true)) {
-            return 'si';
+            return 'Sí';
         }
         if ('no' === $ascii) {
-            return 'no';
+            return 'No';
         }
 
         return $value;
@@ -564,23 +662,30 @@ class GNF_WPForms_Seeder
      */
     public function extract_checklist_from_questions($preguntas)
     {
-        $checklist     = array();
-        $is_new_format = ! empty($preguntas) && isset($preguntas[0]['tipo_de_campo']);
+        $checklist      = array();
+        $is_v3_format   = ! empty($preguntas) && isset($preguntas[0]['tipo_pregunta']);
+        $is_new_format  = ! $is_v3_format && ! empty($preguntas) && isset($preguntas[0]['tipo_de_campo']);
 
         foreach ($preguntas as $pregunta) {
-            if ($is_new_format) {
-                $is_file = in_array($pregunta['tipo_de_campo'] ?? '', array('subida_archivo', 'file'), true);
-                $label   = $pregunta['pregunta'] ?? 'Evidencia';
+            if ($is_v3_format) {
+                $is_file  = ($pregunta['tipo_pregunta'] ?? '') === 'file';
+                $label    = $pregunta['pregunta'] ?? 'Evidencia';
+                $required = ! empty($pregunta['requerido']);
+            } elseif ($is_new_format) {
+                $is_file  = in_array($pregunta['tipo_de_campo'] ?? '', array('subida_archivo', 'file'), true);
+                $label    = $pregunta['pregunta'] ?? 'Evidencia';
+                $required = ! empty($pregunta['required']);
             } else {
-                $is_file = ($pregunta['type'] ?? '') === 'file';
-                $label   = $pregunta['label'] ?? 'Evidencia';
+                $is_file  = ($pregunta['type'] ?? '') === 'file';
+                $label    = $pregunta['label'] ?? 'Evidencia';
+                $required = ! empty($pregunta['required']);
             }
 
             if ($is_file) {
                 $checklist[] = array(
                     'nombre'         => $label,
                     'tipo_evidencia' => $this->detect_evidence_type(array('label' => $label)),
-                    'requerido'      => ! empty($pregunta['required']),
+                    'requerido'      => $required,
                 );
             }
         }

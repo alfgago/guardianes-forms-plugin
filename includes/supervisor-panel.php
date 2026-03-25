@@ -11,7 +11,7 @@ function gnf_render_supervisor_panel() {
 	if ( ! is_user_logged_in() ) {
 		return gnf_render_auth_block(
 			array(
-				'title'         => 'Panel Supervisor',
+				'title'         => 'Panel DRE',
 				'description'   => 'Accede para revisar centros y retos de tu region.',
 				'show_register' => false,
 				'redirect'      => esc_url_raw( home_url( add_query_arg( array() ) ) ),

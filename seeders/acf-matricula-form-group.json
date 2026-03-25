@@ -465,7 +465,7 @@
                    },
                    {
                        "key":  "field_gnf_mat_centro_ultimo_galardon_estrellas",
-                       "label":  "Ultimo galardon logrado",
+                       "label":  "Último galardón logrado",
                        "name":  "centro_ultimo_galardon_estrellas",
                        "type":  "select",
                        "instructions":  "",
@@ -487,7 +487,7 @@
                    },
                    {
                        "key":  "field_gnf_mat_centro_ultimo_anio_participacion",
-                       "label":  "Ultimo ano de participacion",
+                       "label":  "Último año de participación",
                        "name":  "centro_ultimo_anio_participacion",
                        "type":  "select",
                        "instructions":  "",
@@ -507,7 +507,7 @@
                    },
                    {
                        "key":  "field_gnf_mat_centro_ultimo_anio_participacion_otro",
-                       "label":  "Ultimo ano de participacion (otro)",
+                       "label":  "Último año de participación (otro)",
                        "name":  "centro_ultimo_anio_participacion_otro",
                        "type":  "number",
                        "instructions":  "",
@@ -682,7 +682,7 @@
                    },
                    {
                        "key":  "field_gnf_mat_bae_meta_estrellas",
-                       "label":  "META: Cuantas estrellas se proponen alcanzar este ano?",
+                       "label":  "META: Cuantas estrellas se proponen alcanzar este año?",
                        "name":  "bae_meta_estrellas",
                        "type":  "radio",
                        "instructions":  "Cada nivel de estrellas requiere completar ciertos retos base y adicionales.",
@@ -702,10 +702,10 @@
                    },
                    {
                        "key":  "field_gnf_mat_bae_retos_seleccionados",
-                       "label":  "MATRICULA DE ECO RETOS: Selecciona los eco retos que van a realizar durante el ano.",
+                       "label":  "MATRICULA DE ECO RETOS: Selecciona los eco retos que van a realizar durante el año.",
                        "name":  "bae_retos_seleccionados",
                        "type":  "relationship",
-                       "instructions":  "Selecciona todos los retos en los que participara tu centro educativo este ano. Los retos obligatorios se agregan automaticamente al guardar.",
+                       "instructions":  "Selecciona todos los retos en los que participara tu centro educativo este año. Los retos obligatorios se agregan automaticamente al guardar.",
                        "required":  1,
                        "post_type":  [
                                          "reto"

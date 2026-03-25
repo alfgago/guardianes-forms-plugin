@@ -45,6 +45,16 @@ export function CentroTable({ centros, onViewDetail }: CentroTableProps) {
       render: (c) => <span style={{ fontSize: '0.8125rem', color: 'var(--gnf-muted)' }}>{c.codigoMep || 'Sin código'}</span>,
     },
     {
+      key: 'ubicacion',
+      header: 'Ubicacion',
+      render: (c) => (
+        <div style={{ display: 'grid', gap: 2, fontSize: '0.8125rem' }}>
+          <span>{c.regionName || 'Sin región'}</span>
+          <span style={{ color: 'var(--gnf-muted)' }}>{c.circuito ? `Circuito ${c.circuito}` : 'Sin circuito'}</span>
+        </div>
+      ),
+    },
+    {
       key: 'puntaje',
       header: 'Puntaje',
       sortable: true,

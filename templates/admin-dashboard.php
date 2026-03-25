@@ -710,6 +710,17 @@ $icons = array(
 									<option value="">Todos</option>
 									<option value="activo" <?php selected($_GET['estado'] ?? '', 'activo'); ?>>Activo</option>
 									<option value="pendiente_de_revision_admin" <?php selected($_GET['estado'] ?? '', 'pendiente_de_revision_admin'); ?>>Pendiente</option>
+									<option value="rechazado" <?php selected($_GET['estado'] ?? '', 'rechazado'); ?>>Rechazado</option>
+								</select>
+							</div>
+
+							<div class="gnf-filter-bar__group">
+								<label class="gnf-filter-bar__label">Registro:</label>
+								<?php $selected_registration = function_exists('gnf_normalize_centro_registration_filter') ? gnf_normalize_centro_registration_filter($_GET['registro'] ?? 'registered') : 'registered'; ?>
+								<select name="registro" class="gnf-select">
+									<option value="registered" <?php selected($selected_registration, 'registered'); ?>>Registrados</option>
+									<option value="all" <?php selected($selected_registration, 'all'); ?>>Todos</option>
+									<option value="unregistered" <?php selected($selected_registration, 'unregistered'); ?>>Sin registrar</option>
 								</select>
 							</div>
 

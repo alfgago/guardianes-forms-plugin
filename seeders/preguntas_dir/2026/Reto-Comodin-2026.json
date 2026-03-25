@@ -1,0 +1,78 @@
+[
+  {
+    "id": "q1",
+    "pregunta": "1. ¿Realizaron un nuevo eco reto que contribuye con una cultura más sostenible? - (si/no)",
+    "tipo_de_campo": "seleccion_unica",
+    "opciones": ["si", "no"],
+    "required": true,
+    "depends_on": null,
+    "suma_puntos": false
+  },
+  {
+    "id": "q1_1",
+    "pregunta": "1.1 ¿Cuántos estudiantes participaron?",
+    "tipo_de_campo": "numero_entero",
+    "opciones": null,
+    "required": false,
+    "depends_on": { "field": "q1", "value": "si" },
+    "suma_puntos": false
+  },
+  {
+    "id": "q1_e1",
+    "pregunta": "REQUERIDA - PDF del planteamiento del eco proyecto. (Nombre del reto, objetivo, acciones con participación estudiantil, otros).\n5 eco pt",
+    "tipo_de_campo": "subida_archivo",
+    "opciones": null,
+    "required": true,
+    "depends_on": { "field": "q1", "value": "si" },
+    "suma_puntos": true,
+    "puntos": 5
+  },
+  {
+    "id": "q1_e2",
+    "pregunta": "Fotografía o video corto (1 minuto) de estudiantes en alguna actividad educativa o de capacitación relacionada al nuevo eco reto.\n5 eco pt",
+    "tipo_de_campo": "subida_archivo",
+    "opciones": null,
+    "required": false,
+    "depends_on": { "field": "q1", "value": "si" },
+    "suma_puntos": true,
+    "puntos": 5
+  },
+  {
+    "id": "q2",
+    "pregunta": "2. ¿Desarrollaron el proyecto con participación estudiantil? - (si/no)",
+    "tipo_de_campo": "seleccion_unica",
+    "opciones": ["si", "no"],
+    "required": true,
+    "depends_on": null,
+    "suma_puntos": false
+  },
+  {
+    "id": "q2_1",
+    "pregunta": "2.1 Puede agregar un comentario corto sobre este nuevo eco reto.",
+    "tipo_de_campo": "textarea",
+    "opciones": null,
+    "required": false,
+    "depends_on": { "field": "q2", "value": "si" },
+    "suma_puntos": false
+  },
+  {
+    "id": "q2_e1",
+    "pregunta": "REQUERIDA - Fotografía durante el desarrollo del eco reto con participación estudiantil, que evidencie claramente la relación con el nuevo eco reto.\n5 eco pt",
+    "tipo_de_campo": "subida_archivo",
+    "opciones": null,
+    "required": true,
+    "depends_on": { "field": "q2", "value": "si" },
+    "suma_puntos": true,
+    "puntos": 5
+  },
+  {
+    "id": "q2_e2",
+    "pregunta": "Fotografía del proyecto en funcionamiento o implementado.\n5 eco pt",
+    "tipo_de_campo": "subida_archivo",
+    "opciones": null,
+    "required": false,
+    "depends_on": { "field": "q2", "value": "si" },
+    "suma_puntos": true,
+    "puntos": 5
+  }
+]

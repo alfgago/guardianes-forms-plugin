@@ -93,7 +93,7 @@
   },
   {
     "id": "q2_e1",
-    "pregunta": "Fotografía de la sección del planeamiento docente de esta actividad (si lo tienen).\n 5 eco pts",
+    "pregunta": "Fotografía de la sección del planeamiento docente de esta actividad (si lo tienen).",
     "tipo_de_campo": "subida_archivo",
     "opciones": null,
     "required": false,
@@ -106,7 +106,7 @@
   },
   {
     "id": "q2_e2",
-    "pregunta": "REQUISITO - Fotografía en la que se vea claramente que el recurso educativo usado está relacionado al tema de energías sea video, presentación, hoja de trabajo u otro (diferente al realizado en la celebración de fecha ambiental).\n5 eco pts",
+    "pregunta": "REQUISITO - Fotografía en la que se vea claramente que el recurso educativo usado está relacionado al tema de energías sea video, presentación, hoja de trabajo u otro (diferente al realizado en la celebración de fecha ambiental).",
     "tipo_de_campo": "subida_archivo",
     "opciones": null,
     "required": true,
@@ -119,7 +119,7 @@
   },
   {
     "id": "q2_e3",
-    "pregunta": "REQUISITO - Fotografía o mini video (1 minuto) de los estudiantes durante la actividad educativa (diferente a actividad 1 de fecha ambiental).\n5 eco pts",
+    "pregunta": "REQUISITO - Fotografía o mini video (1 minuto) de los estudiantes durante la actividad educativa (diferente a actividad 1 de fecha ambiental).",
     "tipo_de_campo": "subida_archivo",
     "opciones": null,
     "required": true,
@@ -141,7 +141,7 @@
   },
   {
     "id": "q3_e1",
-    "pregunta": "REQUISITO - Fotografía de rotulación ya colocada en apagadores  para fomentar hábitos de ahorro energético.\n\n5 eco pts",
+    "pregunta": "REQUISITO - Fotografía de rotulación ya colocada en apagadores  para fomentar hábitos de ahorro energético.\n",
     "tipo_de_campo": "subida_archivo",
     "opciones": null,
     "required": true,
@@ -154,7 +154,7 @@
   },
   {
     "id": "q3_e2",
-    "pregunta": "REQUISITO - Fotografía de rotulación (en área diferente a la anterior) ya colocada en apagadores para fomentar hábitos de ahorro energético.\n5 eco pts",
+    "pregunta": "REQUISITO - Fotografía de rotulación (en área diferente a la anterior) ya colocada en apagadores para fomentar hábitos de ahorro energético.",
     "tipo_de_campo": "subida_archivo",
     "opciones": null,
     "required": true,
@@ -200,7 +200,7 @@
   },
   {
     "id": "q4_e1",
-    "pregunta": "Fotografía de los estudiantes realizando el monitoreo (actividad sugerida para eco brigadas).\n5 eco pts",
+    "pregunta": "Fotografía de los estudiantes realizando el monitoreo (actividad sugerida para eco brigadas).",
     "tipo_de_campo": "subida_archivo",
     "opciones": null,
     "required": false,
@@ -213,7 +213,7 @@
   },
   {
     "id": "q4_e2",
-    "pregunta": "Fotografía de los resultados del monitoreo realizado con firma de recibido de dirección (actividad sugerida para brigadas o para el gobierno estudiantil).\n5 eco pts",
+    "pregunta": "Fotografía de los resultados del monitoreo realizado con firma de recibido de dirección (actividad sugerida para brigadas o para el gobierno estudiantil).",
     "tipo_de_campo": "subida_archivo",
     "opciones": null,
     "required": false,
@@ -235,7 +235,7 @@
   },
   {
     "id": "q5_e1",
-    "pregunta": "Fotografía en la que se observa la reparación o mejora realizada (cambio de iluminación LED, reparación de cableado, sustitución de equipo ineficiente, instalación de sensores, u otros, etc.).\n5 eco pts",
+    "pregunta": "Fotografía en la que se observa la reparación o mejora realizada (cambio de iluminación LED, reparación de cableado, sustitución de equipo ineficiente, instalación de sensores, u otros, etc.).",
     "tipo_de_campo": "subida_archivo",
     "opciones": null,
     "required": false,
@@ -257,7 +257,7 @@
   },
   {
     "id": "q6_e1",
-    "pregunta": "Aportar los datos completos de consumo de energía de enero a noviembre únicamente del año 2025. Los datos del año actual no se solicitarán.\n5 eco pts",
+    "pregunta": "Aportar los datos completos de consumo de energía de enero a noviembre únicamente del año 2025. Los datos del año actual no se solicitarán.",
     "tipo_de_campo": "subida_archivo",
     "opciones": null,
     "required": false,

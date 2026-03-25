@@ -22,6 +22,11 @@ export function DashboardPage({ onViewCentro }: DashboardPageProps) {
     queryFn: () => supervisorApi.getDashboard(year),
   });
 
+  const { data: allCentros, isLoading: loadingAllCentros } = useQuery({
+    queryKey: ['supervisor-centros', year, 'all'],
+    queryFn: () => supervisorApi.getCentros(year),
+  });
+
   const { data: centros, isLoading: loadingCentros } = useQuery({
     queryKey: ['supervisor-centros', year, circuito],
     queryFn: () => supervisorApi.getCentros(year, circuito || undefined),
@@ -30,7 +35,7 @@ export function DashboardPage({ onViewCentro }: DashboardPageProps) {
   if (loadingStats) return <Spinner />;
 
   const stats = dashboard?.stats;
-  const circuitos = [...new Set((centros ?? []).map((c) => c.circuito).filter(Boolean) as string[])].sort();
+  const circuitos = [...new Set((allCentros ?? []).map((c) => c.circuito).filter(Boolean) as string[])].sort();
 
   return (
     <div>
@@ -50,10 +55,22 @@ export function DashboardPage({ onViewCentro }: DashboardPageProps) {
         </StatsGrid>
       )}
 
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--gnf-space-4)' }}>
-        <h3>Centros Educativos</h3>
-        {circuitos.length > 1 && (
-          <CircuitoFilter circuitos={circuitos} value={circuito} onChange={setCircuito} />
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 'var(--gnf-space-4)', flexWrap: 'wrap', marginBottom: 'var(--gnf-space-4)' }}>
+        <div>
+          <h3 style={{ marginBottom: 'var(--gnf-space-1)' }}>Centros Educativos</h3>
+          <p style={{ margin: 0, color: 'var(--gnf-muted)', fontSize: '0.875rem' }}>
+            {circuito ? `Filtrando por circuito ${circuito}.` : 'Vista completa de la DRE.'}
+          </p>
+        </div>
+        {loadingAllCentros ? null : circuitos.length > 0 ? (
+          <div style={{ display: 'grid', gap: 6 }}>
+            <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--gnf-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+              Filtrar por circuito
+            </span>
+            <CircuitoFilter circuitos={circuitos} value={circuito} onChange={setCircuito} />
+          </div>
+        ) : (
+          <span style={{ color: 'var(--gnf-muted)', fontSize: '0.875rem' }}>No hay circuitos cargados para filtrar.</span>
         )}
       </div>
 

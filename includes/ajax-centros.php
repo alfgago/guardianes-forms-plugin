@@ -49,8 +49,7 @@ function gnf_ajax_search_centros() {
 			WHERE p.post_type = 'centro_educativo'
 			AND p.post_status IN ('publish', 'pending')
 			AND (p.post_title LIKE %s OR pm_codigo.meta_value LIKE %s)
-			ORDER BY p.post_title ASC
-			LIMIT 20",
+			ORDER BY p.post_title ASC",
 			$like_term,
 			$like_term
 		)

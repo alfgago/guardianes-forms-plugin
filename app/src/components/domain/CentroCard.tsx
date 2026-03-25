@@ -18,7 +18,7 @@ export function CentroCard({ centro }: CentroCardProps) {
         {centro.regionName && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--gnf-space-2)' }}>
             <MapPin size={14} />
-            <span>{centro.regionName}</span>
+            <span>{centro.regionName}{centro.circuito ? ` | Circuito ${centro.circuito}` : ''}</span>
           </div>
         )}
         {centro.direccion && (

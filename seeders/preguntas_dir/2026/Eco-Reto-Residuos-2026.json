@@ -117,7 +117,7 @@
   },
   {
     "id": "q3_e1",
-    "pregunta": "Fotografía de los estudiantes realizando el monitoreo (actividad sugerida para eco brigadas o gobierno estudiantil).\n5 eco pts",
+    "pregunta": "Fotografía de los estudiantes realizando el monitoreo (actividad sugerida para eco brigadas o gobierno estudiantil).",
     "tipo_de_campo": "subida_archivo",
     "opciones": null,
     "required": false,
@@ -130,7 +130,7 @@
   },
   {
     "id": "q3_e2",
-    "pregunta": "Fotografía del monitoreo realizado con firma de recibido de dirección o junta de educación (actividad sugerida para eco brigadas o para el gobierno estudiantil).\n5 eco pts",
+    "pregunta": "Fotografía del monitoreo realizado con firma de recibido de dirección o junta de educación (actividad sugerida para eco brigadas o para el gobierno estudiantil).",
     "tipo_de_campo": "subida_archivo",
     "opciones": null,
     "required": false,
@@ -152,7 +152,7 @@
   },
   {
     "id": "q4_e1",
-    "pregunta": "Fotografía de algunos de los productos hechos con material de reciclaje\n5 eco pts",
+    "pregunta": "Fotografía de algunos de los productos hechos con material de reciclaje",
     "tipo_de_campo": "subida_archivo",
     "opciones": null,
     "required": false,
@@ -186,7 +186,7 @@
   },
   {
     "id": "q5_e1",
-    "pregunta": "REQUISITO - Fotografía de estación con recipientes de separación o punto ecológico colocado en pasillo.\n10 eco pts",
+    "pregunta": "REQUISITO - Fotografía de estación con recipientes de separación o punto ecológico colocado en pasillo.",
     "tipo_de_campo": "subida_archivo",
     "opciones": null,
     "required": true,
@@ -199,7 +199,7 @@
   },
   {
     "id": "q5_e2",
-    "pregunta": "Fotografía del lugar de almacenamiento o de acopio para los residuos del centro educativo.\n5 eco pts",
+    "pregunta": "Fotografía del lugar de almacenamiento o de acopio para los residuos del centro educativo.",
     "tipo_de_campo": "subida_archivo",
     "opciones": null,
     "required": false,
@@ -221,7 +221,7 @@
   },
   {
     "id": "q6_e1",
-    "pregunta": "Llevar un registro en Excel de la cantidad (por peso o por número de bolsas) de los residuos valorizables recolectados cada mes según su tipo: plástico, aluminio, papel, tetrapack, etc.\n5 eco pts",
+    "pregunta": "Llevar un registro en Excel de la cantidad (por peso o por número de bolsas) de los residuos valorizables recolectados cada mes según su tipo: plástico, aluminio, papel, tetrapack, etc.",
     "tipo_de_campo": "subida_archivo",
     "opciones": null,
     "required": false,
@@ -243,7 +243,7 @@
   },
   {
     "id": "q7_e1",
-    "pregunta": "REQUISITO - Llevar un registro en Excel de  la generación de residuos no valorizables (basura) con el fin de implementar acciones concretas de reducción.\n10 eco pts",
+    "pregunta": "REQUISITO - Llevar un registro en Excel de  la generación de residuos no valorizables (basura) con el fin de implementar acciones concretas de reducción.",
     "tipo_de_campo": "subida_archivo",
     "opciones": null,
     "required": true,
@@ -265,7 +265,7 @@
   },
   {
     "id": "q8_e1",
-    "pregunta": "Fotografía de una directriz o política institucional que promueva la reducción de residuos al  evitar el uso de materiales poco amigables como globos, foam, estereofón, vajillas desechables y escarcha en actividades educativas y de decoración. \n5 eco pts",
+    "pregunta": "Fotografía de una directriz o política institucional que promueva la reducción de residuos al  evitar el uso de materiales poco amigables como globos, foam, estereofón, vajillas desechables y escarcha en actividades educativas y de decoración. ",
     "tipo_de_campo": "subida_archivo",
     "opciones": null,
     "required": false,

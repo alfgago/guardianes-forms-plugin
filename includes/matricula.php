@@ -121,6 +121,7 @@ function gnf_get_matricula_prefill_data( $user_id, $centro_id, $anio ) {
 		'centro_dependencia'            => (string) $centro_dependencia,
 		'centro_jornada'                => (string) $centro_jornada,
 		'centro_tipologia'              => (string) $centro_tipologia,
+		'centro_tipo_centro_educativo'  => $centro_id ? gnf_normalize_centro_choice( 'tipo_centro_educativo', (string) get_post_meta( $centro_id, 'tipo_centro_educativo', true ) ) : '',
 		'centro_region'                 => $region_meta ? (int) $region_meta : '',
 		'centro_circuito'               => $centro_id ? (string) get_post_meta( $centro_id, 'circuito', true ) : '',
 		'centro_provincia'              => $centro_id ? (string) get_post_meta( $centro_id, 'provincia', true ) : '',
@@ -159,6 +160,7 @@ function gnf_get_matricula_prefill_data( $user_id, $centro_id, $anio ) {
 		'centro_dependencia'               => array( 'centro-dependencia' ),
 		'centro_jornada'                   => array( 'centro-jornada', 'centro-horario' ),
 		'centro_tipologia'                 => array( 'centro-tipologia' ),
+		'centro_tipo_centro_educativo'     => array( 'centro-tipo-centro-educativo' ),
 		'centro_region'                    => array( 'centro-region' ),
 		'centro_circuito'                  => array( 'centro-circuito' ),
 		'centro_provincia'                 => array( 'centro-provincia' ),
@@ -196,6 +198,7 @@ function gnf_get_matricula_prefill_data( $user_id, $centro_id, $anio ) {
 	$prefill['centro_dependencia']     = gnf_normalize_centro_choice( 'dependencia', $prefill['centro_dependencia'] );
 	$prefill['centro_jornada']         = gnf_normalize_centro_choice( 'jornada', $prefill['centro_jornada'] );
 	$prefill['centro_tipologia']       = gnf_normalize_centro_choice( 'tipologia', $prefill['centro_tipologia'] );
+	$prefill['centro_tipo_centro_educativo'] = gnf_normalize_centro_choice( 'tipo_centro_educativo', $prefill['centro_tipo_centro_educativo'] );
 	$prefill['coordinador_cargo']      = gnf_normalize_centro_choice( 'coordinador_cargo', $prefill['coordinador_cargo'] );
 	if ( ! in_array( (string) $prefill['centro_ultimo_anio_participacion'], array( '2025', '2024', 'otro' ), true ) ) {
 		$prefill['centro_ultimo_anio_participacion'] = '2025';
@@ -320,6 +323,7 @@ function gnf_render_matricula_form( $args = array() ) {
 			<input type="hidden" name="centro_dependencia" value="<?php echo esc_attr( (string) $prefill['centro_dependencia'] ); ?>" />
 			<input type="hidden" name="centro_jornada" value="<?php echo esc_attr( (string) $prefill['centro_jornada'] ); ?>" />
 			<input type="hidden" name="centro_tipologia" value="<?php echo esc_attr( (string) $prefill['centro_tipologia'] ); ?>" />
+			<input type="hidden" name="centro_tipo_centro_educativo" value="<?php echo esc_attr( (string) $prefill['centro_tipo_centro_educativo'] ); ?>" />
 			<input type="hidden" name="centro_region" value="<?php echo esc_attr( (int) $prefill['centro_region'] ); ?>" />
 			<input type="hidden" name="centro_circuito" value="<?php echo esc_attr( (string) $prefill['centro_circuito'] ); ?>" />
 			<input type="hidden" name="centro_provincia" value="<?php echo esc_attr( (string) $prefill['centro_provincia'] ); ?>" />
@@ -491,107 +495,121 @@ function gnf_render_matricula_form( $args = array() ) {
 			</div>
 		</div>
 
-		<!-- ── SECCIÓN 2: Datos complementarios del Centro ── -->
+		<!-- ── SECCIÓN 2a: Perfil Institucional ── -->
 		<div class="gnf-mf-section">
 			<div class="gnf-mf-section__header">
 				<div class="gnf-mf-section__icon gnf-mf-section__icon--forest"><?php echo $svg_user; // phpcs:ignore ?></div>
 				<div>
-					<p class="gnf-mf-section__title">Datos complementarios del Centro</p>
-					<p class="gnf-mf-section__subtitle">Tipología del centro, población y coordinación PBAE</p>
+					<p class="gnf-mf-section__title">Perfil Institucional</p>
+					<p class="gnf-mf-section__subtitle">Clasificación del centro y población estudiantil</p>
 				</div>
 			</div>
 			<div class="gnf-mf-section__body">
-				<div style="border:0;padding:0;margin:0;">
-					<div class="gnf-mf-grid">
-						<div class="gnf-mf-field">
-							<label class="gnf-mf-label">Nivel educativo <span class="req">*</span></label>
-							<select name="centro_nivel_educativo" class="gnf-mf-select">
-								<option value="">— Seleccione —</option>
-								<?php foreach ( $choices['nivel_educativo'] as $key => $label ) : ?>
-									<option value="<?php echo esc_attr( $key ); ?>" <?php selected( $prefill['centro_nivel_educativo'], $key ); ?>><?php echo esc_html( $label ); ?></option>
-								<?php endforeach; ?>
-							</select>
-						</div>
-						<div class="gnf-mf-field">
-							<label class="gnf-mf-label">Dependencia <span class="req">*</span></label>
-							<select name="centro_dependencia" class="gnf-mf-select">
-								<option value="">— Seleccione —</option>
-								<?php foreach ( $choices['dependencia'] as $key => $label ) : ?>
-									<option value="<?php echo esc_attr( $key ); ?>" <?php selected( $prefill['centro_dependencia'], $key ); ?>><?php echo esc_html( $label ); ?></option>
-								<?php endforeach; ?>
-							</select>
-						</div>
-						<div class="gnf-mf-field">
-							<label class="gnf-mf-label">Jornada <span class="req">*</span></label>
-							<select name="centro_jornada" class="gnf-mf-select">
-								<option value="">— Seleccione —</option>
-								<?php foreach ( $choices['jornada'] as $key => $label ) : ?>
-									<option value="<?php echo esc_attr( $key ); ?>" <?php selected( $prefill['centro_jornada'], $key ); ?>><?php echo esc_html( $label ); ?></option>
-								<?php endforeach; ?>
-							</select>
-						</div>
-						<div class="gnf-mf-field">
-							<label class="gnf-mf-label">Tipología <span class="req">*</span></label>
-							<select name="centro_tipologia" class="gnf-mf-select">
-								<option value="">— Seleccione —</option>
-								<?php foreach ( $choices['tipologia'] as $key => $label ) : ?>
-									<option value="<?php echo esc_attr( $key ); ?>" <?php selected( $prefill['centro_tipologia'], $key ); ?>><?php echo esc_html( $label ); ?></option>
-								<?php endforeach; ?>
-							</select>
-						</div>
-						<div class="gnf-mf-field">
-							<label class="gnf-mf-label">Cantidad total de estudiantes <span class="req">*</span></label>
-							<input type="number" min="0" name="centro_total_estudiantes" class="gnf-mf-input" value="<?php echo esc_attr( (int) $prefill['centro_total_estudiantes'] ); ?>" />
-						</div>
-						<div class="gnf-mf-field">
-							<label class="gnf-mf-label">Cantidad de hombres <span class="req">*</span></label>
-							<input type="number" min="0" name="centro_estudiantes_hombres" class="gnf-mf-input" value="<?php echo esc_attr( (int) $prefill['centro_estudiantes_hombres'] ); ?>" />
-						</div>
-						<div class="gnf-mf-field">
-							<label class="gnf-mf-label">Cantidad de mujeres <span class="req">*</span></label>
-							<input type="number" min="0" name="centro_estudiantes_mujeres" class="gnf-mf-input" value="<?php echo esc_attr( (int) $prefill['centro_estudiantes_mujeres'] ); ?>" />
-						</div>
-						<div class="gnf-mf-field">
-							<label class="gnf-mf-label">Estudiantes en condición de migrantes</label>
-							<input type="number" min="0" name="centro_estudiantes_migrantes" class="gnf-mf-input" value="<?php echo esc_attr( (int) $prefill['centro_estudiantes_migrantes'] ); ?>" />
-						</div>
-						<div class="gnf-mf-field">
-							<label class="gnf-mf-label">Último galardón logrado <span class="req">*</span></label>
-							<select name="centro_ultimo_galardon_estrellas" class="gnf-mf-select">
-								<?php foreach ( $choices['ultimo_galardon_estrellas'] as $key => $label ) : ?>
-									<option value="<?php echo esc_attr( $key ); ?>" <?php selected( (string) $prefill['centro_ultimo_galardon_estrellas'], (string) $key ); ?>><?php echo esc_html( $label ); ?></option>
-								<?php endforeach; ?>
-							</select>
-						</div>
-						<div class="gnf-mf-field">
-							<label class="gnf-mf-label">Último año de participación <span class="req">*</span></label>
-							<select id="gnf-centro-ultimo-anio" name="centro_ultimo_anio_participacion" class="gnf-mf-select">
-								<?php foreach ( $choices['ultimo_anio_participacion'] as $key => $label ) : ?>
-									<option value="<?php echo esc_attr( $key ); ?>" <?php selected( (string) $prefill['centro_ultimo_anio_participacion'], (string) $key ); ?>><?php echo esc_html( $label ); ?></option>
-								<?php endforeach; ?>
-							</select>
-						</div>
-						<div class="gnf-mf-field" id="gnf-centro-ultimo-anio-otro-wrap" style="<?php echo 'otro' === (string) $prefill['centro_ultimo_anio_participacion'] ? '' : 'display:none;'; ?>">
-							<label class="gnf-mf-label">Especifica el año</label>
-							<input type="number" min="1900" max="<?php echo esc_attr( gmdate( 'Y' ) ); ?>" name="centro_ultimo_anio_participacion_otro" class="gnf-mf-input" value="<?php echo esc_attr( $prefill['centro_ultimo_anio_participacion_otro'] ); ?>" />
-						</div>
-						<div class="gnf-mf-field">
-							<label class="gnf-mf-label">Cargo coordinador(a) PBAE <span class="req">*</span></label>
-							<select id="gnf-coordinador-cargo" name="coordinador_cargo" class="gnf-mf-select">
-								<option value="">— Seleccione —</option>
-								<?php foreach ( $choices['coordinador_cargo'] as $key => $label ) : ?>
-									<option value="<?php echo esc_attr( $key ); ?>" <?php selected( (string) $prefill['coordinador_cargo'], (string) $key ); ?>><?php echo esc_html( $label ); ?></option>
-								<?php endforeach; ?>
-							</select>
-						</div>
-						<div class="gnf-mf-field" id="gnf-coordinador-nombre-wrap" style="<?php echo 'director' === (string) $prefill['coordinador_cargo'] ? 'display:none;' : ''; ?>">
-							<label class="gnf-mf-label">Nombre del coordinador(a)</label>
-							<input type="text" id="gnf-coordinador-nombre" name="coordinador_nombre" class="gnf-mf-input" value="<?php echo esc_attr( $prefill['coordinador_nombre'] ); ?>" />
-						</div>
-						<div class="gnf-mf-field">
-							<label class="gnf-mf-label">Número de tel. celular coordinador(a) <span class="req">*</span></label>
-							<input type="text" name="coordinador_celular" class="gnf-mf-input" value="<?php echo esc_attr( $prefill['coordinador_celular'] ); ?>" placeholder="8888-0000" />
-						</div>
+				<input type="hidden" name="centro_tipologia" value="<?php echo esc_attr( $prefill['centro_tipologia'] ); ?>" />
+				<div class="gnf-mf-grid gnf-mf-grid--4">
+					<div class="gnf-mf-field">
+						<label class="gnf-mf-label">Nivel educativo <span class="req">*</span></label>
+						<select name="centro_nivel_educativo" class="gnf-mf-select">
+							<option value="">— Seleccione —</option>
+							<?php foreach ( $choices['nivel_educativo'] as $key => $label ) : ?>
+								<option value="<?php echo esc_attr( $key ); ?>" <?php selected( $prefill['centro_nivel_educativo'], $key ); ?>><?php echo esc_html( $label ); ?></option>
+							<?php endforeach; ?>
+						</select>
+					</div>
+					<div class="gnf-mf-field">
+						<label class="gnf-mf-label">Dependencia <span class="req">*</span></label>
+						<select name="centro_dependencia" class="gnf-mf-select">
+							<option value="">— Seleccione —</option>
+							<?php foreach ( $choices['dependencia'] as $key => $label ) : ?>
+								<option value="<?php echo esc_attr( $key ); ?>" <?php selected( $prefill['centro_dependencia'], $key ); ?>><?php echo esc_html( $label ); ?></option>
+							<?php endforeach; ?>
+						</select>
+					</div>
+					<div class="gnf-mf-field">
+						<label class="gnf-mf-label">Jornada <span class="req">*</span></label>
+						<select name="centro_jornada" class="gnf-mf-select">
+							<option value="">— Seleccione —</option>
+							<?php foreach ( $choices['jornada'] as $key => $label ) : ?>
+								<option value="<?php echo esc_attr( $key ); ?>" <?php selected( $prefill['centro_jornada'], $key ); ?>><?php echo esc_html( $label ); ?></option>
+							<?php endforeach; ?>
+						</select>
+					</div>
+					<div class="gnf-mf-field">
+						<label class="gnf-mf-label">Tipo de Centro Educativo</label>
+						<select name="centro_tipo_centro_educativo" class="gnf-mf-select">
+							<option value="">— Seleccione —</option>
+							<?php foreach ( $choices['tipo_centro_educativo'] as $key => $label ) : ?>
+								<option value="<?php echo esc_attr( $key ); ?>" <?php selected( $prefill['centro_tipo_centro_educativo'], $key ); ?>><?php echo esc_html( $label ); ?></option>
+							<?php endforeach; ?>
+						</select>
+					</div>
+					<div class="gnf-mf-field">
+						<label class="gnf-mf-label">Total de estudiantes <span class="req">*</span></label>
+						<input type="number" min="0" name="centro_total_estudiantes" class="gnf-mf-input" value="<?php echo esc_attr( (int) $prefill['centro_total_estudiantes'] ); ?>" />
+					</div>
+					<div class="gnf-mf-field">
+						<label class="gnf-mf-label">Hombres <span class="req">*</span></label>
+						<input type="number" min="0" name="centro_estudiantes_hombres" class="gnf-mf-input" value="<?php echo esc_attr( (int) $prefill['centro_estudiantes_hombres'] ); ?>" />
+					</div>
+					<div class="gnf-mf-field">
+						<label class="gnf-mf-label">Mujeres <span class="req">*</span></label>
+						<input type="number" min="0" name="centro_estudiantes_mujeres" class="gnf-mf-input" value="<?php echo esc_attr( (int) $prefill['centro_estudiantes_mujeres'] ); ?>" />
+					</div>
+					<div class="gnf-mf-field">
+						<label class="gnf-mf-label">Estudiantes migrantes</label>
+						<input type="number" min="0" name="centro_estudiantes_migrantes" class="gnf-mf-input" value="<?php echo esc_attr( (int) $prefill['centro_estudiantes_migrantes'] ); ?>" />
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<!-- ── SECCIÓN 2b: Participación y Coordinación ── -->
+		<div class="gnf-mf-section">
+			<div class="gnf-mf-section__header">
+				<div class="gnf-mf-section__icon gnf-mf-section__icon--forest"><?php echo $svg_user; // phpcs:ignore ?></div>
+				<div>
+					<p class="gnf-mf-section__title">Participación y Coordinación</p>
+					<p class="gnf-mf-section__subtitle">Historial PBAE y persona coordinadora</p>
+				</div>
+			</div>
+			<div class="gnf-mf-section__body">
+				<div class="gnf-mf-grid gnf-mf-grid--4">
+					<div class="gnf-mf-field">
+						<label class="gnf-mf-label">Último galardón logrado <span class="req">*</span></label>
+						<select name="centro_ultimo_galardon_estrellas" class="gnf-mf-select">
+							<?php foreach ( $choices['ultimo_galardon_estrellas'] as $key => $label ) : ?>
+								<option value="<?php echo esc_attr( $key ); ?>" <?php selected( (string) $prefill['centro_ultimo_galardon_estrellas'], (string) $key ); ?>><?php echo esc_html( $label ); ?></option>
+							<?php endforeach; ?>
+						</select>
+					</div>
+					<div class="gnf-mf-field">
+						<label class="gnf-mf-label">Último año de participación <span class="req">*</span></label>
+						<select id="gnf-centro-ultimo-anio" name="centro_ultimo_anio_participacion" class="gnf-mf-select">
+							<?php foreach ( $choices['ultimo_anio_participacion'] as $key => $label ) : ?>
+								<option value="<?php echo esc_attr( $key ); ?>" <?php selected( (string) $prefill['centro_ultimo_anio_participacion'], (string) $key ); ?>><?php echo esc_html( $label ); ?></option>
+							<?php endforeach; ?>
+						</select>
+					</div>
+					<div class="gnf-mf-field" id="gnf-centro-ultimo-anio-otro-wrap" style="<?php echo 'otro' === (string) $prefill['centro_ultimo_anio_participacion'] ? '' : 'display:none;'; ?>">
+						<label class="gnf-mf-label">Especifica el año</label>
+						<input type="number" min="1900" max="<?php echo esc_attr( gmdate( 'Y' ) ); ?>" name="centro_ultimo_anio_participacion_otro" class="gnf-mf-input" value="<?php echo esc_attr( $prefill['centro_ultimo_anio_participacion_otro'] ); ?>" />
+					</div>
+					<div class="gnf-mf-field">
+						<label class="gnf-mf-label">Cargo coordinador(a) PBAE <span class="req">*</span></label>
+						<select id="gnf-coordinador-cargo" name="coordinador_cargo" class="gnf-mf-select">
+							<option value="">— Seleccione —</option>
+							<?php foreach ( $choices['coordinador_cargo'] as $key => $label ) : ?>
+								<option value="<?php echo esc_attr( $key ); ?>" <?php selected( (string) $prefill['coordinador_cargo'], (string) $key ); ?>><?php echo esc_html( $label ); ?></option>
+							<?php endforeach; ?>
+						</select>
+					</div>
+					<div class="gnf-mf-field" id="gnf-coordinador-nombre-wrap" style="<?php echo 'director' === (string) $prefill['coordinador_cargo'] ? 'display:none;' : ''; ?>">
+						<label class="gnf-mf-label">Nombre del coordinador(a)</label>
+						<input type="text" id="gnf-coordinador-nombre" name="coordinador_nombre" class="gnf-mf-input" value="<?php echo esc_attr( $prefill['coordinador_nombre'] ); ?>" />
+					</div>
+					<div class="gnf-mf-field">
+						<label class="gnf-mf-label">Celular coordinador(a) <span class="req">*</span></label>
+						<input type="text" name="coordinador_celular" class="gnf-mf-input" value="<?php echo esc_attr( $prefill['coordinador_celular'] ); ?>" placeholder="8888-0000" />
 					</div>
 				</div>
 			</div>
@@ -1029,6 +1047,7 @@ function gnf_handle_submit_matricula() {
 		'centro-dependencia'            => gnf_normalize_centro_choice( 'dependencia', sanitize_text_field( wp_unslash( $_POST['centro_dependencia'] ?? '' ) ) ),
 		'centro-jornada'                => gnf_normalize_centro_choice( 'jornada', sanitize_text_field( wp_unslash( $_POST['centro_jornada'] ?? '' ) ) ),
 		'centro-tipologia'              => gnf_normalize_centro_choice( 'tipologia', sanitize_text_field( wp_unslash( $_POST['centro_tipologia'] ?? '' ) ) ),
+		'centro-tipo-centro-educativo'  => gnf_normalize_centro_choice( 'tipo_centro_educativo', sanitize_text_field( wp_unslash( $_POST['centro_tipo_centro_educativo'] ?? '' ) ) ),
 		'centro-region'                 => absint( $_POST['centro_region'] ?? 0 ),
 		'centro-circuito'               => sanitize_text_field( wp_unslash( $_POST['centro_circuito'] ?? '' ) ),
 		'centro-provincia'              => sanitize_text_field( wp_unslash( $_POST['centro_provincia'] ?? '' ) ),

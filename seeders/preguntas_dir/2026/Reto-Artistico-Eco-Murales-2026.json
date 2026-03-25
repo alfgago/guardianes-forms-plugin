@@ -1,0 +1,31 @@
+[
+  {
+    "id": "q1",
+    "pregunta": "1. ¿Crearon un mural artístico con temática ambiental? - (si/no)",
+    "tipo_de_campo": "seleccion_unica",
+    "opciones": ["si", "no"],
+    "required": true,
+    "depends_on": null,
+    "suma_puntos": false
+  },
+  {
+    "id": "q1_e1",
+    "pregunta": "Fotografía de los estudiantes participando durante la creación artística del mural.\n10 eco pt",
+    "tipo_de_campo": "subida_archivo",
+    "opciones": null,
+    "required": false,
+    "depends_on": { "field": "q1", "value": "si" },
+    "suma_puntos": true,
+    "puntos": 10
+  },
+  {
+    "id": "q1_e2",
+    "pregunta": "Fotografía del mural ya terminado.\n5 eco pt",
+    "tipo_de_campo": "subida_archivo",
+    "opciones": null,
+    "required": false,
+    "depends_on": { "field": "q1", "value": "si" },
+    "suma_puntos": true,
+    "puntos": 5
+  }
+]

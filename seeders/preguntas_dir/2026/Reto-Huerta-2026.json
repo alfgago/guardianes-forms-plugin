@@ -1,0 +1,118 @@
+[
+  {
+    "id": "q1",
+    "pregunta": "1. ¿Celebraron el Día del Agricultor Costarricense (15 de mayo) o Día Mundial de la Agricultura (9 de septiembre)? - (si/no)",
+    "tipo_de_campo": "seleccion_unica",
+    "opciones": ["si", "no"],
+    "required": true,
+    "depends_on": null,
+    "suma_puntos": false
+  },
+  {
+    "id": "q1_e1",
+    "pregunta": "Fotografía de la pizarra o mural conmemorativo para esta celebración.\n5 eco pt",
+    "tipo_de_campo": "subida_archivo",
+    "opciones": null,
+    "required": false,
+    "depends_on": { "field": "q1", "value": "si" },
+    "suma_puntos": true,
+    "puntos": 5
+  },
+  {
+    "id": "q1_e2",
+    "pregunta": "Fotografía de actividad realizada donde se observe claramente que está relacionada a la celebración de este día.\n5 eco pt",
+    "tipo_de_campo": "subida_archivo",
+    "opciones": null,
+    "required": false,
+    "depends_on": { "field": "q1", "value": "si" },
+    "suma_puntos": true,
+    "puntos": 5
+  },
+  {
+    "id": "q2",
+    "pregunta": "2. ¿Realizaron actividad educativa relacionada al tema de huerta? - (si/no)",
+    "tipo_de_campo": "seleccion_unica",
+    "opciones": ["si", "no"],
+    "required": true,
+    "depends_on": null,
+    "suma_puntos": false
+  },
+  {
+    "id": "q2_e1",
+    "pregunta": "Fotografía o mini video (1 minuto) de los estudiantes durante la actividad educativa, que se vea claramente que es sobre el tema de huerta.\n5 eco pt",
+    "tipo_de_campo": "subida_archivo",
+    "opciones": null,
+    "required": false,
+    "depends_on": { "field": "q2", "value": "si" },
+    "suma_puntos": true,
+    "puntos": 5
+  },
+  {
+    "id": "q3",
+    "pregunta": "3. ¿Realizaron actividades en la huerta con estudiantes? - (si/no)",
+    "tipo_de_campo": "seleccion_unica",
+    "opciones": ["si", "no"],
+    "required": true,
+    "depends_on": null,
+    "suma_puntos": false
+  },
+  {
+    "id": "q3_1",
+    "pregunta": "3.1 Puede agregar un comentario corto sobre este eco reto.",
+    "tipo_de_campo": "textarea",
+    "opciones": null,
+    "required": false,
+    "depends_on": { "field": "q3", "value": "si" },
+    "suma_puntos": false
+  },
+  {
+    "id": "q3_e1",
+    "pregunta": "Fotografía de la preparación física del área de huerta o construcción de camas de huerta.\n5 eco pt",
+    "tipo_de_campo": "subida_archivo",
+    "opciones": null,
+    "required": false,
+    "depends_on": { "field": "q3", "value": "si" },
+    "suma_puntos": true,
+    "puntos": 5
+  },
+  {
+    "id": "q3_e2",
+    "pregunta": "Fotografía de actividad con estudiantes de germinación de semillas o siembra de plántulas.\n5 eco pt",
+    "tipo_de_campo": "subida_archivo",
+    "opciones": null,
+    "required": false,
+    "depends_on": { "field": "q3", "value": "si" },
+    "suma_puntos": true,
+    "puntos": 5
+  },
+  {
+    "id": "q3_e3",
+    "pregunta": "Fotografía de estudiantes hidratando, abonando o dando mantenimiento a la huerta.\n10 eco pt",
+    "tipo_de_campo": "subida_archivo",
+    "opciones": null,
+    "required": false,
+    "depends_on": { "field": "q3", "value": "si" },
+    "suma_puntos": true,
+    "puntos": 10
+  },
+  {
+    "id": "q3_e4",
+    "pregunta": "Fotografía de los estudiantes recolectando productos de la huerta.\n5 eco pt",
+    "tipo_de_campo": "subida_archivo",
+    "opciones": null,
+    "required": false,
+    "depends_on": { "field": "q3", "value": "si" },
+    "suma_puntos": true,
+    "puntos": 5
+  },
+  {
+    "id": "q3_e5",
+    "pregunta": "Fotografía del consumo de productos de la huerta en el comedor institucional.\n5 eco pt",
+    "tipo_de_campo": "subida_archivo",
+    "opciones": null,
+    "required": false,
+    "depends_on": { "field": "q3", "value": "si" },
+    "suma_puntos": true,
+    "puntos": 5
+  }
+]

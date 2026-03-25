@@ -89,6 +89,39 @@ function gnf_recalcular_puntaje_reto( $entry_row ) {
 }
 
 /**
+ * Recalcula y persiste el puntaje de un reto entry.
+ *
+ * @param object $entry_row Fila de wp_gn_reto_entries.
+ * @param bool   $refresh_centro Si también recalcula agregados del centro.
+ * @return int Puntaje persistido.
+ */
+function gnf_refresh_reto_entry_score( $entry_row, $refresh_centro = true ) {
+	global $wpdb;
+
+	if ( empty( $entry_row->id ) ) {
+		return 0;
+	}
+
+	$puntaje = gnf_recalcular_puntaje_reto( $entry_row );
+	$wpdb->update(
+		$wpdb->prefix . 'gn_reto_entries',
+		array( 'puntaje' => $puntaje ),
+		array( 'id' => (int) $entry_row->id ),
+		array( '%d' ),
+		array( '%d' )
+	);
+
+	if ( $refresh_centro && ! empty( $entry_row->centro_id ) && ! empty( $entry_row->anio ) ) {
+		gnf_recalcular_puntaje_centro( (int) $entry_row->centro_id, (int) $entry_row->anio );
+		if ( function_exists( 'gnf_clear_admin_stats_cache' ) ) {
+			gnf_clear_admin_stats_cache( (int) $entry_row->anio );
+		}
+	}
+
+	return $puntaje;
+}
+
+/**
  * Legacy: obtiene puntaje máximo de un formulario WPForms leyendo gnf_field_points del JSON.
  * Ya no es la fuente principal — usar gnf_get_reto_max_points() en su lugar.
  *

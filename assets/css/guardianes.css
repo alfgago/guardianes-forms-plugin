@@ -1300,7 +1300,7 @@
 	}
 	
 	.gnf-sidebar__nav {
-		display: flex;
+		display: block;
 		flex-wrap: wrap;
 		padding: var(--gnf-space-2);
 	}
@@ -2302,6 +2302,10 @@
 	grid-template-columns: 1fr 1fr 1fr;
 }
 
+.gnf-mf-grid--4 {
+	grid-template-columns: repeat(4, 1fr);
+}
+
 .gnf-mf-field {
 	display: flex;
 	flex-direction: column;
@@ -2427,7 +2431,7 @@
 /* Reto selector cards */
 .gnf-reto-selector-grid {
 	display: grid;
-	grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+	grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
 	gap: var(--gnf-space-3);
 }
 
@@ -2635,9 +2639,16 @@
 	min-width: 180px;
 }
 
+@media (max-width: 960px) {
+	.gnf-mf-grid--4 {
+		grid-template-columns: 1fr 1fr;
+	}
+}
+
 @media (max-width: 700px) {
 	.gnf-mf-grid,
-	.gnf-mf-grid--3 {
+	.gnf-mf-grid--3,
+	.gnf-mf-grid--4 {
 		grid-template-columns: 1fr;
 	}
 	.gnf-reto-selector-grid {
@@ -2651,5 +2662,155 @@
 	}
 	.gnf-star-selector {
 		flex-direction: column;
+	}
+}
+
+/* ==========================================================================
+   RETO ACCORDION (supervisor/comité centro detail)
+   ========================================================================== */
+
+.gnf-reto-accordion {
+	display: flex;
+	flex-direction: column;
+	gap: var(--gnf-space-3);
+}
+
+.gnf-reto-accordion__item {
+	border: 1px solid var(--gnf-gray-200);
+	border-radius: var(--gnf-radius);
+	background: var(--gnf-white);
+	overflow: hidden;
+	transition: box-shadow var(--gnf-transition);
+}
+
+.gnf-reto-accordion__item[open] {
+	box-shadow: var(--gnf-shadow);
+}
+
+.gnf-reto-accordion__item--highlight {
+	border-color: var(--gnf-sun);
+	background: var(--gnf-sun-light);
+}
+
+.gnf-reto-accordion__summary {
+	display: flex;
+	align-items: center;
+	gap: var(--gnf-space-3);
+	padding: var(--gnf-space-4) var(--gnf-space-5);
+	cursor: pointer;
+	list-style: none;
+	user-select: none;
+}
+
+.gnf-reto-accordion__summary::-webkit-details-marker {
+	display: none;
+}
+
+.gnf-reto-accordion__summary::after {
+	content: '';
+	width: 8px;
+	height: 8px;
+	border-right: 2px solid var(--gnf-gray-400);
+	border-bottom: 2px solid var(--gnf-gray-400);
+	transform: rotate(-45deg);
+	transition: transform var(--gnf-transition);
+	flex-shrink: 0;
+	margin-left: auto;
+}
+
+[open] > .gnf-reto-accordion__summary::after {
+	transform: rotate(45deg);
+}
+
+.gnf-reto-accordion__icon {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 36px;
+	height: 36px;
+	border-radius: var(--gnf-radius-sm);
+	flex-shrink: 0;
+}
+
+.gnf-reto-accordion__icon img {
+	width: 24px;
+	height: 24px;
+	object-fit: contain;
+}
+
+.gnf-reto-accordion__title {
+	font-weight: 600;
+	font-size: 0.95rem;
+	color: var(--gnf-gray-800);
+	flex: 1;
+	min-width: 0;
+}
+
+.gnf-reto-accordion__meta {
+	display: flex;
+	align-items: center;
+	gap: var(--gnf-space-3);
+	flex-shrink: 0;
+}
+
+.gnf-reto-accordion__points {
+	font-size: 0.85rem;
+	font-weight: 600;
+	color: var(--gnf-gray-600);
+	white-space: nowrap;
+}
+
+.gnf-reto-accordion__body {
+	padding: 0 var(--gnf-space-5) var(--gnf-space-5);
+	border-top: 1px solid var(--gnf-gray-200);
+}
+
+.gnf-reto-accordion__body-grid {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: var(--gnf-space-5);
+	padding-top: var(--gnf-space-4);
+}
+
+.gnf-reto-accordion__field-label {
+	font-size: 0.75rem;
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: 0.4px;
+	color: var(--gnf-gray-500);
+	margin-bottom: var(--gnf-space-2);
+}
+
+.gnf-reto-accordion__actions {
+	grid-column: 1 / -1;
+	padding-top: var(--gnf-space-3);
+	border-top: 1px solid var(--gnf-gray-100);
+}
+
+.gnf-correction-note {
+	padding: var(--gnf-space-3) var(--gnf-space-4);
+	background: rgba(239, 107, 74, 0.06);
+	border: 1px solid rgba(239, 107, 74, 0.2);
+	border-left: 4px solid var(--gnf-coral);
+	border-radius: var(--gnf-radius-sm);
+	font-size: 0.85rem;
+	color: var(--gnf-gray-800);
+}
+
+.gnf-correction-note__label {
+	font-weight: 600;
+	color: var(--gnf-coral);
+	font-size: 0.75rem;
+	text-transform: uppercase;
+	letter-spacing: 0.3px;
+	margin-bottom: var(--gnf-space-1);
+}
+
+@media (max-width: 700px) {
+	.gnf-reto-accordion__body-grid {
+		grid-template-columns: 1fr;
+	}
+	.gnf-reto-accordion__meta {
+		display: none;
 	}
 }

@@ -6,10 +6,11 @@ import { Textarea } from '@/components/ui/Textarea';
 import { StatusBadge } from '@/components/domain/StatusBadge';
 import { EvidenceViewer } from '@/components/domain/EvidenceViewer';
 import { ProgressBar } from '@/components/ui/ProgressBar';
+import { Alert } from '@/components/ui/Alert';
 import { useToast } from '@/components/ui/Toast';
 import { supervisorApi } from '@/api/supervisor';
-import { CheckCircle2, RotateCcw } from 'lucide-react';
-import type { RetoEntry, Evidencia } from '@/types';
+import { CheckCircle2, MessageSquare, RotateCcw, Upload } from 'lucide-react';
+import type { RetoEntry, Evidencia, RetoEntryResponse } from '@/types';
 
 interface EntryReviewCardProps {
   entry: RetoEntry & { retoTitulo: string; retoColor: string; retoIconUrl?: string };
@@ -39,6 +40,11 @@ export function EntryReviewCard({ entry, year }: EntryReviewCardProps) {
   });
 
   const isReviewable = entry.estado === 'enviado';
+  const responses = entry.responses ?? [];
+  const orphanEvidence = (entry.evidencias ?? []).filter(
+    (evidence) => !responses.some((response) => response.fieldId === (evidence.field_id ?? 0)),
+  );
+  const hasYearValidationWarning = (entry.evidencias ?? []).some((evidence) => evidence.requires_year_validation);
 
   return (
     <Card style={{ marginBottom: 'var(--gnf-space-4)' }}>
@@ -60,12 +66,46 @@ export function EntryReviewCard({ entry, year }: EntryReviewCardProps) {
         </div>
       </div>
 
-      {entry.evidencias && entry.evidencias.length > 0 && (
+      {hasYearValidationWarning && (
         <div style={{ marginBottom: 'var(--gnf-space-4)' }}>
-          <h5 style={{ fontSize: '0.875rem', marginBottom: 'var(--gnf-space-2)' }}>Evidencias</h5>
-          <EvidenceViewer evidencias={entry.evidencias as Evidencia[]} />
+          <Alert variant="warning" title="Validación de año pendiente">
+            Hay fotos que no coinciden con el año activo. El reto no se puede aprobar hasta revisarlas o reemplazarlas.
+          </Alert>
         </div>
       )}
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--gnf-space-3)', marginBottom: 'var(--gnf-space-4)' }}>
+        {responses.length > 0 ? (
+          responses.map((response) => <EntryResponseBlock key={response.fieldId} response={response} />)
+        ) : (
+          <div
+            style={{
+              padding: 'var(--gnf-space-4)',
+              border: '1px solid var(--gnf-border)',
+              borderRadius: 'var(--gnf-radius)',
+              background: 'var(--gnf-white)',
+              color: 'var(--gnf-muted)',
+              fontSize: '0.875rem',
+            }}
+          >
+            No hay respuestas visibles todavia para este reto.
+          </div>
+        )}
+
+        {orphanEvidence.length > 0 && (
+          <div
+            style={{
+              padding: 'var(--gnf-space-4)',
+              border: '1px solid var(--gnf-border)',
+              borderRadius: 'var(--gnf-radius)',
+              background: 'var(--gnf-white)',
+            }}
+          >
+            <h5 style={{ margin: '0 0 var(--gnf-space-3)', fontSize: '0.875rem' }}>Archivos adicionales</h5>
+            <EvidenceViewer evidencias={orphanEvidence as Evidencia[]} />
+          </div>
+        )}
+      </div>
 
       {entry.supervisorNotes && (
         <div
@@ -79,7 +119,7 @@ export function EntryReviewCard({ entry, year }: EntryReviewCardProps) {
             borderLeft: `4px solid ${entry.estado === 'correccion' ? 'var(--gnf-coral)' : 'var(--gnf-ocean)'}`,
           }}
         >
-          <strong>Notas previas:</strong> {entry.supervisorNotes}
+          <strong>Feedback previo:</strong> {entry.supervisorNotes}
         </div>
       )}
 
@@ -127,5 +167,94 @@ export function EntryReviewCard({ entry, year }: EntryReviewCardProps) {
         </div>
       )}
     </Card>
+  );
+}
+
+function EntryResponseBlock({ response }: { response: RetoEntryResponse }) {
+  const hasEvidence = response.evidencias && response.evidencias.length > 0;
+  const hasTextValue = response.displayValue.trim().length > 0;
+  const isEvidenceField = response.type === 'file-upload' || response.type === 'file';
+  const hasEvidenceWarning = response.evidencias.some((item) => item.requires_year_validation);
+
+  return (
+    <div
+      style={{
+        padding: 'var(--gnf-space-4)',
+        border: '1px solid var(--gnf-border)',
+        borderRadius: 'var(--gnf-radius)',
+        background: 'var(--gnf-white)',
+      }}
+    >
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 'var(--gnf-space-3)', marginBottom: 'var(--gnf-space-3)' }}>
+        <div style={{ minWidth: 0 }}>
+          <h5 style={{ margin: 0, fontSize: '0.9375rem', color: 'var(--gnf-ocean-dark)' }}>{response.label}</h5>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--gnf-space-2)', marginTop: 'var(--gnf-space-2)', flexWrap: 'wrap' }}>
+            {response.puntos > 0 && (
+              <span
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  padding: '4px 10px',
+                  borderRadius: '999px',
+                  fontSize: '0.75rem',
+                  fontWeight: 700,
+                  background: 'rgba(22, 163, 74, 0.12)',
+                  color: '#15803d',
+                }}
+              >
+                {response.puntos} eco puntos
+              </span>
+            )}
+            <span style={{ fontSize: '0.75rem', color: 'var(--gnf-muted)' }}>{response.type}</span>
+          </div>
+        </div>
+        {hasEvidence && (
+          <span
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              fontSize: '0.75rem',
+              fontWeight: 600,
+              color: 'var(--gnf-ocean-dark)',
+            }}
+          >
+            <Upload size={14} />
+            {response.evidencias.length} archivo{response.evidencias.length === 1 ? '' : 's'}
+          </span>
+        )}
+      </div>
+
+      {hasTextValue && (
+        <div
+          style={{
+            padding: 'var(--gnf-space-3)',
+            background: 'rgba(30, 95, 138, 0.05)',
+            borderRadius: 'var(--gnf-radius-sm)',
+            color: 'var(--gnf-gray-900)',
+            fontSize: '0.875rem',
+            marginBottom: hasEvidence ? 'var(--gnf-space-3)' : 0,
+            whiteSpace: 'pre-wrap',
+          }}
+        >
+          {response.displayValue}
+        </div>
+      )}
+
+      {hasEvidence && <EvidenceViewer evidencias={response.evidencias as Evidencia[]} />}
+
+      {hasEvidenceWarning && (
+        <div style={{ marginTop: 'var(--gnf-space-3)', color: '#b45309', fontSize: '0.8125rem', fontWeight: 600 }}>
+          Esta evidencia requiere validar el año de la fotografía antes de aprobarla.
+        </div>
+      )}
+
+      {!hasTextValue && !hasEvidence && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--gnf-muted)', fontSize: '0.8125rem' }}>
+          <MessageSquare size={14} />
+          {isEvidenceField ? 'Sin evidencias cargadas.' : 'Sin respuesta visible.'}
+        </div>
+      )}
+    </div>
   );
 }

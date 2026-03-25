@@ -2,13 +2,13 @@
   {
     "titulo": "RETO AGUA",
     "color": "#273F80",
-    "puntos": 10,
-    "descripcion": "Implementar estrategias pedagógicas que sensibilicen sobre la importancia del agua, sus desafíos actuales y futuros, y promuevan hábitos sostenibles que fortalezcan una cultura de conservación y uso responsable del recurso hídrico.",
+    "puntos": 95,
+    "descripcion": "Acciones para la educación, sensibilización, buenos hábitos y gestión responsable del agua en el centro educativo.",
     "years": {
       "2026": {
         "anio": 2026,
         "activo": true,
-        "notas": "Version 2026",
+        "notas": "Versión 2026",
         "preguntas_file": "preguntas_dir/2026/Eco-Reto-Agua-2026.json",
         "icon_url": "https://movimientoguardianes.org/wp-content/uploads/2025/02/Reto-Agua.jpg",
         "pdf_url": "https://movimientoguardianes.org/wp-content/uploads/2025/03/Eco-Reto-Agua-educar-y-movilizar.pdf",
@@ -19,13 +19,13 @@
   {
     "titulo": "RETO ELECTRICIDAD",
     "color": "#99BF12",
-    "puntos": 10,
-    "descripcion": "Implementar estrategias pedagógicas que sensibilicen sobre la importancia de las energías limpias, los desafíos energéticos actuales y futuros, y promuevan hábitos sostenibles que fortalezcan una cultura de eficiencia, conservación y uso responsable de la energía",
+    "puntos": 55,
+    "descripcion": "Acciones para la educación, sensibilización y ahorro energético en el centro educativo.",
     "years": {
       "2026": {
         "anio": 2026,
         "activo": true,
-        "notas": "Version 2026",
+        "notas": "Versión 2026",
         "preguntas_file": "preguntas_dir/2026/Eco-Reto-Electricidad-2026.json",
         "icon_url": "https://movimientoguardianes.org/wp-content/uploads/2025/02/REto-energias-limpias.jpg",
         "pdf_url": "https://movimientoguardianes.org/wp-content/uploads/2025/03/Eco-reto-energia-educar-y-movilizar.pdf",
@@ -36,13 +36,13 @@
   {
     "titulo": "RETO RESIDUOS",
     "color": "#A03260",
-    "puntos": 10,
-    "descripcion": "Impulsar el desarrollo o fortalecimiento de un programa de gestión integral de residuos en el centro educativo para reducir y dar un manejo responsable, a la vez que se educa y concientiza a estudiantes y funcionarios sobre la problemática ambiental de los residuos.",
+    "puntos": 75,
+    "descripcion": "Acciones para la educación, sensibilización, separación y gestión integral de residuos en el centro educativo.",
     "years": {
       "2026": {
         "anio": 2026,
         "activo": true,
-        "notas": "Version 2026",
+        "notas": "Versión 2026",
         "preguntas_file": "preguntas_dir/2026/Eco-Reto-Residuos-2026.json",
         "icon_url": "https://movimientoguardianes.org/wp-content/uploads/2025/02/Reto-residuos.jpg",
         "pdf_url": "https://movimientoguardianes.org/wp-content/uploads/2025/02/Eco-Reto-Residuos.pdf",
@@ -51,15 +51,32 @@
     }
   },
   {
-    "titulo": "RETO SIEMBRA DE ÁRBOLES",
-    "color": "#45A497",
-    "puntos": 15,
-    "descripcion": "Fomentar la siembra, el cuidado y el mantenimiento de árboles nativos o autóctonos junto a los estudiantes, integrando una educación ecológica práctica. Esta actividad genera beneficios ambientales y fortalece valores comunitarios como el trabajo en equipo y la colaboración.",
+    "titulo": "RETO LIMPIEZAS",
+    "color": "#7CAE46",
+    "puntos": 50,
+    "descripcion": "Acciones educativas y de participación estudiantil para limpiezas dentro del centro y en la comunidad.",
     "years": {
       "2026": {
         "anio": 2026,
         "activo": true,
-        "notas": "Version 2026",
+        "notas": "Versión 2026",
+        "preguntas_file": "preguntas_dir/2026/Eco-Reto-Limpiezas-2026.json",
+        "icon_url": "https://movimientoguardianes.org/wp-content/uploads/2025/02/Reto-ambiente-limpio.jpg",
+        "pdf_url": "https://movimientoguardianes.org/wp-content/uploads/2025/02/Reto-Ambiente-Limpio-1.pdf",
+        "pdf_text_dir": "pdf-texts/Reto-Ambiente-Limpio-1.txt"
+      }
+    }
+  },
+  {
+    "titulo": "RETO SIEMBRA DE ÁRBOLES",
+    "color": "#45A497",
+    "puntos": 25,
+    "descripcion": "Acciones educativas y de siembra de árboles frutales o nativos con participación estudiantil.",
+    "years": {
+      "2026": {
+        "anio": 2026,
+        "activo": true,
+        "notas": "Versión 2026",
         "preguntas_file": "preguntas_dir/2026/Eco-Reto-Siembra-de-Arboles-2026.json",
         "icon_url": "https://movimientoguardianes.org/wp-content/uploads/2025/02/Reto-siembra-de-arboles.jpg",
         "pdf_url": "https://movimientoguardianes.org/wp-content/uploads/2025/02/Reto-arboles.pdf",
@@ -70,13 +87,13 @@
   {
     "titulo": "RETO ECO LONCHERA",
     "color": "#D37178",
-    "puntos": 10,
-    "descripcion": "Aplicar estrategias concretas para promover que los estudiantes traigan de sus hogares meriendas basadas en alimentos frescos, naturales y ricos en nutrientes a la vez que se impulsa una reducción de los residuos sólidos que generan las meriendas.",
+    "puntos": 40,
+    "descripcion": "Promoción de loncheras saludables cero residuos y prácticas institucionales coherentes con nutrición saludable.",
     "years": {
       "2026": {
         "anio": 2026,
         "activo": true,
-        "notas": "Version 2026",
+        "notas": "Versión 2026",
         "preguntas_file": "preguntas_dir/2026/Eco-Reto-Eco-Lonchera-2026.json",
         "icon_url": "https://movimientoguardianes.org/wp-content/uploads/2025/02/Reto-meriendas-saludables.jpg",
         "pdf_url": "https://movimientoguardianes.org/wp-content/uploads/2025/02/Reto-meriendas-saludables.pdf",
@@ -85,19 +102,121 @@
     }
   },
   {
-    "titulo": "RETO LIMPIEZAS",
-    "color": "#7CAE46",
-    "puntos": 10,
-    "descripcion": "Mantener un espacio escolar limpio y saludable, con hábitos sostenibles que fomenten la responsabilidad ambiental. En zonas seguras y con estudiantes mayores, se promueven campañas comunitarias.",
+    "titulo": "RETO GESTIÓN DE ORGÁNICOS (compostaje)",
+    "color": "#7A8F35",
+    "puntos": 40,
+    "descripcion": "Acciones para reducir desperdicio de alimentos, capacitar y aprovechar residuos orgánicos mediante compostaje u otras prácticas.",
     "years": {
       "2026": {
         "anio": 2026,
         "activo": true,
-        "notas": "Version 2026",
-        "preguntas_file": "preguntas_dir/2026/Eco-Reto-Limpiezas-2026.json",
-        "icon_url": "https://movimientoguardianes.org/wp-content/uploads/2025/02/Reto-ambiente-limpio.jpg",
-        "pdf_url": "https://movimientoguardianes.org/wp-content/uploads/2025/02/Reto-Ambiente-Limpio-1.pdf",
-        "pdf_text_dir": "pdf-texts/Reto-Ambiente-Limpio-1.txt"
+        "notas": "Versión 2026",
+        "preguntas_file": "preguntas_dir/2026/Reto-Gestion-de-Organicos-2026.json",
+        "icon_url": "",
+        "pdf_url": "",
+        "pdf_text_dir": "pdf-texts/Reto-compostaje.txt"
+      }
+    }
+  },
+  {
+    "titulo": "RETO ARTÍSTICO ECO MURALES",
+    "color": "#C66B2D",
+    "puntos": 15,
+    "descripcion": "Creación de murales artísticos con temática ambiental y participación estudiantil.",
+    "years": {
+      "2026": {
+        "anio": 2026,
+        "activo": true,
+        "notas": "Versión 2026",
+        "preguntas_file": "preguntas_dir/2026/Reto-Artistico-Eco-Murales-2026.json",
+        "icon_url": "",
+        "pdf_url": "",
+        "pdf_text_dir": "pdf-texts/Reto-artistico.txt"
+      }
+    }
+  },
+  {
+    "titulo": "ECO GIRA",
+    "color": "#008C8C",
+    "puntos": 35,
+    "descripcion": "Eco giras con propósito educativo, contacto con la naturaleza y enfoque de reducción de residuos.",
+    "years": {
+      "2026": {
+        "anio": 2026,
+        "activo": true,
+        "notas": "Versión 2026",
+        "preguntas_file": "preguntas_dir/2026/Reto-Eco-Gira-2026.json",
+        "icon_url": "",
+        "pdf_url": "",
+        "pdf_text_dir": "pdf-texts/Reto-eco-gira.txt"
+      }
+    }
+  },
+  {
+    "titulo": "RETO JARDINES Y POLINIZADORES",
+    "color": "#B56A2B",
+    "puntos": 55,
+    "descripcion": "Acciones educativas y de gestión para promover polinizadores, hábitats y jardines amigables en el centro educativo.",
+    "years": {
+      "2026": {
+        "anio": 2026,
+        "activo": true,
+        "notas": "Versión 2026",
+        "preguntas_file": "preguntas_dir/2026/Reto-Jardines-y-Polinizadores-2026.json",
+        "icon_url": "",
+        "pdf_url": "",
+        "pdf_text_dir": "pdf-texts/Reto-jardines-amigables-con-polinizadores.txt"
+      }
+    }
+  },
+  {
+    "titulo": "RETO HUERTA",
+    "color": "#4F8B2D",
+    "puntos": 45,
+    "descripcion": "Acciones educativas y de mantenimiento de huerta escolar con participación estudiantil.",
+    "years": {
+      "2026": {
+        "anio": 2026,
+        "activo": true,
+        "notas": "Versión 2026",
+        "preguntas_file": "preguntas_dir/2026/Reto-Huerta-2026.json",
+        "icon_url": "",
+        "pdf_url": "",
+        "pdf_text_dir": "pdf-texts/Reto-Huerta-2.txt"
+      }
+    }
+  },
+  {
+    "titulo": "RETO COMODÍN",
+    "color": "#6A4FB3",
+    "puntos": 20,
+    "descripcion": "Proyecto nuevo de sostenibilidad que no se relacione con eco retos ya existentes.",
+    "years": {
+      "2026": {
+        "anio": 2026,
+        "activo": true,
+        "notas": "Versión 2026",
+        "preguntas_file": "preguntas_dir/2026/Reto-Comodin-2026.json",
+        "icon_url": "",
+        "pdf_url": "",
+        "pdf_text_dir": "pdf-texts/Reto-Comodin.txt"
+      }
+    }
+  },
+  {
+    "titulo": "RETO ECO EMPRENDIMIENTO",
+    "color": "#865D2C",
+    "puntos": 25,
+    "descripcion": "Diseño e implementación de eco emprendimientos con participación estudiantil y control de gastos e ingresos.",
+    "years": {
+      "2026": {
+        "anio": 2026,
+        "activo": true,
+        "notas": "Versión 2026",
+        "preguntas_file": "preguntas_dir/2026/Reto-Eco-Emprendimiento-2026.json",
+        "icon_url": "",
+        "pdf_url": "",
+        "pdf_text_dir": "pdf-texts/Reto-eco-emprendimiento-1.txt"
       }
     }
   },
@@ -105,16 +224,33 @@
     "titulo": "RETO BIENESTAR ANIMAL",
     "color": "#8A6B4F",
     "puntos": 35,
-    "descripcion": "Promover la coexistencia segura, responsable y respetuosa con animales de compañía, fauna silvestre y, cuando aplique, animales de producción dentro del centro educativo.",
+    "descripcion": "Promover la coexistencia segura, responsable y respetuosa con animales de compañía, fauna silvestre y, cuando aplique, animales de producción.",
     "years": {
       "2026": {
         "anio": 2026,
         "activo": true,
-        "notas": "Version 2026",
+        "notas": "Versión 2026",
         "preguntas_file": "preguntas_dir/2026/Reto-Bienestar-Animal-2026.json",
         "icon_url": "",
         "pdf_url": "",
         "pdf_text_dir": ""
+      }
+    }
+  },
+  {
+    "titulo": "RETO EVENTO SOSTENIBLE",
+    "color": "#365F91",
+    "puntos": 30,
+    "descripcion": "Aplicación del manual de gestión ambiental sostenible en eventos educativos co-curriculares.",
+    "years": {
+      "2026": {
+        "anio": 2026,
+        "activo": true,
+        "notas": "Versión 2026",
+        "preguntas_file": "preguntas_dir/2026/Reto-Evento-Sostenible-2026.json",
+        "icon_url": "",
+        "pdf_url": "",
+        "pdf_text_dir": "pdf-texts/Reto-evento-sostenible.txt"
       }
     }
   }

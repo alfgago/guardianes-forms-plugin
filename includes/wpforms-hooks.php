@@ -95,7 +95,6 @@ function gnf_wpforms_validate_upload_types( $field_id, $field_submit, $form_data
 		}
 	}
 
-	return $entry_row;
 }
 add_action( 'wpforms_process_validate_file-upload', 'gnf_wpforms_validate_upload_types', 10, 4 );
 
@@ -155,6 +154,7 @@ function gnf_handle_matricula_submission( $normalized_fields, $entry_id, $form_d
 	$dependencia     = gnf_normalize_centro_choice( 'dependencia', (string) ( $normalized_fields['centro-dependencia'] ?? '' ) );
 	$jornada         = gnf_normalize_centro_choice( 'jornada', (string) ( $normalized_fields['centro-jornada'] ?? $normalized_fields['centro-horario'] ?? '' ) );
 	$tipologia       = gnf_normalize_centro_choice( 'tipologia', (string) ( $normalized_fields['centro-tipologia'] ?? '' ) );
+	$tipo_centro_educativo = gnf_normalize_centro_choice( 'tipo_centro_educativo', (string) ( $normalized_fields['centro-tipo-centro-educativo'] ?? '' ) );
 	$correo_inst     = sanitize_email( (string) ( $normalized_fields['centro-correo-institucional'] ?? '' ) );
 	$ultimo_galardon = max( 1, min( 5, absint( $normalized_fields['centro-ultimo-galardon-estrellas'] ?? 1 ) ) );
 	$ultimo_anio_participacion = sanitize_text_field( (string) ( $normalized_fields['centro-ultimo-anio-participacion'] ?? '' ) );
@@ -245,6 +245,7 @@ function gnf_handle_matricula_submission( $normalized_fields, $entry_id, $form_d
 	update_post_meta( $centro_id, 'dependencia', $dependencia );
 	update_post_meta( $centro_id, 'jornada', $jornada );
 	update_post_meta( $centro_id, 'tipologia', $tipologia );
+	update_post_meta( $centro_id, 'tipo_centro_educativo', $tipo_centro_educativo );
 	update_post_meta( $centro_id, 'modalidad', $nivel_educativo );
 	update_post_meta( $centro_id, 'horario', $jornada );
 	update_post_meta( $centro_id, 'circuito', sanitize_text_field( (string) ( $normalized_fields['centro-circuito'] ?? '' ) ) );
@@ -639,16 +640,7 @@ function gnf_store_reto_entry( $reto_post, $normalized_fields, $entry_id, $form_
 		$entry_row = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$table} WHERE id = %d", $wpdb->insert_id ) );
 	}
 
-	$puntaje = gnf_recalcular_puntaje_reto( $entry_row );
-	$wpdb->update(
-		$table,
-		array( 'puntaje' => $puntaje ),
-		array( 'id' => $entry_row->id ),
-		array( '%d' ),
-		array( '%d' )
-	);
-
-	gnf_recalcular_puntaje_centro( $centro_id, $anio );
+	gnf_refresh_reto_entry_score( $entry_row );
 	gnf_clear_supervisor_cache();
 
 	// Notificar a supervisores cuando se envía reto a revisión.
@@ -664,12 +656,33 @@ function gnf_store_reto_entry( $reto_post, $normalized_fields, $entry_id, $form_
 			$centro_title = get_the_title( $centro_id );
 			$mensaje      = sprintf( 'Reto "%s" enviado a revisión: %s', $reto_title, $centro_title );
 			foreach ( $supervisores as $sup ) {
-				gnf_insert_notification( $sup->ID, 'reto_enviado', $mensaje, 'reto_entry', $entry_row->id );
+				gnf_insert_or_refresh_notification( $sup->ID, 'reto_enviado', $mensaje, 'reto_entry', $entry_row->id );
 			}
 		}
 	}
 
 	if ( $evidence_warning ) {
-		gnf_insert_notification( $user_id, 'invalid_photo_date', 'Hay evidencias de foto que requieren validar el año.', 'reto_entry', $entry_row->id );
+		$region = get_post_meta( $centro_id, 'region', true );
+		if ( empty( $region ) ) {
+			$terms  = wp_get_post_terms( $centro_id, 'gn_region', array( 'fields' => 'ids' ) );
+			$region = $terms ? $terms[0] : '';
+		}
+		if ( $region ) {
+			$supervisores = gnf_get_supervisores_by_region( $region );
+			$centro_title = get_the_title( $centro_id );
+			foreach ( $supervisores as $sup ) {
+				gnf_insert_or_refresh_notification(
+					$sup->ID,
+					'invalid_photo_date',
+					sprintf( 'El centro "%s" subió evidencias del reto "%s" con validación de año pendiente.', $centro_title, get_the_title( $reto_post->ID ) ),
+					'reto_entry',
+					$entry_row->id
+				);
+			}
+		}
+	}
+
+	if ( $evidence_warning ) {
+		gnf_insert_or_refresh_notification( $user_id, 'invalid_photo_date', 'Hay evidencias de foto que requieren validar el año.', 'reto_entry', $entry_row->id );
 	}
 }

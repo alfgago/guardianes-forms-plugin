@@ -25,6 +25,7 @@ export interface RetoEntry {
   supervisorNotes?: string;
   data?: Record<string, unknown>;
   evidencias?: Evidencia[];
+  responses?: RetoEntryResponse[];
   createdAt: string;
   updatedAt: string;
 }
@@ -45,4 +46,14 @@ export interface Evidencia {
   field_id?: number;
   requires_year_validation?: boolean;
   warning?: string;
+}
+
+export interface RetoEntryResponse {
+  fieldId: number;
+  label: string;
+  type: string;
+  displayValue: string;
+  hasValue: boolean;
+  puntos: number;
+  evidencias: Evidencia[];
 }

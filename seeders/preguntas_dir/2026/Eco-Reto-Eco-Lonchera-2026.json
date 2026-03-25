@@ -61,7 +61,7 @@
   },
   {
     "id": "q2_e1",
-    "pregunta": "Foto de algún recurso usado para una campaña dirigida a los estudiantes para que traigan “loncheras saludables cero residuos”: alimentos caseros, saludables y en recipientes reutilizables. \n5 eco pts",
+    "pregunta": "Foto de algún recurso usado para una campaña dirigida a los estudiantes para que traigan “loncheras saludables cero residuos”: alimentos caseros, saludables y en recipientes reutilizables. ",
     "tipo_de_campo": "subida_archivo",
     "opciones": null,
     "required": false,
@@ -87,7 +87,7 @@
   },
   {
     "id": "q2_e3",
-    "pregunta": "Fotografía de la soda del colegio (si tienen) donde se observa claramente que los productos a la venta son saludables y cumplen con el Reglamento para el Funcionamiento y Administración de las Sodas en Centros Educativos. \n5 eco pts",
+    "pregunta": "Fotografía de la soda del colegio (si tienen) donde se observa claramente que los productos a la venta son saludables y cumplen con el Reglamento para el Funcionamiento y Administración de las Sodas en Centros Educativos. ",
     "tipo_de_campo": "subida_archivo",
     "opciones": null,
     "required": false,

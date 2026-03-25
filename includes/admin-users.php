@@ -72,14 +72,24 @@ function gnf_render_admin_users()
 	$total_pages = ceil($total_users / $per_page);
 
 	// Estadísticas rápidas.
-	$total_docentes    = count(get_users(array('role' => 'docente', 'fields' => 'ID')));
+	$docente_user_ids = get_users(array('role' => 'docente', 'fields' => 'ID'));
+	$centros_registrados = array();
+	$centros_pendientes  = array();
+
+	foreach ($docente_user_ids as $docente_user_id) {
+		$centro_id = absint(get_user_meta($docente_user_id, 'centro_solicitado', true));
+		$key = $centro_id ? 'centro_' . $centro_id : 'user_' . $docente_user_id;
+		$centros_registrados[$key] = true;
+
+		$docente_status = get_user_meta($docente_user_id, 'gnf_docente_status', true) ?: 'activo';
+		if ('pendiente' === $docente_status) {
+			$centros_pendientes[$key] = true;
+		}
+	}
+
+	$total_centros_registrados = count($centros_registrados);
 	$total_supervisors = count(get_users(array('role' => 'supervisor', 'fields' => 'ID')));
-	$pending_docentes  = count(get_users(array(
-		'role'       => 'docente',
-		'meta_key'   => 'gnf_docente_status',
-		'meta_value' => 'pendiente',
-		'fields'     => 'ID',
-	)));
+	$pending_centros  = count($centros_pendientes);
 	$pending_supervisors = count(get_users(array(
 		'role'       => 'supervisor',
 		'meta_key'   => 'gnf_supervisor_status',
@@ -451,16 +461,16 @@ function gnf_render_admin_users()
 
 		<div class="gnf-quick-stats">
 			<div class="gnf-stat-card gnf-stat-card--docente">
-				<strong><?php echo esc_html($total_docentes); ?></strong>
-				<span>Docentes Registrados</span>
+				<strong><?php echo esc_html($total_centros_registrados); ?></strong>
+				<span>Centros Registrados</span>
 			</div>
 			<div class="gnf-stat-card gnf-stat-card--supervisor">
 				<strong><?php echo esc_html($total_supervisors); ?></strong>
 				<span>Supervisores</span>
 			</div>
 			<div class="gnf-stat-card gnf-stat-card--pending">
-				<strong><?php echo esc_html($pending_docentes); ?></strong>
-				<span>Docentes Pendientes</span>
+				<strong><?php echo esc_html($pending_centros); ?></strong>
+				<span>Centros Pendientes</span>
 			</div>
 			<div class="gnf-stat-card gnf-stat-card--pending">
 				<strong><?php echo esc_html($pending_supervisors); ?></strong>
@@ -473,7 +483,7 @@ function gnf_render_admin_users()
 
 			<select name="role">
 				<option value="">Todos los roles</option>
-				<option value="docente" <?php selected($role_filter, 'docente'); ?>>Docentes</option>
+				<option value="docente" <?php selected($role_filter, 'docente'); ?>>Centros educativos</option>
 				<option value="supervisor" <?php selected($role_filter, 'supervisor'); ?>>Supervisores</option>
 			</select>
 

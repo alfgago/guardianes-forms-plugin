@@ -201,109 +201,107 @@ $icons = array(
 				</div>
 			</div>
 
-			<!-- Retos Table -->
+			<!-- Retos Accordion -->
 			<div class="gnf-section">
 				<div class="gnf-section__header">
 					<h3 class="gnf-section__title">Eco Retos del Centro</h3>
 				</div>
-				<div class="gnf-section__body gnf-section__body--table">
-					<table class="gnf-table">
-						<thead>
-							<tr>
-								<th>Reto</th>
-								<th>Estado</th>
-								<th>Puntaje</th>
-								<th>Evidencias</th>
-								<th>Notas</th>
-							</tr>
-						</thead>
-						<tbody>
-							<?php while ($retos->have_posts()) : $retos->the_post(); ?>
-								<?php
-								$reto_id = get_the_ID();
-								$entry   = $entries[$reto_id] ?? null;
-								$estado  = $entry ? $entry->estado : 'no_iniciado';
-								$puntaje = $entry ? (int) $entry->puntaje : 0;
-								$puntaje_max = gnf_get_reto_max_points($reto_id, $anio);
-								$reto_icon_cm = gnf_get_reto_icon_url($reto_id);
-								$reto_color_cm = gnf_get_reto_color($reto_id);
-								$notes   = $entry ? $entry->supervisor_notes : '';
-								$warnings = array();
-								if ($entry && ! empty($entry->evidencias)) {
-									$evs = json_decode($entry->evidencias, true);
-									foreach ((array) $evs as $ev) {
-										if (! empty($ev['requires_year_validation'])) {
-											$warnings[] = 'Foto requiere validación de año';
-										}
+				<div class="gnf-section__body">
+					<div class="gnf-reto-accordion">
+						<?php while ($retos->have_posts()) : $retos->the_post(); ?>
+							<?php
+							$reto_id = get_the_ID();
+							$entry   = $entries[$reto_id] ?? null;
+							$estado  = $entry ? $entry->estado : 'no_iniciado';
+							$puntaje = $entry ? (int) $entry->puntaje : 0;
+							$puntaje_max = gnf_get_reto_max_points($reto_id, $anio);
+							$reto_icon_cm = gnf_get_reto_icon_url($reto_id);
+							$reto_color_cm = gnf_get_reto_color($reto_id);
+							$notes   = $entry ? $entry->supervisor_notes : '';
+							$warnings = array();
+							if ($entry && ! empty($entry->evidencias)) {
+								$evs = json_decode($entry->evidencias, true);
+								foreach ((array) $evs as $ev) {
+									if (! empty($ev['requires_year_validation'])) {
+										$warnings[] = 'Foto requiere validación de año';
 									}
 								}
-								?>
-								<tr>
-									<td>
-										<div style="display:flex;align-items:center;gap:8px;">
-											<?php if ( $reto_icon_cm ) : ?>
-												<span style="display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:6px;background:<?php echo esc_attr( $reto_color_cm ); ?>1a;flex-shrink:0;">
-													<img src="<?php echo esc_url( $reto_icon_cm ); ?>" alt="" style="width:22px;height:22px;object-fit:contain;" />
-												</span>
-											<?php endif; ?>
-											<strong><?php the_title(); ?></strong>
-										</div>
-									</td>
-									<td>
-										<span class="gnf-badge gnf-badge--<?php 
-											echo 'aprobado' === $estado ? 'forest' : 
-												('enviado' === $estado ? 'sun' : 
-												('correccion' === $estado ? 'coral' : 'default')); 
-										?>">
+							}
+							$badge_class = 'aprobado' === $estado ? 'forest' :
+								('enviado' === $estado ? 'sun' :
+								('correccion' === $estado ? 'coral' : 'default'));
+							?>
+							<details class="gnf-reto-accordion__item">
+								<summary class="gnf-reto-accordion__summary">
+									<?php if ( $reto_icon_cm ) : ?>
+										<span class="gnf-reto-accordion__icon" style="background:<?php echo esc_attr( $reto_color_cm ); ?>1a;">
+											<img src="<?php echo esc_url( $reto_icon_cm ); ?>" alt="" />
+										</span>
+									<?php endif; ?>
+									<span class="gnf-reto-accordion__title"><?php the_title(); ?></span>
+									<span class="gnf-reto-accordion__meta">
+										<span class="gnf-reto-accordion__points"><?php echo esc_html($puntaje); ?> / <?php echo esc_html($puntaje_max); ?></span>
+										<span class="gnf-badge gnf-badge--<?php echo $badge_class; ?>">
 											<?php echo esc_html(ucwords(str_replace('_', ' ', $estado))); ?>
 										</span>
-									</td>
-									<td><?php echo esc_html($puntaje); ?> / <?php echo esc_html($puntaje_max); ?></td>
-								<td>
-										<?php
-										if ($entry && ! empty($entry->evidencias)) {
-											$evidencias = json_decode($entry->evidencias, true);
-											if (! empty($evidencias)) {
-												echo '<div class="gnf-evidencias-list">';
-												foreach ($evidencias as $ev) {
-													$url = ! empty($ev['path_local'])
-														? add_query_arg(
-															array(
-																'action'    => 'gnf_descargar_evidencia',
-																'nonce'     => wp_create_nonce('gnf_nonce'),
-																'file'      => base64_encode($ev['path_local']),
-																'centro_id' => $centro_id,
-															),
-															admin_url('admin-ajax.php')
-														)
-														: ($ev['ruta'] ?? '');
-													echo '<a class="gnf-btn gnf-btn--sm gnf-btn--ghost" target="_blank" href="' . esc_url($url) . '">' . esc_html($ev['nombre'] ?? 'Archivo') . '</a> ';
+									</span>
+								</summary>
+								<div class="gnf-reto-accordion__body">
+									<div class="gnf-reto-accordion__body-grid">
+										<!-- Evidencias -->
+										<div>
+											<div class="gnf-reto-accordion__field-label">Evidencias</div>
+											<?php
+											if ($entry && ! empty($entry->evidencias)) {
+												$evidencias = json_decode($entry->evidencias, true);
+												if (! empty($evidencias)) {
+													echo '<div class="gnf-evidencias-list">';
+													foreach ($evidencias as $ev) {
+														$url = ! empty($ev['path_local'])
+															? add_query_arg(
+																array(
+																	'action'    => 'gnf_descargar_evidencia',
+																	'nonce'     => wp_create_nonce('gnf_nonce'),
+																	'file'      => base64_encode($ev['path_local']),
+																	'centro_id' => $centro_id,
+																),
+																admin_url('admin-ajax.php')
+															)
+															: ($ev['ruta'] ?? '');
+														echo '<a class="gnf-btn gnf-btn--sm gnf-btn--ghost" target="_blank" href="' . esc_url($url) . '">' . esc_html($ev['nombre'] ?? 'Archivo') . '</a> ';
+													}
+													echo '</div>';
 												}
-												echo '</div>';
+											} else {
+												echo '<span class="gnf-muted">Sin evidencias</span>';
 											}
-										} else {
-											echo '<span class="gnf-muted">Sin evidencias</span>';
-										}
-										?>
-									</td>
-									<td>
-										<?php if ($notes) : ?>
-											<span class="gnf-muted"><?php echo esc_html($notes); ?></span>
-										<?php else : ?>
-											<span class="gnf-muted">—</span>
-										<?php endif; ?>
-										<?php if ($warnings) : ?>
-											<div style="margin-top: 4px;">
-												<?php foreach ($warnings as $w) : ?>
-													<span class="gnf-badge gnf-badge--coral" style="font-size: 0.7rem;"><?php echo esc_html($w); ?></span>
-												<?php endforeach; ?>
-											</div>
-										<?php endif; ?>
-									</td>
-								</tr>
-							<?php endwhile; ?>
-						</tbody>
-					</table>
+											?>
+											<?php if ($warnings) : ?>
+												<div style="margin-top: 8px;">
+													<?php foreach ($warnings as $w) : ?>
+														<span class="gnf-badge gnf-badge--coral" style="font-size: 0.7rem;"><?php echo esc_html($w); ?></span>
+													<?php endforeach; ?>
+												</div>
+											<?php endif; ?>
+										</div>
+
+										<!-- Notas -->
+										<div>
+											<div class="gnf-reto-accordion__field-label">Notas del supervisor</div>
+											<?php if ($notes) : ?>
+												<div class="gnf-correction-note">
+													<div class="gnf-correction-note__label">Observación</div>
+													<?php echo esc_html($notes); ?>
+												</div>
+											<?php else : ?>
+												<span class="gnf-muted">Sin notas</span>
+											<?php endif; ?>
+										</div>
+									</div>
+								</div>
+							</details>
+						<?php endwhile; ?>
+					</div>
 				</div>
 			</div>
 		</div><!-- /.gnf-main__inner -->

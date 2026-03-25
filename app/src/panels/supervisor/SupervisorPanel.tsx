@@ -5,6 +5,7 @@ import { YearSelector } from '@/components/domain/YearSelector';
 import { NotificationBell } from '@/components/domain/NotificationBell';
 import { usePanel } from '@/hooks/usePanel';
 import { useTrackPageView } from '@/hooks/useTrackPageView';
+import { useBootstrapNotifications } from '@/hooks/useBootstrapNotifications';
 import { useYearStore } from '@/stores/useYearStore';
 import { useNotificationStore } from '@/stores/useNotificationStore';
 import { DashboardPage } from './pages/DashboardPage';
@@ -21,6 +22,7 @@ export function SupervisorPanel() {
   const year = useYearStore((s) => s.selectedYear);
   const unreadCount = useNotificationStore((s) => s.unreadCount);
   useTrackPageView({ panel: 'supervisor', page, year });
+  useBootstrapNotifications();
 
   function renderPage() {
     if (page === 'centro' && params.centro_id) {
@@ -39,8 +41,8 @@ export function SupervisorPanel() {
 
   return (
     <PanelShell
-      title="Panel Supervisor"
-      subtitle={`Ano ${year}`}
+      title="Panel DRE"
+      subtitle={`Año ${year}`}
       sidebarFooterExtra={<YearSelector />}
       topBarActions={<NotificationBell onClick={() => navigate('notificaciones')} />}
       nav={

@@ -59,7 +59,7 @@ export function ProgressHero({
               marginBottom: 'var(--gnf-space-3)',
             }}
           >
-            Participacion {anio}
+            Participación {anio}
           </p>
           <h3 style={{ color: 'var(--gnf-white)', margin: 0 }}>Eco puntos acumulados: {puntajeTotal}</h3>
           <p style={{ opacity: 0.88, margin: 'var(--gnf-space-2) 0 0', fontSize: '0.9375rem' }}>
@@ -77,12 +77,15 @@ export function ProgressHero({
           }}
         >
           <small style={{ opacity: 0.8, display: 'block', marginBottom: 'var(--gnf-space-2)' }}>
-            Reconocimiento actual
+            Reconocimiento final estimado
           </small>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 'var(--gnf-space-3)' }}>
             <strong style={{ fontSize: '1.25rem' }}>{estrellaFinal} estrellas</strong>
             <StarRating rating={estrellaFinal} size={18} />
           </div>
+          <small style={{ opacity: 0.76, display: 'block', marginTop: 'var(--gnf-space-2)' }}>
+            La asignación definitiva se confirma al cierre y después de la revisión anual.
+          </small>
         </div>
       </div>
 

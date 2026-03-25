@@ -49,9 +49,10 @@ async function request<T>(
   const { restUrl, nonce } = getInit();
   const url = `${restUrl}${path}`;
 
-  const headers: Record<string, string> = {
-    'X-WP-Nonce': nonce,
-  };
+  const headers: Record<string, string> = {};
+  if (nonce) {
+    headers['X-WP-Nonce'] = nonce;
+  }
 
   const options: RequestInit = {
     method,

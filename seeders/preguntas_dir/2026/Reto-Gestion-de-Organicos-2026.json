@@ -1,0 +1,135 @@
+[
+  {
+    "id": "q1",
+    "pregunta": "1. ¿Fomentaron la reducción del desperdicio de los alimentos? (PRIMARIA). - (si/no)",
+    "tipo_de_campo": "seleccion_unica",
+    "opciones": ["si", "no"],
+    "required": true,
+    "depends_on": null,
+    "suma_puntos": false
+  },
+  {
+    "id": "q1_1",
+    "pregunta": "1.1 Puede agregar un comentario corto sobre este eco reto.",
+    "tipo_de_campo": "textarea",
+    "opciones": null,
+    "required": false,
+    "depends_on": { "field": "q1", "value": "si" },
+    "suma_puntos": false
+  },
+  {
+    "id": "q1_e1",
+    "pregunta": "Fotografía del comunicado a docentes para que sensibilicen a los estudiantes a evitar el desperdicio de alimentos en el comedor escolar.\n5 eco pt",
+    "tipo_de_campo": "subida_archivo",
+    "opciones": null,
+    "required": false,
+    "depends_on": { "field": "q1", "value": "si" },
+    "suma_puntos": true,
+    "puntos": 5
+  },
+  {
+    "id": "q1_e2",
+    "pregunta": "Fotografía del comunicado dirigido al personal del comedor promoviendo que las porciones se ajusten a las necesidades de los estudiantes u otra estrategia para reducir el desperdicio de alimentos.\n5 eco pt",
+    "tipo_de_campo": "subida_archivo",
+    "opciones": null,
+    "required": false,
+    "depends_on": { "field": "q1", "value": "si" },
+    "suma_puntos": true,
+    "puntos": 5
+  },
+  {
+    "id": "q2",
+    "pregunta": "2. ¿Fomentaron la reducción del desperdicio de los alimentos? (SECUNDARIA). - (si/no)",
+    "tipo_de_campo": "seleccion_unica",
+    "opciones": ["si", "no"],
+    "required": true,
+    "depends_on": null,
+    "suma_puntos": false
+  },
+  {
+    "id": "q2_e1",
+    "pregunta": "Fotografía del comunicado a profesores guía para que sensibilicen a los estudiantes en cuanto a evitar el desperdicio de alimentos y reducir los residuos orgánicos que se generan.\n5 eco pt",
+    "tipo_de_campo": "subida_archivo",
+    "opciones": null,
+    "required": false,
+    "depends_on": { "field": "q2", "value": "si" },
+    "suma_puntos": true,
+    "puntos": 5
+  },
+  {
+    "id": "q3",
+    "pregunta": "3. Capacitación a docentes y/o estudiantes relacionada a la producción de abono orgánico. - (si/no)",
+    "tipo_de_campo": "seleccion_unica",
+    "opciones": ["si", "no"],
+    "required": true,
+    "depends_on": null,
+    "suma_puntos": false
+  },
+  {
+    "id": "q3_1",
+    "pregunta": "3.1 Puede agregar un comentario corto sobre esta acción.",
+    "tipo_de_campo": "textarea",
+    "opciones": null,
+    "required": false,
+    "depends_on": { "field": "q3", "value": "si" },
+    "suma_puntos": false
+  },
+  {
+    "id": "q3_e1",
+    "pregunta": "Fotografía de la implementación de una capacitación técnica sobre la producción de abono orgánico, donde se evidencie claramente que el contenido está relacionado con el tema.\n5 eco pt",
+    "tipo_de_campo": "subida_archivo",
+    "opciones": null,
+    "required": false,
+    "depends_on": { "field": "q3", "value": "si" },
+    "suma_puntos": true,
+    "puntos": 5
+  },
+  {
+    "id": "q4",
+    "pregunta": "4. ¿Aprovechan los residuos orgánicos? - (si/no)",
+    "tipo_de_campo": "seleccion_unica",
+    "opciones": ["si", "no"],
+    "required": true,
+    "depends_on": null,
+    "suma_puntos": false
+  },
+  {
+    "id": "q4_1",
+    "pregunta": "4.1 Puede agregar un comentario corto sobre esta acción.",
+    "tipo_de_campo": "textarea",
+    "opciones": null,
+    "required": false,
+    "depends_on": { "field": "q4", "value": "si" },
+    "suma_puntos": false
+  },
+  {
+    "id": "q4_e1",
+    "pregunta": "Fotografía de la compostera en donde se observa claramente que está en uso (si cuentan con una) o de la forma en que se aprovechan los residuos del comedor.\n10 eco pt",
+    "tipo_de_campo": "subida_archivo",
+    "opciones": null,
+    "required": false,
+    "depends_on": { "field": "q4", "value": "si" },
+    "suma_puntos": true,
+    "puntos": 10
+  },
+  {
+    "id": "q4_e2",
+    "pregunta": "Fotografía de estudiantes participando del proceso de producción del abono orgánico.\n5 eco pt",
+    "tipo_de_campo": "subida_archivo",
+    "opciones": null,
+    "required": false,
+    "depends_on": { "field": "q4", "value": "si" },
+    "suma_puntos": true,
+    "puntos": 5
+  },
+  {
+    "id": "q4_e3",
+    "pregunta": "Foto de una forma en que se aprovecha el abono orgánico producido.\n5 eco pt",
+    "tipo_de_campo": "subida_archivo",
+    "opciones": null,
+    "required": false,
+    "depends_on": { "field": "q4", "value": "si" },
+    "suma_puntos": true,
+    "puntos": 5
+  }
+]

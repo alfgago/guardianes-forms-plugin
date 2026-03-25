@@ -94,9 +94,11 @@ export function WizardView({ year, initialRetoId }: WizardViewProps) {
           gap: 'var(--gnf-space-2)',
           marginBottom: 'var(--gnf-space-6)',
           overflowX: 'auto',
-          padding: 'var(--gnf-space-2) 0 var(--gnf-space-3)',
+          padding: 'var(--gnf-space-2) var(--gnf-space-1) var(--gnf-space-3)',
           WebkitOverflowScrolling: 'touch',
           scrollbarWidth: 'thin',
+          minWidth: 0,
+          maxWidth: '100%',
         }}
       >
         {safeSteps.map((item, index) => (
@@ -157,12 +159,13 @@ export function WizardView({ year, initialRetoId }: WizardViewProps) {
             border: '1px solid var(--gnf-border)',
             borderLeft: '4px solid var(--gnf-ocean)',
             boxShadow: 'var(--gnf-shadow-sm)',
+            display: 'none'
           }}
         >
           <p style={{ margin: '0 0 12px', color: 'var(--gnf-gray-800)' }}>
-            <strong>Cuando este reto ya este listo, marcalo como completo.</strong>
+            <strong>Cuando este reto ya esté listo, marcalo como completo.</strong>
             <br />
-            El guardado es automatico. Finalizar solo indica que el centro educativo termino este reto y puede pasar al envio final.
+            El guardado es automático. Finalizar solo indica que el centro educativo terminó este reto y puede pasar a revisión final. De lo contrario, será revisado igualmente al finalizar el ciclo lectivo
           </p>
           <Button
             variant="primary"
@@ -184,7 +187,7 @@ export function WizardView({ year, initialRetoId }: WizardViewProps) {
     if (estado === 'completo') {
       return (
         <Alert variant="success" title="Reto listo para envio final">
-          Este reto ya quedo completo. Puedes continuar con los demas y luego enviar toda la participacion para revision.
+          Este reto ya quedó completo. Puedes continuar con los demas y luego enviar toda la participación para revision.
         </Alert>
       );
     }
@@ -192,7 +195,7 @@ export function WizardView({ year, initialRetoId }: WizardViewProps) {
     if (estado === 'enviado') {
       return (
         <Alert variant="info" title="Reto enviado para revision">
-          Este reto ya fue incluido en el envio final y ahora esta pendiente de revision por supervision y comite.
+          Este reto ya fue incluido en el envío final y ahora está pendiente de revision por supervision y comite.
         </Alert>
       );
     }
@@ -200,7 +203,7 @@ export function WizardView({ year, initialRetoId }: WizardViewProps) {
     if (estado === 'aprobado') {
       return (
         <Alert variant="success" title="Reto aprobado">
-          Este reto ya fue aprobado y acumulo {item.puntaje} eco puntos.
+          Este reto ya fue aprobado y acumuló {item.puntaje} eco puntos.
         </Alert>
       );
     }
@@ -247,18 +250,18 @@ export function WizardView({ year, initialRetoId }: WizardViewProps) {
     return (
       <div>
         <h3 style={{ marginBottom: 'var(--gnf-space-4)' }}>
-          {allComplete ? 'El centro educativo ya puede enviar su participacion' : 'Aun faltan retos por completar'}
+          {allComplete ? 'El centro educativo ya puede enviar su participación' : 'Aun faltan retos por completar'}
         </h3>
 
         {!allComplete && (
           <Alert variant="warning">
-            Completa todos los eco retos matriculados antes de enviar la participacion anual.
+            Completa todos los eco retos matriculados antes de enviar la participación anual.
           </Alert>
         )}
 
         {allSent && (
           <Alert variant="info">
-            La participacion ya fue enviada. A partir de aqui solo queda esperar la revision regional.
+            La participación ya fue enviada. A partir de aqui solo queda esperar la revision regional.
           </Alert>
         )}
 
@@ -329,11 +332,11 @@ export function WizardView({ year, initialRetoId }: WizardViewProps) {
                 }
               }}
             >
-              Enviar participacion anual
+              Enviar participación anual
             </Button>
             {submitAllMut.isError && (
               <p style={{ color: 'var(--gnf-coral)', marginTop: 8, fontSize: '0.875rem' }}>
-                No se pudo enviar la participacion. Intenta de nuevo.
+                No se pudo enviar la participación. Intenta de nuevo.
               </p>
             )}
           </div>
@@ -362,33 +365,7 @@ export function WizardView({ year, initialRetoId }: WizardViewProps) {
         renderSubmitPanel()
       ) : step ? (
         <>
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 'var(--gnf-space-3)',
-              marginBottom: 'var(--gnf-space-4)',
-            }}
-          >
-            {step.retoIconUrl && (
-              <img
-                src={step.retoIconUrl}
-                alt=""
-                style={{ width: 44, height: 44, borderRadius: 'var(--gnf-radius-sm)', objectFit: 'contain' }}
-              />
-            )}
-            <div>
-              <h3 style={{ margin: 0, color: step.retoColor }}>{step.retoTitulo}</h3>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--gnf-space-2)', marginTop: 2, flexWrap: 'wrap' }}>
-                <StatusBadge estado={step.estado as Estado} />
-                <span style={{ fontSize: '0.8125rem', color: 'var(--gnf-muted)' }}>
-                  {step.puntaje} / {step.puntajeMaximo} eco puntos
-                </span>
-              </div>
-            </div>
-          </div>
-
-          <WpFormsEmbed retoId={step.retoId} year={year} />
+          <WpFormsEmbed key={`${year}-${step.retoId}`} retoId={step.retoId} year={year} />
 
           <div style={{ marginTop: 'var(--gnf-space-4)' }}>
             {renderStatusBanner(step)}
@@ -417,7 +394,7 @@ export function WizardView({ year, initialRetoId }: WizardViewProps) {
           Anterior
         </Button>
         <span style={{ fontSize: '0.875rem', color: 'var(--gnf-muted)', alignSelf: 'center' }}>
-          {isOnSubmitStep ? 'Enviar participacion' : `${currentIndex + 1} de ${safeSteps.length}`}
+          {isOnSubmitStep ? 'Enviar participación' : `${currentIndex + 1} de ${safeSteps.length}`}
         </span>
         <Button
           variant="ghost"

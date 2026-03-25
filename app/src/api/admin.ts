@@ -1,5 +1,5 @@
 import { get, post, put } from './client';
-import type { CentroWithStats, DashboardStats, PendingUser } from '@/types';
+import type { Centro, CentroWithStats, DashboardStats, PendingUser } from '@/types';
 
 interface AdminStats extends DashboardStats {
   totalUsers: number;
@@ -63,6 +63,14 @@ interface UpdateUserPayload {
   regionId?: number;
 }
 
+interface GetCentrosParams {
+  year: number;
+  region?: string;
+  search?: string;
+  estado?: string;
+  registration?: 'registered' | 'all' | 'unregistered';
+}
+
 export const adminApi = {
   getStats(year: number) {
     return get<AdminStats>('/admin/stats', { year });
@@ -88,8 +96,12 @@ export const adminApi = {
     return put<PendingUser>(`/admin/users/${userId}`, data);
   },
 
-  getCentros(year: number, region?: string, search?: string) {
-    return get<CentroWithStats[]>('/admin/centros', { year, region, s: search });
+  getCentros({ year, region, search, estado, registration = 'registered' }: GetCentrosParams) {
+    return get<CentroWithStats[]>('/admin/centros', { year, region, s: search, estado, registration });
+  },
+
+  createCentro(data: Partial<Centro>) {
+    return post<Centro>('/admin/centros', data);
   },
 
   approveCentro(centroId: number) {

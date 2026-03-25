@@ -93,7 +93,7 @@
   },
   {
     "id": "q2_e1",
-    "pregunta": "REQUISITO - Fotografía de la sección del planeamiento docente de esta actividad (si lo tienen).\n5 eco pts",
+    "pregunta": "REQUISITO - Fotografía de la sección del planeamiento docente de esta actividad (si lo tienen).",
     "tipo_de_campo": "subida_archivo",
     "opciones": null,
     "required": false,
@@ -106,7 +106,7 @@
   },
   {
     "id": "q2_e2",
-    "pregunta": "REQUISITO - Fotografía o mini video (1 minuto) de los estudiantes durante la actividad educativa que se vea claramente que es del tema del agua.\n 5 eco pts",
+    "pregunta": "REQUISITO - Fotografía o mini video (1 minuto) de los estudiantes durante la actividad educativa que se vea claramente que es del tema del agua.",
     "tipo_de_campo": "subida_archivo",
     "opciones": null,
     "required": true,
@@ -119,7 +119,7 @@
   },
   {
     "id": "q2_e3",
-    "pregunta": "REQUISITO - Fotografía que se vea que el recurso educativo usado está relacionado al tema de agua (video, presentación, hoja de trabajo u otro (diferente al realizado en el Día Mundial del Agua).\n 5 eco pts",
+    "pregunta": "REQUISITO - Fotografía que se vea que el recurso educativo usado está relacionado al tema de agua (video, presentación, hoja de trabajo u otro (diferente al realizado en el Día Mundial del Agua).",
     "tipo_de_campo": "subida_archivo",
     "opciones": null,
     "required": true,
@@ -200,7 +200,7 @@
   },
   {
     "id": "q4_e1",
-    "pregunta": "Fotografía de los estudiantes realizando el monitoreo (actividad sugerida para eco brigadas o gobierno estudiantil).\n5 eco pts",
+    "pregunta": "Fotografía de los estudiantes realizando el monitoreo (actividad sugerida para eco brigadas o gobierno estudiantil).",
     "tipo_de_campo": "subida_archivo",
     "opciones": null,
     "required": false,
@@ -213,7 +213,7 @@
   },
   {
     "id": "q4_e2",
-    "pregunta": "Fotografía del monitoreo realizado con firma de recibido de dirección (actividad sugerida para eco brigadas o para el gobierno estudiantil).\n5 eco pts",
+    "pregunta": "Fotografía del monitoreo realizado con firma de recibido de dirección (actividad sugerida para eco brigadas o para el gobierno estudiantil).",
     "tipo_de_campo": "subida_archivo",
     "opciones": null,
     "required": false,
@@ -235,7 +235,7 @@
   },
   {
     "id": "q5_e1",
-    "pregunta": "Fotografía en la que se observa claramente la reparación de una tubería. (Si es que hubo reparaciones).\n5 eco pts",
+    "pregunta": "Fotografía en la que se observa claramente la reparación de una tubería. (Si es que hubo reparaciones).",
     "tipo_de_campo": "subida_archivo",
     "opciones": null,
     "required": false,
@@ -248,7 +248,7 @@
   },
   {
     "id": "q5_e2",
-    "pregunta": "Fotografía en la que se observa cambio de cacheras, mangueras de abasto u otras mejoras de esa índole (solo si se realizó).\n5 eco pts",
+    "pregunta": "Fotografía en la que se observa cambio de cacheras, mangueras de abasto u otras mejoras de esa índole (solo si se realizó).",
     "tipo_de_campo": "subida_archivo",
     "opciones": null,
     "required": false,
@@ -261,7 +261,7 @@
   },
   {
     "id": "q5_e3",
-    "pregunta": "Fotografías en la que se observa que están limpiando el tanque de agua (solo si cuentan con tanque de almacenamiento).\n5 eco pts",
+    "pregunta": "Fotografías en la que se observa que están limpiando el tanque de agua (solo si cuentan con tanque de almacenamiento).",
     "tipo_de_campo": "subida_archivo",
     "opciones": null,
     "required": false,
@@ -283,7 +283,7 @@
   },
   {
     "id": "q6_e1",
-    "pregunta": "Fotografía del sistema de recolección de agua de lluvia (que cuente con bajante(s) y tanque de recolección (sistema permanente).\n10 eco pts",
+    "pregunta": "Fotografía del sistema de recolección de agua de lluvia (que cuente con bajante(s) y tanque de recolección (sistema permanente).",
     "tipo_de_campo": "subida_archivo",
     "opciones": null,
     "required": false,
@@ -305,7 +305,7 @@
   },
   {
     "id": "q7_e1",
-    "pregunta": "Fotografías en la que se observa claramente un sistema funcional para el tratamiento de aguas de forma biológica.\n10 eco pts",
+    "pregunta": "Fotografías en la que se observa claramente un sistema funcional para el tratamiento de aguas de forma biológica.",
     "tipo_de_campo": "subida_archivo",
     "opciones": null,
     "required": false,
@@ -327,7 +327,7 @@
   },
   {
     "id": "q8_e1",
-    "pregunta": "Fotografía en la que se observa claramente un sistema funcional y ahorrativo de riego como los mencionados.\n5 eco pts",
+    "pregunta": "Fotografía en la que se observa claramente un sistema funcional y ahorrativo de riego como los mencionados.",
     "tipo_de_campo": "subida_archivo",
     "opciones": null,
     "required": false,
@@ -349,7 +349,7 @@
   },
   {
     "id": "q9_e1",
-    "pregunta": "Aportar los datos completos de consumo de agua de enero a noviembre únicamente del año 2025. Los datos del año actual no se solicitarán.\n10 eco pts",
+    "pregunta": "Aportar los datos completos de consumo de agua de enero a noviembre únicamente del año 2025. Los datos del año actual no se solicitarán.",
     "tipo_de_campo": "subida_archivo",
     "opciones": null,
     "required": false,

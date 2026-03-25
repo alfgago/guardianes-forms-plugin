@@ -31,6 +31,19 @@ export function LoginForm({ onForgotPassword }: LoginFormProps) {
     mutation.mutate();
   }
 
+  function handleResetAccess() {
+    const nextUrl = new URL(window.location.href);
+    nextUrl.searchParams.set('refresh_session', String(Date.now()));
+
+    try {
+      window.sessionStorage.clear();
+    } catch {
+      // Ignore browser storage errors.
+    }
+
+    window.location.href = nextUrl.toString();
+  }
+
   return (
     <form onSubmit={handleSubmit}>
       <h2 style={{ marginBottom: 'var(--gnf-space-6)', textAlign: 'center' }}>Iniciar sesion</h2>
@@ -75,6 +88,16 @@ export function LoginForm({ onForgotPassword }: LoginFormProps) {
             Olvide mi contrasena
           </button>
         </div>
+      </div>
+
+      <Alert variant="info" title="Si el acceso se queda pegado">
+        Usa <strong>Reiniciar acceso</strong> antes de limpiar historial o cookies del navegador.
+      </Alert>
+
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 'var(--gnf-space-3)' }}>
+        <Button type="button" variant="ghost" size="sm" onClick={handleResetAccess}>
+          Reiniciar acceso
+        </Button>
       </div>
 
       <Button

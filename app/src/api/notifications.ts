@@ -9,4 +9,8 @@ export const notificationsApi = {
   markAsRead(id: number) {
     return put<{ success: boolean }>(`/notifications/${id}/read`);
   },
+
+  markAllAsRead() {
+    return put<{ success: boolean }>('/notifications/read-all');
+  },
 };

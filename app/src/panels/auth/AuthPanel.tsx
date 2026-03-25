@@ -37,14 +37,14 @@ export function AuthPanel() {
 
     if (redirectTo === 'supervisor') {
       return {
-        title: 'Plataforma Bandera Azul - Supervisores',
+        title: 'Plataforma Bandera Azul - DRE',
         subtitle: 'Acceso para Direcciones Regionales y Supervisores.',
       };
     }
 
     if (redirectTo === 'comite') {
       return {
-        title: 'Plataforma Bandera Azul - Comites',
+        title: 'Plataforma Bandera Azul - DRE',
         subtitle: 'Acceso para Direcciones Regionales y Supervisores.',
       };
     }

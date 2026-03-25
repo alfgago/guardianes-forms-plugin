@@ -39,6 +39,215 @@ function gnf_get_vite_manifest() {
 }
 
 /**
+ * Decode a WPForms form post into form_data format.
+ *
+ * @param int $form_id WPForms post ID.
+ * @return array|null
+ */
+function gnf_get_wpforms_form_data( $form_id ) {
+	if ( ! function_exists( 'wpforms' ) ) {
+		return null;
+	}
+
+	$form_id = absint( $form_id );
+	if ( ! $form_id ) {
+		return null;
+	}
+
+	$form_post = wpforms()->form->get( $form_id );
+	if ( ! $form_post || empty( $form_post->post_content ) ) {
+		return null;
+	}
+
+	$form_data = json_decode( $form_post->post_content, true );
+	if ( ! is_array( $form_data ) ) {
+		return null;
+	}
+
+	$form_data['id'] = $form_id;
+	return $form_data;
+}
+
+/**
+ * Collect all WPForms used by the current docente panel year.
+ *
+ * @param int $user_id User ID.
+ * @param int $anio    Active year.
+ * @return array<int, array>
+ */
+function gnf_collect_docente_wpforms_form_data( $user_id, $anio ) {
+	if ( ! function_exists( 'gnf_get_centro_for_docente' ) || ! function_exists( 'gnf_get_centro_retos_seleccionados' ) ) {
+		return array();
+	}
+
+	$centro_id = (int) gnf_get_centro_for_docente( $user_id );
+	if ( ! $centro_id ) {
+		return array();
+	}
+
+	$reto_ids = gnf_get_centro_retos_seleccionados( $centro_id, $anio );
+	if ( empty( $reto_ids ) ) {
+		return array();
+	}
+
+	$forms = array();
+	foreach ( $reto_ids as $reto_id ) {
+		$form_id = function_exists( 'gnf_get_reto_form_id_for_year' ) ? (int) gnf_get_reto_form_id_for_year( $reto_id, $anio ) : 0;
+		if ( ! $form_id || isset( $forms[ $form_id ] ) ) {
+			continue;
+		}
+
+		$form_data = gnf_get_wpforms_form_data( $form_id );
+		if ( $form_data ) {
+			$forms[ $form_id ] = $form_data;
+		}
+	}
+
+	return $forms;
+}
+
+/**
+ * Prime WPForms frontend assets/settings for React-rendered forms.
+ *
+ * WPForms normally enqueues its JS and conditional-logic settings when the
+ * shortcode renders in the page request. Our React panel fetches the form
+ * HTML later through REST, so we need to preload the frontend runtime here.
+ *
+ * @param array<int, array> $forms Form data keyed by form ID.
+ * @return string
+ */
+function gnf_enqueue_wpforms_runtime_for_forms( $forms ) {
+	if ( empty( $forms ) || ! function_exists( 'wpforms' ) ) {
+		return '';
+	}
+
+	$frontend = wpforms()->frontend ?? null;
+	if ( ! $frontend ) {
+		return '';
+	}
+
+	if ( ! isset( $frontend->forms ) || ! is_array( $frontend->forms ) ) {
+		$frontend->forms = array();
+	}
+
+	foreach ( $forms as $form_id => $form_data ) {
+		$frontend->forms[ (int) $form_id ] = $form_data;
+	}
+
+	if ( method_exists( $frontend, 'assets_css' ) ) {
+		$frontend->assets_css();
+	}
+	if ( method_exists( $frontend, 'assets_js' ) ) {
+		$frontend->assets_js();
+	}
+
+	if ( method_exists( $frontend, 'get_strings' ) ) {
+		$settings_handle = wp_script_is( 'wpforms', 'registered' ) ? 'wpforms' : 'gnf-wpforms-runtime';
+		if ( 'gnf-wpforms-runtime' === $settings_handle ) {
+			wp_register_script( 'gnf-wpforms-runtime', false, array(), GNF_VERSION, true );
+			wp_enqueue_script( 'gnf-wpforms-runtime' );
+		}
+
+		wp_add_inline_script( $settings_handle, 'var wpforms_settings = ' . wp_json_encode( $frontend->get_strings() ) . ';', 'before' );
+	}
+
+	$runtime_markup = '';
+
+	foreach ( array( 'assets_header', 'assets_footer' ) as $method ) {
+		if ( ! method_exists( $frontend, $method ) ) {
+			continue;
+		}
+
+		ob_start();
+		$frontend->{$method}();
+		$runtime_markup .= (string) ob_get_clean();
+	}
+
+	return $runtime_markup;
+}
+
+/**
+ * Build the full centros payload for PHP-side injection.
+ *
+ * Returns all active-region centros in a single batch query so the React auth
+ * panel can filter client-side without any REST calls.
+ *
+ * @return array
+ */
+function gnf_build_centros_payload() {
+	global $wpdb;
+
+	// Batch: get all claimed centro IDs from usermeta.
+	$claimed_ids = $wpdb->get_col(
+		"SELECT DISTINCT meta_value FROM {$wpdb->usermeta}
+		 WHERE meta_key IN ('centro_educativo_id','centro_solicitado','gnf_centro_id')
+		 AND meta_value != '0' AND meta_value != '' AND meta_value IS NOT NULL"
+	);
+	$claimed_set = array_flip( array_map( 'intval', (array) $claimed_ids ) );
+
+	// Get active region term IDs (skip if gnf_dre_activa === '0').
+	$all_regions = get_terms( array( 'taxonomy' => 'gn_region', 'hide_empty' => false ) );
+	if ( is_wp_error( $all_regions ) || empty( $all_regions ) ) {
+		return array();
+	}
+	$region_names = array();
+	$active_ids   = array();
+	foreach ( (array) $all_regions as $term ) {
+		$active = get_term_meta( $term->term_id, 'gnf_dre_activa', true );
+		if ( '0' === $active ) {
+			continue;
+		}
+		$region_names[ $term->term_id ] = $term->name;
+		$active_ids[]                    = (int) $term->term_id;
+	}
+	if ( empty( $active_ids ) ) {
+		return array();
+	}
+
+	// phpcs:disable WordPress.DB.PreparedSQL.NotPrepared
+	$ids_sql = implode( ',', $active_ids );
+	$rows    = $wpdb->get_results(
+		"SELECT p.ID, p.post_title,
+		        MIN(tt.term_id)      AS region_id,
+		        MIN(pm_c.meta_value) AS codigo_mep,
+		        MIN(pm_e.meta_value) AS correo
+		 FROM {$wpdb->posts} p
+		 INNER JOIN {$wpdb->term_relationships} tr ON p.ID = tr.object_id
+		 INNER JOIN {$wpdb->term_taxonomy} tt
+		         ON tr.term_taxonomy_id = tt.term_taxonomy_id
+		        AND tt.taxonomy = 'gn_region'
+		        AND tt.term_id IN ({$ids_sql})
+		 LEFT JOIN {$wpdb->postmeta} pm_c
+		        ON p.ID = pm_c.post_id AND pm_c.meta_key = 'codigo_mep'
+		 LEFT JOIN {$wpdb->postmeta} pm_e
+		        ON p.ID = pm_e.post_id AND pm_e.meta_key = 'correo_institucional'
+		 WHERE p.post_type = 'centro_educativo'
+		   AND p.post_status IN ('publish','pending')
+		 GROUP BY p.ID, p.post_title
+		 ORDER BY p.post_title ASC"
+	);
+	// phpcs:enable
+
+	$out = array();
+	foreach ( (array) $rows as $row ) {
+		$id      = (int) $row->ID;
+		$rid     = (int) $row->region_id;
+		$claimed = isset( $claimed_set[ $id ] );
+		$out[]   = array(
+			'id'                  => $id,
+			'nombre'              => $row->post_title,
+			'codigoMep'           => $row->codigo_mep ?: '',
+			'regionId'            => $rid,
+			'regionName'          => $region_names[ $rid ] ?? '',
+			'claimed'             => $claimed,
+			'correoInstitucional' => $claimed ? ( $row->correo ?: '' ) : '',
+		);
+	}
+
+	return $out;
+}
+
+/**
  * Render a React panel.
  *
  * 1. Enqueues the correct Vite-built assets (or dev server in dev mode).
@@ -75,6 +284,11 @@ function gnf_render_react_panel( $panel, $data = array() ) {
 	}
 
 	$active_year = function_exists( 'gnf_get_active_year' ) ? gnf_get_active_year() : (int) gmdate( 'Y' );
+	$wpforms_runtime_markup = '';
+
+	if ( 'docente' === $panel_key && $user->ID && function_exists( 'gnf_user_has_role' ) && gnf_user_has_role( $user, 'docente' ) ) {
+		$wpforms_runtime_markup = gnf_enqueue_wpforms_runtime_for_forms( gnf_collect_docente_wpforms_form_data( $user->ID, $active_year ) );
+	}
 
 	$init_data = array_merge(
 		array(
@@ -88,6 +302,11 @@ function gnf_render_react_panel( $panel, $data = array() ) {
 		),
 		$data
 	);
+
+	// Inject all centros into the auth panel so React filters purely client-side.
+	if ( 'auth' === $panel_key ) {
+		$init_data['centros'] = gnf_build_centros_payload();
+	}
 
 	$js_var = '__GNF_' . strtoupper( $panel_key ) . '__';
 
@@ -224,5 +443,5 @@ function gnf_render_react_panel( $panel, $data = array() ) {
 	wp_enqueue_style( 'gnf-react-hide-theme' );
 	wp_add_inline_style( 'gnf-react-hide-theme', $hide_css );
 
-	return '<div id="' . esc_attr( $root_id ) . '"></div>';
+	return $wpforms_runtime_markup . '<div id="' . esc_attr( $root_id ) . '"></div>';
 }

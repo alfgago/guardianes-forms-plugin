@@ -57,7 +57,7 @@ export function AdminPanel() {
   return (
     <PanelShell
       title="Panel Admin"
-      subtitle={`Ano ${year}`}
+      subtitle={`Año ${year}`}
       sidebarFooterExtra={<YearSelector />}
       nav={
         <>

@@ -16,7 +16,8 @@ if ( ! defined( 'ABSPATH' ) ) {
  */
 function gnf_render_admin_panel() {
 	// Verificar que el usuario sea administrador.
-	if ( ! current_user_can( 'manage_guardianes' ) && ! current_user_can( 'manage_options' ) ) {
+	$user = wp_get_current_user();
+	if ( function_exists( 'gnf_user_can_access_panel' ) ? ! gnf_user_can_access_panel( $user, 'panel-admin' ) : ( ! current_user_can( 'manage_guardianes' ) && ! current_user_can( 'manage_options' ) ) ) {
 		return '<div class="gnf-alert gnf-alert--error">No tienes permisos para acceder a este panel.</div>';
 	}
 
@@ -335,13 +336,15 @@ function gnf_get_all_plugin_users() {
  * @return WP_Query Query de centros.
  */
 function gnf_get_centros_for_admin( $anio = null ) {
-	$paged  = isset( $_GET['paged'] ) ? absint( $_GET['paged'] ) : 1;
-	$region = isset( $_GET['region'] ) ? absint( $_GET['region'] ) : 0;
-	$estado = isset( $_GET['estado'] ) ? sanitize_key( $_GET['estado'] ) : '';
-	$search = isset( $_GET['s'] ) ? sanitize_text_field( $_GET['s'] ) : '';
-	$anio   = gnf_normalize_year( $anio );
+	$paged        = isset( $_GET['paged'] ) ? absint( $_GET['paged'] ) : 1;
+	$region       = isset( $_GET['region'] ) ? absint( $_GET['region'] ) : 0;
+	$estado       = isset( $_GET['estado'] ) ? sanitize_key( $_GET['estado'] ) : '';
+	$search       = isset( $_GET['s'] ) ? sanitize_text_field( $_GET['s'] ) : '';
+	$registration = isset( $_GET['registro'] ) ? gnf_normalize_centro_registration_filter( wp_unslash( $_GET['registro'] ) ) : 'registered';
+	$anio         = gnf_normalize_year( $anio );
 
 	$centros_con_matricula = gnf_get_centros_with_matricula( $anio );
+	$centros_filtrados     = gnf_filter_centro_ids_by_registration( $centros_con_matricula, $registration );
 
 	$args = array(
 		'post_type'      => 'centro_educativo',
@@ -349,7 +352,7 @@ function gnf_get_centros_for_admin( $anio = null ) {
 		'paged'          => $paged,
 		'orderby'        => 'title',
 		'order'          => 'ASC',
-		'post__in'       => ! empty( $centros_con_matricula ) ? $centros_con_matricula : array( 0 ),
+		'post__in'       => ! empty( $centros_filtrados ) ? $centros_filtrados : array( 0 ),
 	);
 
 	if ( $region ) {

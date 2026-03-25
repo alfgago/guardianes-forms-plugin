@@ -1,0 +1,70 @@
+[
+  {
+    "id": "q1",
+    "pregunta": "1. ¿Implementaron el Manual de acciones para la gestión ambiental sostenible de eventos educativos co-curriculares? - (si/no)",
+    "tipo_de_campo": "seleccion_unica",
+    "opciones": ["si", "no"],
+    "required": true,
+    "depends_on": null,
+    "suma_puntos": false
+  },
+  {
+    "id": "q1_e1",
+    "pregunta": "Completar y entregar el reporte final en formato PDF.\n10 eco pt",
+    "tipo_de_campo": "subida_archivo",
+    "opciones": null,
+    "required": false,
+    "depends_on": { "field": "q1", "value": "si" },
+    "suma_puntos": true,
+    "puntos": 10
+  },
+  {
+    "id": "q2",
+    "pregunta": "2. ¿Hubo una adecuada gestión de residuos durante el evento? - (si/no)",
+    "tipo_de_campo": "seleccion_unica",
+    "opciones": ["si", "no"],
+    "required": true,
+    "depends_on": null,
+    "suma_puntos": false
+  },
+  {
+    "id": "q2_e1",
+    "pregunta": "Fotografía de alguno de los puntos ecológicos para la gestión de residuos valorizables durante el evento.\n5 eco pt",
+    "tipo_de_campo": "subida_archivo",
+    "opciones": null,
+    "required": false,
+    "depends_on": { "field": "q2", "value": "si" },
+    "suma_puntos": true,
+    "puntos": 5
+  },
+  {
+    "id": "q2_e2",
+    "pregunta": "Fotografía de alguno de recipiente colocado para la recolección y posterior gestión de residuos orgánicos generados.\n5 eco pt",
+    "tipo_de_campo": "subida_archivo",
+    "opciones": null,
+    "required": false,
+    "depends_on": { "field": "q2", "value": "si" },
+    "suma_puntos": true,
+    "puntos": 5
+  },
+  {
+    "id": "q2_e3",
+    "pregunta": "Fotografía de la participación estudiantil en la implementación del evento.\n5 eco pt",
+    "tipo_de_campo": "subida_archivo",
+    "opciones": null,
+    "required": false,
+    "depends_on": { "field": "q2", "value": "si" },
+    "suma_puntos": true,
+    "puntos": 5
+  },
+  {
+    "id": "q2_e4",
+    "pregunta": "Fotografía de la estrategia para la distribución de alimentos de forma sostenible.\n5 eco pt",
+    "tipo_de_campo": "subida_archivo",
+    "opciones": null,
+    "required": false,
+    "depends_on": { "field": "q2", "value": "si" },
+    "suma_puntos": true,
+    "puntos": 5
+  }
+]

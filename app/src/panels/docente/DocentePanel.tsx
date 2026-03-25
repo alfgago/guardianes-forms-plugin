@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { LayoutDashboard, FileText, BookOpen } from 'lucide-react';
+import { LayoutDashboard, FileText, BookOpen, Bell } from 'lucide-react';
 import { PanelShell } from '@/components/layout/PanelShell';
 import { SidebarLink } from '@/components/layout/SidebarLink';
 import { YearSelector } from '@/components/domain/YearSelector';
@@ -10,24 +10,30 @@ import { Alert } from '@/components/ui/Alert';
 import { Spinner } from '@/components/ui/Spinner';
 import { usePanel } from '@/hooks/usePanel';
 import { useTrackPageView } from '@/hooks/useTrackPageView';
+import { useBootstrapNotifications } from '@/hooks/useBootstrapNotifications';
 import { useYearStore } from '@/stores/useYearStore';
+import { useNotificationStore } from '@/stores/useNotificationStore';
 import { retosApi } from '@/api/retos';
 import { ResumenPage } from './pages/ResumenPage';
 import { FormulariosPage } from './pages/FormulariosPage';
 import { MatriculaPage } from './pages/MatriculaPage';
+import { NotificacionesPage } from '@/panels/supervisor/pages/NotificacionesPage';
 
 const NAV_ITEMS = [
   { page: 'resumen', label: 'Resumen', icon: <LayoutDashboard size={18} /> },
   { page: 'formularios', label: 'Eco retos', icon: <FileText size={18} /> },
   { page: 'matricula', label: 'Matricula', icon: <BookOpen size={18} /> },
+  { page: 'notificaciones', label: 'Notificaciones', icon: <Bell size={18} />, badgeKey: 'notifications' as const },
 ];
 
 export function DocentePanel() {
   const { page, params, navigate } = usePanel('resumen');
   const year = useYearStore((s) => s.selectedYear);
+  const unreadCount = useNotificationStore((s) => s.unreadCount);
   const queryClient = useQueryClient();
   const [feedbackModal, setFeedbackModal] = useState<string | null>(null);
   useTrackPageView({ panel: 'docente', page, year });
+  useBootstrapNotifications();
 
   const dashboardQuery = useQuery({
     queryKey: ['docente-dashboard', year],
@@ -76,6 +82,8 @@ export function DocentePanel() {
         return <FormulariosPage retoId={params.reto_id ? Number(params.reto_id) : undefined} />;
       case 'matricula':
         return <MatriculaPage />;
+      case 'notificaciones':
+        return <NotificacionesPage />;
       default:
         return (
           <ResumenPage
@@ -90,9 +98,9 @@ export function DocentePanel() {
   return (
     <PanelShell
       title="Panel Centro Educativo"
-      subtitle={`Ano ${year}`}
+      subtitle={`Año ${year}`}
       sidebarFooterExtra={<YearSelector />}
-      topBarActions={<NotificationBell />}
+      topBarActions={<NotificationBell onClick={() => navigate('notificaciones')} />}
       nav={
         <>
           {NAV_ITEMS.map((item) => (
@@ -102,6 +110,7 @@ export function DocentePanel() {
               label={item.label}
               icon={item.icon}
               active={page === item.page}
+              badge={item.badgeKey === 'notifications' ? unreadCount : undefined}
               onClick={navigate}
             />
           ))}

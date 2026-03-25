@@ -1,130 +1,107 @@
-import { useState } from 'react';
-import { Modal } from '@/components/ui/Modal';
-import { ChevronLeft, ChevronRight, Download, ZoomIn } from 'lucide-react';
+import { useCallback, useEffect, useState } from 'react';
+import { FileText, X } from 'lucide-react';
 import type { Evidencia } from '@/types';
+
+interface NormalizedEvidence {
+  url: string;
+  filename: string;
+  isImage: boolean;
+}
 
 interface EvidenceViewerProps {
   evidencias: Evidencia[];
+  onRemove?: (index: number) => void;
 }
 
-export function EvidenceViewer({ evidencias }: EvidenceViewerProps) {
-  const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
-  const normalized = evidencias.map((ev) => ({
-    url: ev.url ?? ev.ruta ?? '',
-    filename: ev.filename ?? ev.nombre ?? 'Evidencia',
-    type: ev.type ?? (ev.tipo === 'archivo' ? 'documento' : ev.tipo ?? 'documento'),
-  }));
-  const selected = selectedIndex !== null ? normalized[selectedIndex] : null;
+function normalize(ev: Evidencia): NormalizedEvidence {
+  const url = ev.url ?? ev.ruta ?? '';
+  const filename = ev.filename ?? ev.nombre ?? 'Evidencia';
+  const tipo = ev.type ?? ev.tipo ?? 'documento';
+  return { url, filename, isImage: tipo === 'imagen' };
+}
 
-  if (normalized.length === 0) return null;
+export function EvidenceViewer({ evidencias, onRemove }: EvidenceViewerProps) {
+  const [lightbox, setLightbox] = useState<NormalizedEvidence | null>(null);
+  const [visible, setVisible] = useState(false);
 
-  const images = normalized.filter((e) => e.type === 'imagen');
-  const others = normalized.filter((e) => e.type !== 'imagen');
+  const items = evidencias.map(normalize);
+
+  const openLightbox = useCallback((item: NormalizedEvidence) => {
+    if (!item.isImage) {
+      window.open(item.url, '_blank', 'noopener');
+      return;
+    }
+    setLightbox(item);
+    requestAnimationFrame(() => setVisible(true));
+  }, []);
+
+  const closeLightbox = useCallback(() => {
+    setVisible(false);
+    setTimeout(() => setLightbox(null), 200);
+  }, []);
+
+  useEffect(() => {
+    if (!lightbox) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') closeLightbox();
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [lightbox, closeLightbox]);
+
+  if (items.length === 0) return null;
 
   return (
-    <div>
-      {images.length > 0 && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(100px, 1fr))', gap: 'var(--gnf-space-2)', marginBottom: 'var(--gnf-space-4)' }}>
-          {images.map((ev, i) => (
-            <div
-              key={i}
-              onClick={() => setSelectedIndex(normalized.indexOf(ev))}
-              style={{
-                position: 'relative',
-                aspectRatio: '1',
-                borderRadius: 'var(--gnf-radius-sm)',
-                overflow: 'hidden',
-                cursor: 'pointer',
-                border: '1px solid var(--gnf-border)',
-              }}
-            >
-              <img
-                src={ev.url}
-                alt={ev.filename}
-                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-              />
-              <div
-                style={{
-                  position: 'absolute',
-                  inset: 0,
-                  background: 'rgba(0,0,0,0.3)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  opacity: 0,
-                  transition: 'opacity var(--gnf-transition-fast)',
-                }}
-                onMouseEnter={(e) => { e.currentTarget.style.opacity = '1'; }}
-                onMouseLeave={(e) => { e.currentTarget.style.opacity = '0'; }}
+    <div className="gnf-ev">
+      <div className="gnf-ev-grid">
+        {items.map((item, i) => (
+          <div key={i} className={`gnf-ev-item ${item.isImage ? '' : 'gnf-ev-item--file'}`}>
+            {onRemove && (
+              <button
+                className="gnf-ev-remove"
+                onClick={(e) => { e.stopPropagation(); onRemove(i); }}
+                aria-label="Eliminar"
               >
-                <ZoomIn size={24} color="white" />
+                <X size={12} />
+              </button>
+            )}
+
+            {item.isImage ? (
+              <div className="gnf-ev-thumb" onClick={() => openLightbox(item)}>
+                <img src={item.url} alt={item.filename} />
               </div>
-            </div>
-          ))}
-        </div>
-      )}
+            ) : (
+              <div className="gnf-ev-archivo" onClick={() => openLightbox(item)}>
+                <FileText size={28} />
+                <span className="gnf-ev-archivo__label">ARCHIVO</span>
+              </div>
+            )}
 
-      {others.length > 0 && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--gnf-space-2)' }}>
-          {others.map((ev, i) => (
-            <a
-              key={i}
-              href={ev.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 'var(--gnf-space-2)',
-                padding: 'var(--gnf-space-2) var(--gnf-space-3)',
-                background: 'var(--gnf-gray-50)',
-                borderRadius: 'var(--gnf-radius-sm)',
-                fontSize: '0.8125rem',
-                color: 'var(--gnf-ocean)',
-              }}
-            >
-              <Download size={14} />
-              {ev.filename}
-            </a>
-          ))}
-        </div>
-      )}
-
-      <Modal
-        open={selected !== null}
-        onClose={() => setSelectedIndex(null)}
-        title={selected?.filename}
-        width="800px"
-      >
-        {selected?.type === 'imagen' && (
-          <div style={{ textAlign: 'center' }}>
-            <img
-              src={selected.url}
-              alt={selected.filename}
-              style={{ maxWidth: '100%', maxHeight: '70vh', borderRadius: 'var(--gnf-radius)' }}
-            />
-            <div style={{ display: 'flex', justifyContent: 'center', gap: 'var(--gnf-space-4)', marginTop: 'var(--gnf-space-4)' }}>
-              <button
-                disabled={selectedIndex === 0}
-                onClick={() => setSelectedIndex((i) => (i !== null && i > 0 ? i - 1 : i))}
-                style={{ border: 'none', background: 'none', cursor: 'pointer', opacity: selectedIndex === 0 ? 0.3 : 1 }}
-              >
-                <ChevronLeft size={24} />
-              </button>
-              <span style={{ fontSize: '0.875rem', color: 'var(--gnf-muted)' }}>
-                {(selectedIndex ?? 0) + 1} / {normalized.length}
-              </span>
-              <button
-                disabled={selectedIndex === normalized.length - 1}
-                onClick={() => setSelectedIndex((i) => (i !== null && i < normalized.length - 1 ? i + 1 : i))}
-                style={{ border: 'none', background: 'none', cursor: 'pointer', opacity: selectedIndex === normalized.length - 1 ? 0.3 : 1 }}
-              >
-                <ChevronRight size={24} />
-              </button>
-            </div>
+            <span className={`gnf-ev-name ${item.isImage ? 'gnf-ev-name--truncate' : ''}`}>
+              {item.filename}
+            </span>
           </div>
-        )}
-      </Modal>
+        ))}
+      </div>
+
+      {lightbox && (
+        <div
+          className={`gnf-ev-lightbox ${visible ? 'gnf-ev-lightbox--visible' : ''}`}
+          onClick={closeLightbox}
+        >
+          <div className="gnf-ev-lightbox__card" onClick={(e) => e.stopPropagation()}>
+            <button className="gnf-ev-lightbox__close" onClick={closeLightbox}>
+              <X size={18} />
+            </button>
+            <img
+              className="gnf-ev-lightbox__img"
+              src={lightbox.url}
+              alt={lightbox.filename}
+            />
+            <span className="gnf-ev-lightbox__name">{lightbox.filename}</span>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

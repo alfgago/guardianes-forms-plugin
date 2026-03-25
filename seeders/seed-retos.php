@@ -306,7 +306,7 @@ class GNF_Retos_Seeder
             }
 
             if (! empty($year_configs)) {
-                $this->log('    Verificando formularios WPForms por ano...', 'info');
+                $this->log('    Verificando formularios WPForms por año...', 'info');
                 $year_assets = $dry_run ? array() : $this->import_year_assets($data, $existing_id, $titulo);
                 $this->create_wpform_and_checklist($data, $existing_id, $dry_run, $year_assets);
             }
@@ -401,7 +401,7 @@ class GNF_Retos_Seeder
     }
 
     /**
-     * Importa assets por ano y retorna los attachment IDs por fila anual.
+     * Importa assets por año y retorna los attachment IDs por fila anual.
      *
      * @param array  $data    Datos del reto.
      * @param int    $post_id ID del post.
@@ -582,7 +582,7 @@ class GNF_Retos_Seeder
         $wpforms_seeder = new GNF_WPForms_Seeder();
         foreach ($this->get_year_configs($data) as $anio => $year_config) {
             if (empty($year_config['preguntas_file'])) {
-                $this->log('    Ano ' . $anio . ' omitido: sin preguntas_file', 'info');
+                $this->log('    Año ' . $anio . ' omitido: sin preguntas_file', 'info');
                 continue;
             }
 
@@ -790,7 +790,13 @@ function gnf_run_retos_2026_cleanup($dry_run = false)
 function gnf_run_retos_seeder($dry_run = false)
 {
     $seeder = new GNF_Retos_Seeder();
-    return $seeder->run($dry_run);
+    $result = $seeder->run($dry_run);
+
+    if (! $dry_run && function_exists('gnf_backfill_required_retos_for_active_centros')) {
+        gnf_backfill_required_retos_for_active_centros(2026);
+    }
+
+    return $result;
 }
 
 // Ejecución desde CLI.

@@ -41,6 +41,18 @@ export interface RetoFieldPoint {
   tipo: string;
 }
 
+export interface ConditionalRule {
+  fieldId: number;
+  operator: string;
+  value: string;
+}
+
+export interface ConditionalFieldRule {
+  fieldId: number;
+  conditionalType: 'show' | 'hide' | string;
+  groups: ConditionalRule[][];
+}
+
 export interface AutosaveFieldPayload {
   type: string;
   name: string;
@@ -51,6 +63,7 @@ export interface RetoFormResponse {
   html: string;
   formId: number;
   fieldPoints: RetoFieldPoint[];
+  conditionalRules: ConditionalFieldRule[];
   savedValues: Record<string, string | string[]>;
   savedAt?: string;
   entry: RetoEntry | null;
@@ -78,6 +91,13 @@ export const retosApi = {
     return post<{ success: boolean; savedAt?: string; entry: RetoEntry | null }>(
       `/docente/retos/${retoId}/autosave`,
       { year, formId, fields },
+    );
+  },
+
+  removeEvidence(retoId: number, year: number, index: number) {
+    return post<{ success: boolean; entry: RetoEntry | null }>(
+      `/docente/retos/${retoId}/remove-evidence`,
+      { year, index },
     );
   },
 

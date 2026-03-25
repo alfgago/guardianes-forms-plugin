@@ -266,19 +266,15 @@ add_action('admin_post_gnf_docente_reopen', 'gnf_docente_reopen_entry');
  * @return string URL del panel.
  */
 function gnf_get_default_panel_url( $user ) {
-	$roles = (array) $user->roles;
 	$active_year = function_exists( 'gnf_get_active_year' ) ? gnf_get_active_year() : (int) gmdate( 'Y' );
 
-	if ( in_array( 'administrator', $roles, true ) ) {
+	if ( function_exists( 'gnf_user_can_access_panel' ) && gnf_user_can_access_panel( $user, 'panel-admin' ) ) {
 		return home_url( '/panel-admin/' );
 	}
-	if ( in_array( 'comite_bae', $roles, true ) ) {
-		return home_url( '/panel-comite/' );
-	}
-	if ( in_array( 'supervisor', $roles, true ) ) {
+	if ( function_exists( 'gnf_user_can_access_panel' ) && gnf_user_can_access_panel( $user, 'panel-supervisor' ) ) {
 		return home_url( '/panel-supervisor/' );
 	}
-	if ( in_array( 'docente', $roles, true ) ) {
+	if ( function_exists( 'gnf_user_can_access_panel' ) && gnf_user_can_access_panel( $user, 'panel-docente' ) ) {
 		$centro_id = function_exists( 'gnf_get_centro_for_docente' ) ? gnf_get_centro_for_docente( $user->ID ) : 0;
 		if ( ! $centro_id ) {
 			$centro_id = (int) get_user_meta( $user->ID, 'centro_solicitado', true );
@@ -294,6 +290,7 @@ function gnf_get_default_panel_url( $user ) {
 
 		return home_url( '/panel-docente/' );
 	}
+	// Sin rol reconocido: enviar al panel docente que mostrará el auth form.
 	return home_url();
 }
 
@@ -328,24 +325,10 @@ function gnf_handle_auth_login()
 		$req_path  = parse_url( $redirect, PHP_URL_PATH ) ?: '';
 		$rel_path  = str_replace( $home_path, '', $req_path );
 
-		$panel_map = array(
-			'/panel-admin/'      => array( 'administrator' ),
-			'/panel-comite/'     => array( 'administrator', 'comite_bae' ),
-			'/panel-supervisor/' => array( 'administrator', 'supervisor', 'comite_bae' ),
-			'/panel-docente/'    => array( 'administrator', 'docente' ),
-		);
-
-		$roles = (array) $user->roles;
-		foreach ( $panel_map as $panel_path => $allowed_roles ) {
+		foreach ( array( 'panel-admin', 'panel-supervisor', 'panel-docente', 'panel-comite' ) as $panel_slug ) {
+			$panel_path = '/' . $panel_slug . '/';
 			if ( 0 === strpos( trailingslashit( $rel_path ), $panel_path ) ) {
-				$allowed = false;
-				foreach ( $allowed_roles as $ar ) {
-					if ( in_array( $ar, $roles, true ) ) {
-						$allowed = true;
-						break;
-					}
-				}
-				if ( $allowed ) {
+				if ( ! function_exists( 'gnf_user_can_access_panel' ) || gnf_user_can_access_panel( $user, $panel_slug ) ) {
 					wp_safe_redirect( $redirect );
 					exit;
 				}
@@ -735,7 +718,7 @@ function gnf_handle_update_centro()
 	}
 
 	if ('otro' === $ultimo_anio && ! $ultimo_anio_otro) {
-		wp_safe_redirect(add_query_arg('gnf_err', rawurlencode('Debes indicar el ultimo ano de participacion cuando eliges "otro".'), $redirect));
+		wp_safe_redirect(add_query_arg('gnf_err', rawurlencode('Debes indicar el ultimo año de participación cuando eliges "otro".'), $redirect));
 		exit;
 	}
 

@@ -29,6 +29,7 @@ export interface MatriculaPrefill {
     dependencia: Record<string, string>;
     jornada: Record<string, string>;
     tipologia: Record<string, string>;
+    tipo_centro_educativo: Record<string, string>;
     coordinador_cargo: Record<string, string>;
     ultimo_anio_participacion: Record<string, string>;
     ultimo_galardon_estrellas: Record<string, string>;
@@ -59,6 +60,7 @@ export interface MatriculaFormValues {
   centroDependencia: string;
   centroJornada: string;
   centroTipologia: string;
+  centroTipoCentroEducativo: string;
   centroRegion: number;
   centroCircuito: string;
   centroProvincia: string;

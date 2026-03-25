@@ -119,22 +119,16 @@ function gnf_enqueue_assets()
 
 	$shortcodes = array(
 		'gn_docente_panel',
+		'gn_escuela_panel',
 		'gn_supervisor_panel',
 		'gn_admin_panel',
-		'gn_comite_panel',
-		'gn_notificaciones',
-		'gn_wizard',
-		'gn_registro_supervisor'
+		'gn_comite_panel'
 	);
 	$found      = false;
-	$has_wizard = false;
 
 	foreach ($shortcodes as $shortcode) {
 		if (has_shortcode($post->post_content, $shortcode)) {
 			$found = true;
-			if ('gn_wizard' === $shortcode) {
-				$has_wizard = true;
-			}
 		}
 	}
 
@@ -158,11 +152,6 @@ function gnf_enqueue_assets()
 
 	wp_enqueue_script('gnf-scripts', GNF_URL . 'assets/js/guardianes.js', array('jquery'), GNF_VERSION, true);
 
-	// Cargar wizard.js si se usa el shortcode del wizard.
-	if ($has_wizard) {
-		wp_enqueue_script('gnf-wizard', GNF_URL . 'assets/js/wizard.js', array('jquery', 'gnf-scripts'), GNF_VERSION, true);
-	}
-
 	wp_localize_script(
 		'gnf-scripts',
 		'gnfData',
@@ -180,6 +169,22 @@ add_action('wp_enqueue_scripts', 'gnf_enqueue_assets');
  */
 function gnf_admin_enqueue_assets($hook)
 {
+	if ('options-general.php' === $hook && current_user_can('manage_options')) {
+		wp_enqueue_script(
+			'gnf-centros-import-admin',
+			GNF_URL . 'assets/js/centros-import-admin.js',
+			array(),
+			GNF_VERSION,
+			true
+		);
+		wp_localize_script('gnf-centros-import-admin', 'gnfCentrosImportAdmin', array(
+			'ajaxUrl'     => admin_url('admin-ajax.php'),
+			'nonce'       => wp_create_nonce('gnf_centros_import_batch'),
+			'redirectUrl' => admin_url('options-general.php'),
+		));
+		return;
+	}
+
 	if (! in_array($hook, array('post.php', 'post-new.php'), true)) {
 		return;
 	}
@@ -239,6 +244,9 @@ function gnf_render_reset_section()
 {
 	$nonce       = wp_create_nonce('gnf_reset_db_nonce');
 	$url         = admin_url('admin-post.php?action=gnf_reset_db&_wpnonce=' . $nonce);
+	$reseed_nonce = wp_create_nonce('gnf_reseed_retos_nonce');
+	$reseed_url   = admin_url('admin-post.php?action=gnf_reseed_retos&_wpnonce=' . $reseed_nonce);
+	$centros_url  = admin_url('admin-post.php?action=gnf_reimport_centros&gnf_reimport_nonce=' . wp_create_nonce('gnf_reimport_centros'));
 ?>
 	<div style="background:#fff8f0;border:1px solid #f59e0b;border-radius:8px;padding:20px;max-width:720px;">
 		<p style="margin:0 0 12px;color:#92400e;">
@@ -299,6 +307,20 @@ function gnf_render_reset_section()
 				style="background:#dc2626;border-color:#b91c1c;color:#fff;font-weight:600;padding:4px 20px;"
 				onclick="return confirm('⚠️ ¿Estás seguro?\n\nEsto va a ELIMINAR todas las tablas, formularios, retos, centros, regiones y usuarios de prueba, y luego los recreará desde cero.\n\nEsta acción no se puede deshacer.');">
 				Reiniciar BD de Guardianes Forms
+			</a>
+			<a id="gnf-reseed-retos-btn"
+				href="<?php echo esc_url($reseed_url); ?>"
+				class="button"
+				style="margin-left:8px;background:#2563eb;border-color:#1d4ed8;color:#fff;font-weight:600;padding:4px 20px;"
+				onclick="return confirm('Esto volverá a sembrar solo los eco retos 2026 y sus formularios, sin borrar centros, usuarios, matrículas ni demás datos.\n\n¿Deseas continuar?');">
+				Reseed retos 2026
+			</a>
+			<a id="gnf-reseed-centros-btn"
+				href="<?php echo esc_url($centros_url); ?>"
+				class="button"
+				style="margin-left:8px;background:#059669;border-color:#047857;color:#fff;font-weight:600;padding:4px 20px;"
+				onclick="return confirm('Esto importará/actualizará centros educativos desde escuelas-mep.csv y centros_educativos_2024.json.\n\nLos ya existentes se actualizan sin duplicar. Puede tardar hasta 2 minutos.\n\n¿Deseas continuar?');">
+				Reseed escuelas MEP
 			</a>
 		</div>
 	</div>
@@ -489,4 +511,55 @@ function gnf_handle_reset_db()
 	echo '</div></body></html>';
 	exit;
 }
+
+/**
+ * Reejecuta solo el seeder de retos 2026 desde Ajustes -> General.
+ */
+function gnf_handle_reseed_retos()
+{
+	if (! current_user_can('manage_options')) {
+		wp_die('Sin permisos.');
+	}
+	check_admin_referer('gnf_reseed_retos_nonce');
+
+	ob_start();
+
+	echo '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Reseed de Retos 2026</title>';
+	echo '<style>
+		body { font-family: "League Spartan", -apple-system, BlinkMacSystemFont, sans-serif; padding: 20px; background: #1a1a2e; color: #e2e8f0; }
+		.gnf-reset-container { background: #16213e; padding: 28px; border-radius: 12px; max-width: 900px; margin: 0 auto; }
+		h1 { color: #60a5fa; margin-bottom: 24px; }
+		.ok  { color: #4ade80; }
+		.info { color: #94a3b8; }
+		.step { margin: 6px 0 6px 16px; }
+		a.btn { display: inline-block; padding: 10px 20px; margin: 16px 8px 0 0; border-radius: 8px; text-decoration: none; font-weight: 600; }
+		a.btn-back { background: #3b82f6; color: #fff; }
+		a.btn-admin { background: #0f766e; color: #fff; }
+	</style></head><body>';
+	echo '<div class="gnf-reset-container">';
+	echo '<h1>Reseed de Eco Retos 2026</h1>';
+	echo '<p class="info">Esta operación actualiza solo el catálogo de retos y formularios WPForms 2026. No elimina centros, usuarios, matrículas ni entradas existentes.</p>';
+
+	require_once GNF_PATH . 'seeders/seed-retos.php';
+
+	$result   = gnf_run_retos_seeder(false);
+	$backfill = function_exists('gnf_backfill_required_retos_for_active_centros')
+		? gnf_backfill_required_retos_for_active_centros(2026)
+		: array('centros' => 0, 'actualizados' => 0);
+
+	echo '<div class="step ok">✓ Seeder de retos 2026 ejecutado.</div>';
+	echo '<div class="step ok">✓ Centros activos revisados: ' . esc_html((string) $backfill['centros']) . '</div>';
+	echo '<div class="step ok">✓ Centros actualizados con retos requisito: ' . esc_html((string) $backfill['actualizados']) . '</div>';
+
+	if (is_array($result) && ! empty($result['retos_processed'])) {
+		echo '<div class="step info">Retos procesados: ' . esc_html((string) $result['retos_processed']) . '</div>';
+	}
+
+	echo '<a class="btn btn-back" href="' . esc_url(admin_url('options-general.php')) . '">← Volver a Ajustes</a>';
+	echo '<a class="btn btn-admin" href="' . esc_url(admin_url('admin.php?page=gnf-admin')) . '">Ir al Panel Admin</a>';
+	echo '</div></body></html>';
+	echo ob_get_clean();
+	exit;
+}
 add_action('admin_post_gnf_reset_db', 'gnf_handle_reset_db');
+add_action('admin_post_gnf_reseed_retos', 'gnf_handle_reseed_retos');

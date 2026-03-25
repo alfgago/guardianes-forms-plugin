@@ -107,7 +107,7 @@ class GNF_Sample_Data_Seeder
     public function run($dry_run = false)
     {
         $this->log('═══════════════════════════════════════════════════════════════', 'header');
-        $this->log('CREANDO USUARIOS DEMO - Ano ' . $this->anio, 'header');
+        $this->log('CREANDO USUARIOS DEMO - Año ' . $this->anio, 'header');
         $this->log('═══════════════════════════════════════════════════════════════', 'header');
         $this->log('');
 

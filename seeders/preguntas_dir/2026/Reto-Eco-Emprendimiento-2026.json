@@ -1,0 +1,87 @@
+[
+  {
+    "id": "q1",
+    "pregunta": "1. ¿Realizaron un planteamiento formal del eco emprendimiento? - (si/no)",
+    "tipo_de_campo": "seleccion_unica",
+    "opciones": ["si", "no"],
+    "required": true,
+    "depends_on": null,
+    "suma_puntos": false
+  },
+  {
+    "id": "q1_e1",
+    "pregunta": "PDF del planteamiento del eco emprendimiento.\n10 eco pt",
+    "tipo_de_campo": "subida_archivo",
+    "opciones": null,
+    "required": true,
+    "depends_on": { "field": "q1", "value": "si" },
+    "suma_puntos": true,
+    "puntos": 10
+  },
+  {
+    "id": "q2",
+    "pregunta": "2. ¿Implementaron el eco emprendimiento? - (si/no)",
+    "tipo_de_campo": "seleccion_unica",
+    "opciones": ["si", "no"],
+    "required": true,
+    "depends_on": null,
+    "suma_puntos": false
+  },
+  {
+    "id": "q2_1",
+    "pregunta": "2.1 ¿Cuántos estudiantes participaron?",
+    "tipo_de_campo": "numero_entero",
+    "opciones": null,
+    "required": false,
+    "depends_on": { "field": "q2", "value": "si" },
+    "suma_puntos": false
+  },
+  {
+    "id": "q2_2",
+    "pregunta": "2.2 Indique el monto total ganado a la fecha.",
+    "tipo_de_campo": "text",
+    "opciones": null,
+    "required": false,
+    "depends_on": { "field": "q2", "value": "si" },
+    "suma_puntos": false
+  },
+  {
+    "id": "q2_3",
+    "pregunta": "2.3 Puede agregar un comentario corto sobre este eco reto.",
+    "tipo_de_campo": "textarea",
+    "opciones": null,
+    "required": false,
+    "depends_on": { "field": "q2", "value": "si" },
+    "suma_puntos": false
+  },
+  {
+    "id": "q2_e1",
+    "pregunta": "Fotografía durante el proceso de generación del producto con participación estudiantil.",
+    "tipo_de_campo": "subida_archivo",
+    "opciones": null,
+    "required": false,
+    "depends_on": { "field": "q2", "value": "si" },
+    "suma_puntos": true,
+    "puntos": 5
+  },
+  {
+    "id": "q2_e2",
+    "pregunta": "Fotografía del producto ya en venta.\n5 eco pt",
+    "tipo_de_campo": "subida_archivo",
+    "opciones": null,
+    "required": false,
+    "depends_on": { "field": "q2", "value": "si" },
+    "suma_puntos": true,
+    "puntos": 5
+  },
+  {
+    "id": "q2_e3",
+    "pregunta": "Registro de gastos e ingresos.\n5 eco pt",
+    "tipo_de_campo": "subida_archivo",
+    "opciones": null,
+    "required": false,
+    "depends_on": { "field": "q2", "value": "si" },
+    "suma_puntos": true,
+    "puntos": 5
+  }
+]

@@ -1,7 +1,7 @@
-<?php
+﻿<?php
 
 /**
- * Helpers genéricos.
+ * Helpers genÃ©ricos.
  */
 
 if (! defined('ABSPATH')) {
@@ -9,7 +9,7 @@ if (! defined('ABSPATH')) {
 }
 
 /**
- * Obtiene valor desde ACF Options o opción normal.
+ * Obtiene valor desde ACF Options o opciÃ³n normal.
  */
 function gnf_get_option($key, $default = '')
 {
@@ -25,7 +25,7 @@ function gnf_get_option($key, $default = '')
 }
 
 /**
- * Año activo configurado.
+ * AÃ±o activo configurado.
  */
 function gnf_get_active_year()
 {
@@ -34,7 +34,7 @@ function gnf_get_active_year()
 }
 
 /**
- * Obtiene todos los años disponibles para navegación en paneles React.
+ * Obtiene todos los aÃ±os disponibles para navegaciÃ³n en paneles React.
  *
  * @return int[]
  */
@@ -83,9 +83,9 @@ function gnf_get_available_years()
 }
 
 /**
- * Normaliza un año válido de la plataforma.
+ * Normaliza un aÃ±o vÃ¡lido de la plataforma.
  *
- * @param int|string|null $anio Año solicitado.
+ * @param int|string|null $anio AÃ±o solicitado.
  * @return int
  */
 function gnf_normalize_year($anio = null)
@@ -111,7 +111,7 @@ function gnf_normalize_geo_name($value)
 }
 
 /**
- * Catalogo canonico de eco retos por ano.
+ * Catalogo canonico de eco retos por año.
  *
  * @param int|null $anio Ano.
  * @return array<string,array<string,mixed>>
@@ -191,7 +191,7 @@ function gnf_get_reto_canonical_slug($title)
 	if (false !== strpos($normalized, 'artistico') || false !== strpos($normalized, 'mural')) {
 		return 'artistico-eco-murales';
 	}
-	if (false !== strpos($normalized, 'eco gira')) {
+	if (false !== strpos($normalized, 'eco gira') || 'gira' === $normalized) {
 		return 'eco-gira';
 	}
 	if (false !== strpos($normalized, 'polinizador') || false !== strpos($normalized, 'jardin')) {
@@ -382,7 +382,7 @@ function gnf_get_cr_cantons_by_province($province)
  * Valida que canton pertenezca a la provincia.
  *
  * @param string $province Provincia.
- * @param string $canton Cantón.
+ * @param string $canton CantÃ³n.
  * @return bool
  */
 function gnf_is_valid_cr_province_canton($province, $canton)
@@ -434,6 +434,14 @@ function gnf_get_centro_profile_choice_sets()
 			'tipo_iii' => 'Tipo III (100-299)',
 			'tipo_iv'  => 'Tipo IV (99 o menos)',
 			'tipo_v'   => 'Tipo V (multigrado)',
+		),
+		'tipo_centro_educativo' => array(
+			'unidocente'    => 'Unidocente',
+			'direccion_i'   => 'Dirección I',
+			'direccion_ii'  => 'Dirección II',
+			'direccion_iii' => 'Dirección III',
+			'direccion_iv'  => 'Dirección IV',
+			'direccion_v'   => 'Dirección V',
 		),
 		'coordinador_cargo' => array(
 			'director'      => 'Director(a)',
@@ -563,9 +571,9 @@ function gnf_get_centro_choice_label($field, $value)
 }
 
 /**
- * Obtiene año de contexto desde request (POST/GET) o fallback.
+ * Obtiene aÃ±o de contexto desde request (POST/GET) o fallback.
  *
- * @param int|null $default Año por defecto opcional.
+ * @param int|null $default AÃ±o por defecto opcional.
  * @return int
  */
 function gnf_get_context_year($default = null)
@@ -620,7 +628,7 @@ function gnf_normalize_reto_ids($reto_ids)
 /**
  * Estructura base de datos anuales de centro.
  *
- * @param int $anio Año.
+ * @param int $anio AÃ±o.
  * @return array
  */
 function gnf_get_centro_anual_default_row($anio)
@@ -641,7 +649,7 @@ function gnf_get_centro_anual_default_row($anio)
  * Sanitiza una fila anual de centro.
  *
  * @param array $row Fila cruda.
- * @param int   $anio Año.
+ * @param int   $anio AÃ±o.
  * @return array
  */
 function gnf_sanitize_centro_anual_row($row, $anio)
@@ -677,10 +685,10 @@ function gnf_get_centro_anual_rows($centro_id)
 }
 
 /**
- * Obtiene fila anual específica del centro.
+ * Obtiene fila anual especÃ­fica del centro.
  *
  * @param int  $centro_id Centro educativo.
- * @param int  $anio Año.
+ * @param int  $anio AÃ±o.
  * @param bool $exists Indicador de existencia por referencia.
  * @return array
  */
@@ -704,7 +712,7 @@ function gnf_get_centro_anual_row($centro_id, $anio, &$exists = false)
  * Persiste datos anuales del centro (solo ACF).
  *
  * @param int   $centro_id Centro educativo.
- * @param int   $anio Año.
+ * @param int   $anio AÃ±o.
  * @param array $data Datos parciales.
  * @return array Fila anual guardada.
  */
@@ -749,7 +757,7 @@ function gnf_set_centro_anual_data($centro_id, $anio, $data)
  *
  * @param int         $centro_id Centro educativo.
  * @param string      $field Campo anual.
- * @param int|null    $anio Año.
+ * @param int|null    $anio AÃ±o.
  * @param mixed|null  $default Valor por defecto.
  * @return mixed
  */
@@ -776,7 +784,7 @@ function gnf_get_centro_anual_field($centro_id, $field, $anio = null, $default =
  * @param int      $centro_id Centro educativo.
  * @param string   $field Campo anual.
  * @param mixed    $value Valor.
- * @param int|null $anio Año.
+ * @param int|null $anio AÃ±o.
  * @return mixed
  */
 function gnf_set_centro_anual_field($centro_id, $field, $value, $anio = null)
@@ -787,7 +795,7 @@ function gnf_set_centro_anual_field($centro_id, $field, $value, $anio = null)
 }
 
 /**
- * Atajos de lectura por año para el centro.
+ * Atajos de lectura por aÃ±o para el centro.
  */
 function gnf_get_centro_retos_seleccionados($centro_id, $anio = null)
 {
@@ -827,7 +835,7 @@ function gnf_get_centro_estrella_final($centro_id, $anio = null)
 }
 
 /**
- * Atajos de escritura por año para el centro.
+ * Atajos de escritura por aÃ±o para el centro.
  */
 function gnf_set_centro_retos_seleccionados($centro_id, $anio, $reto_ids)
 {
@@ -877,7 +885,7 @@ function gnf_user_has_role($user, $role)
 }
 
 /**
- * Obtiene la región del usuario (user_meta o ACF).
+ * Obtiene la regiÃ³n del usuario (user_meta o ACF).
  */
 function gnf_get_user_region($user_id)
 {
@@ -900,7 +908,7 @@ function gnf_get_user_region($user_id)
 }
 
 /**
- * Comprueba si el usuario tiene acceso al centro (docente, supervisor región o comité).
+ * Comprueba si el usuario tiene acceso al centro (docente, supervisor regiÃ³n o comitÃ©).
  */
 function gnf_user_can_access_centro($user_id, $centro_id)
 {
@@ -910,7 +918,7 @@ function gnf_user_can_access_centro($user_id, $centro_id)
 
 	$user = get_userdata($user_id);
 
-	// Comité BAE puede acceder a todos los centros.
+	// ComitÃ© BAE puede acceder a todos los centros.
 	if (gnf_user_has_role($user, 'comite_bae') || user_can($user_id, 'gnf_view_all_regions')) {
 		return true;
 	}
@@ -934,7 +942,7 @@ function gnf_user_can_access_centro($user_id, $centro_id)
 }
 
 /**
- * Inserta notificación.
+ * Inserta notificaciÃ³n.
  */
 function gnf_insert_notification($user_id, $tipo, $mensaje, $relacion_tipo = '', $relacion_id = 0)
 {
@@ -956,7 +964,60 @@ function gnf_insert_notification($user_id, $tipo, $mensaje, $relacion_tipo = '',
 }
 
 /**
- * Helper para obtener data de wp_gn_reto_entries por usuario/año.
+ * Inserta o refresca una notificación no leída del mismo tipo/relación.
+ *
+ * Se usa para evitar ruido repetido cuando el mismo evento se emite varias
+ * veces antes de que el usuario lo atienda.
+ *
+ * @param int    $user_id       Usuario destino.
+ * @param string $tipo          Tipo de notificación.
+ * @param string $mensaje       Mensaje actualizado.
+ * @param string $relacion_tipo Relación.
+ * @param int    $relacion_id   ID relacionado.
+ * @return int ID de la notificación afectada.
+ */
+function gnf_insert_or_refresh_notification( $user_id, $tipo, $mensaje, $relacion_tipo = '', $relacion_id = 0 ) {
+	global $wpdb;
+
+	$table         = $wpdb->prefix . 'gn_notificaciones';
+	$notification  = $wpdb->get_row(
+		$wpdb->prepare(
+			"SELECT id FROM {$table}
+			 WHERE user_id = %d
+			   AND tipo = %s
+			   AND relacion_tipo = %s
+			   AND relacion_id = %d
+			   AND leido = 0
+			 ORDER BY created_at DESC
+			 LIMIT 1",
+			$user_id,
+			$tipo,
+			$relacion_tipo,
+			$relacion_id
+		)
+	);
+
+	if ( $notification ) {
+		$wpdb->update(
+			$table,
+			array(
+				'mensaje'    => $mensaje,
+				'created_at' => current_time( 'mysql' ),
+			),
+			array( 'id' => (int) $notification->id ),
+			array( '%s', '%s' ),
+			array( '%d' )
+		);
+
+		return (int) $notification->id;
+	}
+
+	gnf_insert_notification( $user_id, $tipo, $mensaje, $relacion_tipo, $relacion_id );
+	return (int) $wpdb->insert_id;
+}
+
+/**
+ * Helper para obtener data de wp_gn_reto_entries por usuario/aÃ±o.
  */
 function gnf_get_user_reto_entries($user_id, $anio)
 {
@@ -968,9 +1029,9 @@ function gnf_get_user_reto_entries($user_id, $anio)
 }
 
 /**
- * URL del Drive para registros (Registrar y Reducir). Configurable en Guardianes → Configuración.
+ * URL del Drive para registros (Registrar y Reducir). Configurable en Guardianes â†’ ConfiguraciÃ³n.
  *
- * @return string URL o vacío si no está configurado.
+ * @return string URL o vacÃ­o si no estÃ¡ configurado.
  */
 function gnf_get_registros_drive_url()
 {
@@ -979,69 +1040,32 @@ function gnf_get_registros_drive_url()
 }
 
 /**
- * Devuelve los IDs de los retos marcados como obligatorios en matrícula (Agua, Energía, Residuos).
- * Se usan para pre-seleccionarlos en el formulario y asegurarlos al guardar.
+ * Devuelve los retos publicados de primer nivel que tienen configuraciÃ³n activa
+ * para el aÃ±o solicitado.
  *
- * @return int[]
+ * @param int|null $anio AÃ±o.
+ * @return WP_Post[]
  */
 function gnf_get_available_retos_for_year($anio = null)
 {
-	$anio    = gnf_normalize_year($anio);
-	$catalog = gnf_get_reto_catalog($anio);
-	$retos   = get_posts(
+	$anio  = gnf_normalize_year($anio);
+	$retos = get_posts(
 		array(
 			'post_type'      => 'reto',
 			'post_status'    => 'publish',
 			'posts_per_page' => -1,
+			'post_parent'    => 0,
 			'orderby'        => 'title',
 			'order'          => 'ASC',
 		)
 	);
 
-	$grouped = array();
+	$selected = array();
 	foreach ((array) $retos as $reto) {
 		if (! gnf_reto_has_form_for_year($reto->ID, $anio)) {
 			continue;
 		}
-
-		$slug = gnf_get_reto_canonical_slug($reto->post_title);
-		if (! empty($catalog) && empty($catalog[$slug])) {
-			continue;
-		}
-
-		if (empty($slug)) {
-			$slug = 'post-' . (int) $reto->ID;
-		}
-
-		if (! isset($grouped[$slug])) {
-			$grouped[$slug] = array();
-		}
-		$grouped[$slug][] = $reto;
-	}
-
-	$selected = array();
-	foreach ($grouped as $slug => $items) {
-		$preferred_title = $catalog[$slug]['title'] ?? '';
-		$selected_post   = null;
-
-		foreach ($items as $item) {
-			if ($preferred_title && 0 === strcasecmp((string) $item->post_title, (string) $preferred_title)) {
-				$selected_post = $item;
-				break;
-			}
-		}
-
-		if (! $selected_post) {
-			usort(
-				$items,
-				static function ($a, $b) {
-					return strcasecmp(remove_accents((string) $a->post_title), remove_accents((string) $b->post_title));
-				}
-			);
-			$selected_post = $items[0];
-		}
-
-		$selected[] = $selected_post;
+		$selected[] = $reto;
 	}
 
 	usort(
@@ -1168,7 +1192,7 @@ function gnf_get_obligatorio_reto_ids()
 /**
  * Expande una lista de IDs de retos: si un ID es de un reto padre (tiene hijos),
  * lo reemplaza por los IDs de sus hijos, para que en el panel se muestren los
- * retos hijos por separado (ej. Compostaje → Valorizables, Limpieza).
+ * retos hijos por separado (ej. Compostaje â†’ Valorizables, Limpieza).
  *
  * @param int[] $reto_ids IDs de retos (pueden ser padres o hijos).
  * @return int[]
@@ -1203,8 +1227,8 @@ function gnf_expand_retos_con_hijos($reto_ids)
 }
 
 /**
- * Colapsa una lista de IDs de retos a sus raíces (para pre-llenar el form de matrícula).
- * Si un ID es de un reto hijo, se devuelve el ID del padre raíz.
+ * Colapsa una lista de IDs de retos a sus raÃ­ces (para pre-llenar el form de matrÃ­cula).
+ * Si un ID es de un reto hijo, se devuelve el ID del padre raÃ­z.
  *
  * @param int[] $reto_ids IDs de retos (normalmente expandidos con hijos).
  * @return int[]
@@ -1265,7 +1289,7 @@ function gnf_get_reto_by_form_id($form_id)
 
 /**
  * Obtiene el formulario WPForms para un reto segun el anio.
- * Lee desde configuracion_por_anio; solo devuelve si el año está activo.
+ * Lee desde configuracion_por_anio; solo devuelve si el aÃ±o estÃ¡ activo.
  *
  * @param int      $reto_id ID del reto.
  * @param int|null $anio    Anio (opcional, por defecto usa el anio activo).
@@ -1363,12 +1387,172 @@ function gnf_get_reto_color($reto_id, $default = '#369484')
 
 /**
  * Formatea una fila de wp_gn_reto_entries para respuesta API/templates.
- * Centraliza la construcción de datos de entry con metadatos del reto.
+ * Centraliza la construcciÃ³n de datos de entry con metadatos del reto.
  *
  * @param object   $entry Fila de wp_gn_reto_entries.
- * @param int|null $anio  Año (para iconos/puntos per-year).
+ * @param int|null $anio  AÃ±o (para iconos/puntos per-year).
  * @return array Datos formateados en camelCase.
  */
+function gnf_get_wpforms_form_definition( $form_id ) {
+	if ( ! function_exists( 'wpforms' ) ) {
+		return array();
+	}
+
+	$form = wpforms()->form->get( absint( $form_id ) );
+	if ( ! $form || empty( $form->post_content ) ) {
+		return array();
+	}
+
+	$form_data = json_decode( $form->post_content, true );
+	return is_array( $form_data ) ? $form_data : array();
+}
+
+function gnf_is_wpforms_layout_field( $type ) {
+	return in_array(
+		(string) $type,
+		array( 'html', 'content', 'divider', 'pagebreak', 'section-divider', 'layout', 'hidden' ),
+		true
+	);
+}
+
+function gnf_reto_entry_value_has_content( $value ) {
+	if ( is_array( $value ) ) {
+		$value = array_filter(
+			array_map(
+				static function ( $item ) {
+					return is_scalar( $item ) ? trim( (string) $item ) : '';
+				},
+				$value
+			),
+			static function ( $item ) {
+				return '' !== $item;
+			}
+		);
+		return ! empty( $value );
+	}
+
+	if ( is_scalar( $value ) ) {
+		return '' !== trim( (string) $value );
+	}
+
+	return false;
+}
+
+function gnf_get_wpforms_choice_label( $field, $value ) {
+	$choices = is_array( $field['choices'] ?? null ) ? $field['choices'] : array();
+	$value   = (string) $value;
+
+	foreach ( $choices as $choice ) {
+		$label = (string) ( $choice['label'] ?? '' );
+		$key   = isset( $choice['value'] ) ? (string) $choice['value'] : $label;
+		if ( $value === $key || $value === $label ) {
+			return $label ?: $value;
+		}
+	}
+
+	return $value;
+}
+
+function gnf_get_wpforms_display_value( $field, $raw_value ) {
+	if ( is_array( $raw_value ) ) {
+		$labels = array_map(
+			static function ( $value ) use ( $field ) {
+				return gnf_get_wpforms_choice_label( $field, $value );
+			},
+			$raw_value
+		);
+		$labels = array_filter(
+			array_map(
+				static function ( $value ) {
+					return trim( (string) $value );
+				},
+				$labels
+			),
+			static function ( $value ) {
+				return '' !== $value;
+			}
+		);
+		return implode( ', ', $labels );
+	}
+
+	if ( ! is_scalar( $raw_value ) ) {
+		return '';
+	}
+
+	$value = trim( (string) $raw_value );
+	if ( '' === $value ) {
+		return '';
+	}
+
+	if ( in_array( (string) ( $field['type'] ?? '' ), array( 'radio', 'select', 'checkbox' ), true ) ) {
+		return gnf_get_wpforms_choice_label( $field, $value );
+	}
+
+	// File-upload fields store JSON file metadata as the raw value.
+	// Don't show this as displayValue — the evidence is shown via EvidenceViewer.
+	if ( 'file-upload' === (string) ( $field['type'] ?? '' ) ) {
+		return '';
+	}
+
+	return $value;
+}
+
+function gnf_build_reto_entry_responses( $entry, $anio = null ) {
+	$form_id = gnf_get_reto_form_id_for_year( (int) $entry->reto_id, $anio );
+	if ( ! $form_id ) {
+		return array();
+	}
+
+	$form_data   = gnf_get_wpforms_form_definition( $form_id );
+	$form_fields = is_array( $form_data['fields'] ?? null ) ? $form_data['fields'] : array();
+	$field_points = gnf_get_reto_field_points( (int) $entry->reto_id, $anio );
+	$entry_data   = ! empty( $entry->data ) ? json_decode( $entry->data, true ) : array();
+	$raw_values   = is_array( $entry_data['__raw_values__'] ?? null ) ? $entry_data['__raw_values__'] : array();
+	$evidencias   = ! empty( $entry->evidencias ) ? json_decode( $entry->evidencias, true ) : array();
+	$responses    = array();
+
+	foreach ( $form_fields as $field ) {
+		$field_id = absint( $field['id'] ?? 0 );
+		if ( ! $field_id || gnf_is_wpforms_layout_field( $field['type'] ?? '' ) ) {
+			continue;
+		}
+
+		$field_evidencias = array_values(
+			array_filter(
+				(array) $evidencias,
+				static function ( $evidencia ) use ( $field_id ) {
+					return is_array( $evidencia ) && absint( $evidencia['field_id'] ?? 0 ) === $field_id;
+				}
+			)
+		);
+
+		$raw_value       = $raw_values[ $field_id ] ?? null;
+		$field_type      = (string) ( $field['type'] ?? 'text' );
+		$is_file_field   = in_array( $field_type, array( 'file-upload', 'file' ), true );
+		$display_value   = gnf_get_wpforms_display_value( $field, $raw_value );
+		$has_value       = gnf_reto_entry_value_has_content( $raw_value ) || ! empty( $field_evidencias );
+		$should_include  = $has_value || $is_file_field;
+		$points_config  = $field_points[ $field_id ] ?? array();
+		$label          = trim( (string) ( $field['label'] ?? $field['name'] ?? '' ) );
+
+		if ( ! $should_include ) {
+			continue;
+		}
+
+		$responses[] = array(
+			'fieldId'      => $field_id,
+			'label'        => $label ?: sprintf( 'Campo %d', $field_id ),
+			'type'         => $field_type,
+			'displayValue' => $display_value,
+			'hasValue'     => $has_value,
+			'puntos'       => (int) ( $points_config['puntos'] ?? 0 ),
+			'evidencias'   => $field_evidencias,
+		);
+	}
+
+	return $responses;
+}
+
 function gnf_format_reto_entry($entry, $anio = null)
 {
 	$reto    = get_post($entry->reto_id);
@@ -1388,6 +1572,7 @@ function gnf_format_reto_entry($entry, $anio = null)
 		'puntajeMaximo'   => $max_pts,
 		'supervisorNotes' => $entry->supervisor_notes ?: '',
 		'evidencias'      => $entry->evidencias ? json_decode($entry->evidencias, true) : array(),
+		'responses'       => gnf_build_reto_entry_responses( $entry, $anio ),
 		'createdAt'       => $entry->created_at,
 		'updatedAt'       => $entry->updated_at,
 	);
@@ -1398,9 +1583,9 @@ function gnf_format_reto_entry($entry, $anio = null)
  * Prioridad: icono per-year en configuracion_por_anio > Featured Image.
  *
  * @param int      $reto_id ID del reto.
- * @param string   $size    Tamaño de la imagen (default 'thumbnail').
+ * @param string   $size    TamaÃ±o de la imagen (default 'thumbnail').
  * @param int|null $anio    Anio para buscar icono per-year.
- * @return string URL del icono o cadena vacía.
+ * @return string URL del icono o cadena vacÃ­a.
  */
 function gnf_get_reto_icon_url($reto_id, $size = 'thumbnail', $anio = null)
 {
@@ -1473,11 +1658,12 @@ function gnf_get_reto_available_years($reto_id)
 }
 
 /**
- * Obtiene la fila de configuracion_por_anio que corresponde a un año activo.
- * Función interna compartida por los demás helpers.
+ * Obtiene la fila activa de configuracion_por_anio que corresponde exactamente
+ * al aÃ±o solicitado.
+ * FunciÃ³n interna compartida por los demÃ¡s helpers.
  *
  * @param int      $reto_id ID del reto.
- * @param int|null $anio    Anio (null = año activo).
+ * @param int|null $anio    Anio (null = aÃ±o activo).
  * @return array|null La fila del repeater o null.
  */
 function gnf_get_config_row_for_year($reto_id, $anio = null)
@@ -1489,7 +1675,6 @@ function gnf_get_config_row_for_year($reto_id, $anio = null)
 
 	$config = get_field('configuracion_por_anio', $reto_id);
 	if (!empty($config) && is_array($config)) {
-		$fallback_row = null;
 		foreach ($config as $row) {
 			if (empty($row['activo'])) {
 				continue;
@@ -1497,26 +1682,17 @@ function gnf_get_config_row_for_year($reto_id, $anio = null)
 			if (!empty($row['anio']) && absint($row['anio']) === $anio) {
 				return $row;
 			}
-			if (null === $fallback_row || absint($row['anio'] ?? 0) > absint($fallback_row['anio'] ?? 0)) {
-				$fallback_row = $row;
-			}
-		}
-
-		$catalog = gnf_get_reto_catalog($anio);
-		$slug    = gnf_get_reto_canonical_slug(get_the_title($reto_id));
-		if (!empty($catalog) && $slug && isset($catalog[$slug]) && null !== $fallback_row) {
-			return $fallback_row;
 		}
 	}
 	return null;
 }
 
 /**
- * Obtiene la URL del PDF de un reto para un año específico.
+ * Obtiene la URL del PDF de un reto para un aÃ±o especÃ­fico.
  *
  * @param int      $reto_id ID del reto.
  * @param int|null $anio    Anio.
- * @return string URL del PDF o cadena vacía.
+ * @return string URL del PDF o cadena vacÃ­a.
  */
 function gnf_get_reto_pdf_url($reto_id, $anio = null)
 {
@@ -1592,7 +1768,7 @@ function gnf_get_centro_for_docente($user_id)
 }
 
 /**
- * Protege endpoints AJAX básica con nonce.
+ * Protege endpoints AJAX bÃ¡sica con nonce.
  */
 function gnf_verify_ajax_nonce()
 {
@@ -1783,6 +1959,105 @@ function gnf_is_centro_claimed_by_other_docente( $centro_id, $exclude_user_id = 
 }
 
 /**
+ * Normaliza el filtro de registro usado en paneles admin.
+ *
+ * @param string $value Valor recibido.
+ * @return string
+ */
+function gnf_normalize_centro_registration_filter( $value ) {
+	$value = sanitize_key( (string) $value );
+
+	if ( in_array( $value, array( 'all', 'registered', 'unregistered' ), true ) ) {
+		return $value;
+	}
+
+	return 'registered';
+}
+
+/**
+ * Obtiene IDs de centros que ya tienen al menos un docente asociado o solicitante.
+ *
+ * @return int[]
+ */
+function gnf_get_registered_centro_ids() {
+	static $registered_ids = null;
+
+	if ( null !== $registered_ids ) {
+		return $registered_ids;
+	}
+
+	global $wpdb;
+
+	$registered_ids = $wpdb->get_col(
+		"SELECT DISTINCT CAST(meta_value AS UNSIGNED) FROM {$wpdb->usermeta}
+		 WHERE meta_key IN ('centro_educativo_id','centro_solicitado','gnf_centro_id')
+		   AND meta_value IS NOT NULL
+		   AND meta_value != ''
+		   AND meta_value != '0'"
+	);
+
+	$relationship_rows = $wpdb->get_results(
+		$wpdb->prepare(
+			"SELECT pm.post_id, pm.meta_value
+			 FROM {$wpdb->postmeta} pm
+			 INNER JOIN {$wpdb->posts} p ON p.ID = pm.post_id
+			 WHERE pm.meta_key = %s
+			   AND p.post_type = %s
+			   AND p.post_status NOT IN ('auto-draft', 'trash')",
+			'docentes_asociados',
+			'centro_educativo'
+		)
+	);
+
+	foreach ( (array) $relationship_rows as $row ) {
+		$docentes = maybe_unserialize( $row->meta_value );
+		if ( ! is_array( $docentes ) ) {
+			$docentes = '' !== trim( (string) $row->meta_value ) ? array( $row->meta_value ) : array();
+		}
+
+		$docentes = array_values( array_filter( array_map( 'absint', $docentes ) ) );
+		if ( ! empty( $docentes ) ) {
+			$registered_ids[] = (int) $row->post_id;
+		}
+	}
+
+	$registered_ids = array_values(
+		array_unique(
+			array_filter( array_map( 'absint', (array) $registered_ids ) )
+		)
+	);
+
+	return $registered_ids;
+}
+
+/**
+ * Filtra una lista de centros segun su estado de registro.
+ *
+ * @param int[]  $centro_ids   IDs base.
+ * @param string $registration Filtro: registered, unregistered, all.
+ * @return int[]
+ */
+function gnf_filter_centro_ids_by_registration( $centro_ids, $registration = 'registered' ) {
+	$centro_ids    = array_values( array_filter( array_map( 'absint', (array) $centro_ids ) ) );
+	$registration  = gnf_normalize_centro_registration_filter( $registration );
+
+	if ( empty( $centro_ids ) || 'all' === $registration ) {
+		return $centro_ids;
+	}
+
+	$registered_ids = gnf_get_registered_centro_ids();
+	if ( empty( $registered_ids ) ) {
+		return 'registered' === $registration ? array() : $centro_ids;
+	}
+
+	if ( 'unregistered' === $registration ) {
+		return array_values( array_diff( $centro_ids, $registered_ids ) );
+	}
+
+	return array_values( array_intersect( $centro_ids, $registered_ids ) );
+}
+
+/**
  * Marca docente como aprobado.
  */
 function gnf_approve_docente($user_id)
@@ -1794,7 +2069,7 @@ function gnf_approve_docente($user_id)
 }
 
 /**
- * Marca supervisor o comité como aprobado sin alterar su rol solicitado.
+ * Marca supervisor o comitÃ© como aprobado sin alterar su rol solicitado.
  *
  * @param int $user_id ID del usuario.
  * @return void
@@ -1926,7 +2201,7 @@ function gnf_notify_admins($tipo, $mensaje, $relacion_tipo = '', $relacion_id = 
 }
 
 /**
- * Solicitar corrección (ticket) y notificar.
+ * Solicitar correcciÃ³n (ticket) y notificar.
  */
 function gnf_request_correction($entry_id, $mensaje, $supervisor_id)
 {
@@ -2006,7 +2281,7 @@ function gnf_render_auth_block($args = array())
 			<p class="gnf-muted"><?php echo esc_html($args['description']); ?></p>
 
 			<div class="gnf-auth__tabs">
-				<button type="button" class="gnf-btn gnf-auth__tab is-active" data-tab="login"><?php esc_html_e('Iniciar sesión', 'guardianes-formularios'); ?></button>
+				<button type="button" class="gnf-btn gnf-auth__tab is-active" data-tab="login"><?php esc_html_e('Iniciar sesiÃ³n', 'guardianes-formularios'); ?></button>
 				<?php if ($args['show_register']) : ?>
 					<button type="button" class="gnf-btn gnf-btn--ghost gnf-auth__tab" data-tab="register"><?php esc_html_e('Registrarme como docente', 'guardianes-formularios'); ?></button>
 				<?php endif; ?>
@@ -2028,12 +2303,12 @@ function gnf_render_auth_block($args = array())
 						<label><?php esc_html_e('Correo o usuario', 'guardianes-formularios'); ?>
 							<input type="text" name="user_login" required />
 						</label>
-						<label><?php esc_html_e('Contraseña', 'guardianes-formularios'); ?>
+						<label><?php esc_html_e('ContraseÃ±a', 'guardianes-formularios'); ?>
 							<input type="password" name="user_pass" required />
 						</label>
 						<button class="gnf-btn" type="submit"><?php esc_html_e('Ingresar', 'guardianes-formularios'); ?></button>
 						<p class="gnf-auth__forgot">
-							<a href="<?php echo esc_url(wp_lostpassword_url($args['redirect'])); ?>"><?php esc_html_e('¿Olvidaste tu contraseña?', 'guardianes-formularios'); ?></a>
+							<a href="<?php echo esc_url(wp_lostpassword_url($args['redirect'])); ?>"><?php esc_html_e('Â¿Olvidaste tu contraseÃ±a?', 'guardianes-formularios'); ?></a>
 						</p>
 					</form>
 				</div>
@@ -2045,27 +2320,27 @@ function gnf_render_auth_block($args = array())
 							<input type="hidden" name="action" value="gnf_docente_register" />
 							<input type="hidden" name="redirect" value="<?php echo esc_url(add_query_arg('tab', 'matricula', $args['redirect'])); ?>" />
 
-							<!-- Sección: Datos Personales (2 columnas) -->
+							<!-- SecciÃ³n: Datos Personales (2 columnas) -->
 							<div class="gnf-register-section">
 								<h3 class="gnf-register-section__title">
-									<span class="gnf-register-section__icon">👤</span>
+									<span class="gnf-register-section__icon">ðŸ‘¤</span>
 									<?php esc_html_e('Datos personales', 'guardianes-formularios'); ?>
 								</h3>
 								<div class="gnf-register-grid">
 									<label class="gnf-register-field">
 										<span class="gnf-register-field__label"><?php esc_html_e('Nombre completo', 'guardianes-formularios'); ?> <span class="required">*</span></span>
-										<input type="text" name="display_name" required class="gnf-register-field__input" placeholder="Ej: María García López" />
+										<input type="text" name="display_name" required class="gnf-register-field__input" placeholder="Ej: MarÃ­a GarcÃ­a LÃ³pez" />
 									</label>
 									<label class="gnf-register-field">
-										<span class="gnf-register-field__label"><?php esc_html_e('Correo electrónico', 'guardianes-formularios'); ?> <span class="required">*</span></span>
+										<span class="gnf-register-field__label"><?php esc_html_e('Correo electrÃ³nico', 'guardianes-formularios'); ?> <span class="required">*</span></span>
 										<input type="email" name="user_email" required class="gnf-register-field__input" placeholder="docente@ejemplo.com" />
 									</label>
 									<label class="gnf-register-field">
-										<span class="gnf-register-field__label"><?php esc_html_e('Identificación (cédula)', 'guardianes-formularios'); ?> <span class="required">*</span></span>
+										<span class="gnf-register-field__label"><?php esc_html_e('IdentificaciÃ³n (cÃ©dula)', 'guardianes-formularios'); ?> <span class="required">*</span></span>
 										<input type="text" name="identificacion" required class="gnf-register-field__input" placeholder="X-XXXX-XXXX" />
 									</label>
 									<label class="gnf-register-field">
-										<span class="gnf-register-field__label"><?php esc_html_e('Teléfono', 'guardianes-formularios'); ?> <span class="required">*</span></span>
+										<span class="gnf-register-field__label"><?php esc_html_e('TelÃ©fono', 'guardianes-formularios'); ?> <span class="required">*</span></span>
 										<input type="tel" name="telefono" required class="gnf-register-field__input" placeholder="+506 XXXX-XXXX" />
 									</label>
 									<label class="gnf-register-field">
@@ -2073,16 +2348,16 @@ function gnf_render_auth_block($args = array())
 										<input type="text" name="cargo" required class="gnf-register-field__input" placeholder="Ej: Docente de ciencias" />
 									</label>
 									<label class="gnf-register-field">
-										<span class="gnf-register-field__label"><?php esc_html_e('Contraseña', 'guardianes-formularios'); ?> <span class="required">*</span></span>
-										<input type="password" name="user_pass" required minlength="8" class="gnf-register-field__input" placeholder="Mínimo 8 caracteres" />
+										<span class="gnf-register-field__label"><?php esc_html_e('ContraseÃ±a', 'guardianes-formularios'); ?> <span class="required">*</span></span>
+										<input type="password" name="user_pass" required minlength="8" class="gnf-register-field__input" placeholder="MÃ­nimo 8 caracteres" />
 									</label>
 								</div>
 							</div>
 
-							<!-- Sección: Centro Educativo -->
+							<!-- SecciÃ³n: Centro Educativo -->
 							<div class="gnf-register-section">
 								<h3 class="gnf-register-section__title">
-									<span class="gnf-register-section__icon">🏫</span>
+									<span class="gnf-register-section__icon">ðŸ«</span>
 									<?php esc_html_e('Centro educativo', 'guardianes-formularios'); ?>
 								</h3>
 
@@ -2095,7 +2370,7 @@ function gnf_render_auth_block($args = array())
 											<input type="text"
 												id="gnf-centro-search"
 												class="gnf-register-field__input gnf-centro-search-input"
-												placeholder="<?php esc_attr_e('Escriba el nombre o código MEP del centro...', 'guardianes-formularios'); ?>"
+												placeholder="<?php esc_attr_e('Escriba el nombre o cÃ³digo MEP del centro...', 'guardianes-formularios'); ?>"
 												autocomplete="off" />
 											<div class="gnf-centro-search-icon">
 												<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -2111,9 +2386,9 @@ function gnf_render_auth_block($args = array())
 									<!-- Preview del centro seleccionado -->
 									<div id="gnf-centro-preview" class="gnf-centro-preview" style="display:none;">
 										<div class="gnf-centro-preview__header">
-											<span class="gnf-centro-preview__icon">✅</span>
+											<span class="gnf-centro-preview__icon">âœ…</span>
 											<span class="gnf-centro-preview__title"><?php esc_html_e('Centro seleccionado', 'guardianes-formularios'); ?></span>
-											<button type="button" id="gnf-centro-clear" class="gnf-centro-preview__clear" title="<?php esc_attr_e('Cambiar centro', 'guardianes-formularios'); ?>">✕</button>
+											<button type="button" id="gnf-centro-clear" class="gnf-centro-preview__clear" title="<?php esc_attr_e('Cambiar centro', 'guardianes-formularios'); ?>">âœ•</button>
 										</div>
 										<div class="gnf-centro-preview__body">
 											<div class="gnf-centro-preview__name" id="gnf-centro-preview-name"></div>
@@ -2130,19 +2405,19 @@ function gnf_render_auth_block($args = array())
 											<path d="M12 16v-4"></path>
 											<path d="M12 8h.01"></path>
 										</svg>
-										<?php esc_html_e('Al seleccionar un centro, su solicitud quedará pendiente de aprobación por el docente actual o administrador.', 'guardianes-formularios'); ?>
+										<?php esc_html_e('Al seleccionar un centro, su solicitud quedarÃ¡ pendiente de aprobaciÃ³n por el docente actual o administrador.', 'guardianes-formularios'); ?>
 									</p>
 								</div>
 
 							</div>
 
-							<!-- Botón Submit -->
+							<!-- BotÃ³n Submit -->
 							<div class="gnf-register-actions">
 								<button class="gnf-btn gnf-btn--lg gnf-btn--full" type="submit">
 									<?php esc_html_e('Crear mi cuenta de docente', 'guardianes-formularios'); ?>
 								</button>
 								<p class="gnf-register-disclaimer">
-									<?php esc_html_e('Al registrarte, tu cuenta quedará pendiente de aprobación.', 'guardianes-formularios'); ?>
+									<?php esc_html_e('Al registrarte, tu cuenta quedarÃ¡ pendiente de aprobaciÃ³n.', 'guardianes-formularios'); ?>
 								</p>
 							</div>
 						</form>
@@ -2571,7 +2846,7 @@ function gnf_render_auth_block($args = array())
 							.then(res => res.json())
 							.then(data => {
 								if (!data || !data.length) {
-									resultsContainer.innerHTML = '<div class="gnf-centro-results__empty">No se encontraron centros con ese nombre o código</div>';
+									resultsContainer.innerHTML = '<div class="gnf-centro-results__empty">No se encontraron centros con ese nombre o cÃ³digo</div>';
 									return;
 								}
 
@@ -2618,13 +2893,13 @@ function gnf_render_auth_block($args = array())
 
 					// Mostrar preview
 					document.getElementById('gnf-centro-preview-name').textContent = nombre;
-					document.getElementById('gnf-centro-preview-codigo').textContent = codigo ? 'Código: ' + codigo : '';
+					document.getElementById('gnf-centro-preview-codigo').textContent = codigo ? 'CÃ³digo: ' + codigo : '';
 					document.getElementById('gnf-centro-preview-region').textContent = region || '';
 					centroPreview.style.display = 'block';
 					searchInput.closest('.gnf-register-field').style.display = 'none';
 				}
 
-				// Limpiar selección
+				// Limpiar selecciÃ³n
 				if (centroClear) {
 					centroClear.addEventListener('click', function() {
 						centroIdHidden.value = '';
@@ -2694,7 +2969,7 @@ function gnf_get_reto_allowed_tipos($reto_id)
 }
 
 /**
- * Busca supervisores de una región.
+ * Busca supervisores de una regiÃ³n.
  */
 function gnf_get_supervisores_by_region($region_id)
 {
@@ -2713,10 +2988,10 @@ function gnf_get_supervisores_by_region($region_id)
 }
 
 /**
- * Obtiene notificaciones para un supervisor (enviados a revisión, aprobados, etc.).
+ * Obtiene notificaciones para un supervisor (enviados a revisiÃ³n, aprobados, etc.).
  *
  * @param int $user_id ID del supervisor.
- * @param int $limit   Límite de notificaciones.
+ * @param int $limit   LÃ­mite de notificaciones.
  * @return array Lista de notificaciones con datos enriquecidos.
  */
 function gnf_get_supervisor_notificaciones( $user_id, $limit = 50 ) {
@@ -2766,10 +3041,132 @@ function gnf_get_supervisor_notificaciones( $user_id, $limit = 50 ) {
 }
 
 /**
- * Obtiene IDs de centros que tienen matrícula activa para un año.
- * Se usa para filtrar paneles de revisión (supervisor, comité, admin).
+ * Construye el contexto enriquecido de una notificación para React.
  *
- * @param int $anio Año.
+ * @param object $item    Fila de notificación.
+ * @param int    $user_id Usuario actual.
+ * @return array<string,mixed>
+ */
+function gnf_build_notification_context( $item, $user_id ) {
+	global $wpdb;
+
+	$context = array(
+		'actionTarget' => null,
+		'actionLabel'  => '',
+		'canReview'    => false,
+		'entryId'      => 0,
+		'retoId'       => 0,
+		'retoTitulo'   => '',
+		'centroId'     => 0,
+		'centroNombre' => '',
+		'regionName'   => '',
+		'circuito'     => '',
+		'year'         => 0,
+		'entryStatus'  => '',
+		'requiresYearValidation' => false,
+	);
+
+	if ( empty( $item->relacion_tipo ) || empty( $item->relacion_id ) ) {
+		return $context;
+	}
+
+	$current_user = wp_get_current_user();
+	$is_docente   = gnf_user_has_role( $current_user, 'docente' );
+
+	if ( 'reto_entry' === $item->relacion_tipo ) {
+		$table = $wpdb->prefix . 'gn_reto_entries';
+		$entry = $wpdb->get_row(
+			$wpdb->prepare(
+				"SELECT id, centro_id, reto_id, anio, estado, evidencias
+				 FROM {$table}
+				 WHERE id = %d",
+				$item->relacion_id
+			)
+		);
+
+		if ( ! $entry ) {
+			return $context;
+		}
+
+		$centro     = get_post( (int) $entry->centro_id );
+		$reto       = get_post( (int) $entry->reto_id );
+		$region     = function_exists( 'gnf_rest_get_centro_region_term' ) ? gnf_rest_get_centro_region_term( (int) $entry->centro_id ) : null;
+		$evidencias = ! empty( $entry->evidencias ) ? json_decode( $entry->evidencias, true ) : array();
+
+		foreach ( (array) $evidencias as $evidencia ) {
+			if ( ! empty( $evidencia['requires_year_validation'] ) ) {
+				$context['requiresYearValidation'] = true;
+				break;
+			}
+		}
+
+		$context['entryId']      = (int) $entry->id;
+		$context['retoId']       = (int) $entry->reto_id;
+		$context['retoTitulo']   = $reto ? (string) $reto->post_title : '';
+		$context['centroId']     = (int) $entry->centro_id;
+		$context['centroNombre'] = $centro ? (string) $centro->post_title : '';
+		$context['regionName']   = ( $region && ! is_wp_error( $region ) ) ? (string) $region->name : '';
+		$context['circuito']     = (string) get_post_meta( (int) $entry->centro_id, 'circuito', true );
+		$context['year']         = (int) $entry->anio;
+		$context['entryStatus']  = (string) $entry->estado;
+		$context['canReview']    = ! $is_docente && 'enviado' === $entry->estado && gnf_user_can_access_centro( $user_id, (int) $entry->centro_id );
+
+		if ( $is_docente ) {
+			$context['actionTarget'] = array(
+				'page'   => 'formularios',
+				'params' => array(
+					'reto_id' => (string) $entry->reto_id,
+				),
+			);
+			$context['actionLabel'] = 'Abrir reto';
+		} else {
+			$context['actionTarget'] = array(
+				'page'   => 'centro',
+				'params' => array(
+					'centro_id' => (string) $entry->centro_id,
+				),
+			);
+			$context['actionLabel'] = $context['canReview'] ? 'Revisar reto' : 'Abrir centro';
+		}
+
+		return $context;
+	}
+
+	if ( in_array( $item->relacion_tipo, array( 'centro', 'evidencia' ), true ) ) {
+		$centro_id = (int) $item->relacion_id;
+		$centro    = get_post( $centro_id );
+		$region    = function_exists( 'gnf_rest_get_centro_region_term' ) ? gnf_rest_get_centro_region_term( $centro_id ) : null;
+
+		$context['centroId']     = $centro_id;
+		$context['centroNombre'] = $centro ? (string) $centro->post_title : '';
+		$context['regionName']   = ( $region && ! is_wp_error( $region ) ) ? (string) $region->name : '';
+		$context['circuito']     = (string) get_post_meta( $centro_id, 'circuito', true );
+		$context['year']         = function_exists( 'gnf_get_active_year' ) ? (int) gnf_get_active_year() : (int) gmdate( 'Y' );
+
+		if ( $is_docente ) {
+			$context['actionTarget'] = array(
+				'page' => 'resumen',
+			);
+			$context['actionLabel'] = 'Ver resumen';
+		} else {
+			$context['actionTarget'] = array(
+				'page'   => 'centro',
+				'params' => array(
+					'centro_id' => (string) $centro_id,
+				),
+			);
+			$context['actionLabel'] = 'Abrir centro';
+		}
+	}
+
+	return $context;
+}
+
+/**
+ * Obtiene IDs de centros que tienen matrÃ­cula activa para un aÃ±o.
+ * Se usa para filtrar paneles de revisiÃ³n (supervisor, comitÃ©, admin).
+ *
+ * @param int $anio AÃ±o.
  * @return int[] Centro IDs.
  */
 function gnf_get_centros_with_matricula( $anio ) {
@@ -2783,6 +3180,33 @@ function gnf_get_centros_with_matricula( $anio ) {
 		)
 	);
 	return array_map( 'absint', (array) $ids );
+}
+
+/**
+ * Reaplica retos requisito en centros con matrícula activa para un año.
+ *
+ * @param int $anio Año.
+ * @return array{centros:int,actualizados:int}
+ */
+function gnf_backfill_required_retos_for_active_centros( $anio ) {
+	$anio         = gnf_normalize_year( $anio );
+	$centro_ids   = gnf_get_centros_with_matricula( $anio );
+	$actualizados = 0;
+
+	foreach ( $centro_ids as $centro_id ) {
+		$antes = gnf_get_centro_retos_seleccionados( $centro_id, $anio );
+		gnf_set_centro_retos_seleccionados( $centro_id, $anio, $antes );
+		$despues = gnf_get_centro_retos_seleccionados( $centro_id, $anio );
+
+		if ( $antes !== $despues ) {
+			$actualizados++;
+		}
+	}
+
+	return array(
+		'centros'      => count( $centro_ids ),
+		'actualizados' => $actualizados,
+	);
 }
 
 /**
@@ -2810,7 +3234,7 @@ function gnf_get_aprobados_por_centro_cached($centro_id, $anio)
 }
 
 /**
- * Estados válidos de un reto entry.
+ * Estados vÃ¡lidos de un reto entry.
  */
 function gnf_get_valid_estados()
 {
@@ -2835,7 +3259,7 @@ function gnf_get_estado_label($estado)
 		'completo'    => 'Completo',
 		'enviado'     => 'Enviado',
 		'aprobado'    => 'Aprobado',
-		'correccion'  => 'Corrección',
+		'correccion'  => 'CorrecciÃ³n',
 	);
 	return $labels[$estado] ?? ucwords(str_replace('_', ' ', $estado));
 }
@@ -2866,7 +3290,7 @@ function gnf_update_entry_estado($entry_id, $nuevo_estado)
 }
 
 /**
- * Obtiene todas las entries de un centro para un año.
+ * Obtiene todas las entries de un centro para un aÃ±o.
  */
 function gnf_get_centro_entries($centro_id, $anio)
 {
@@ -2883,7 +3307,7 @@ function gnf_get_centro_entries($centro_id, $anio)
 }
 
 /**
- * Verifica si todos los retos matriculados están completos o aprobados.
+ * Verifica si todos los retos matriculados estÃ¡n completos o aprobados.
  */
 function gnf_are_all_retos_complete($centro_id, $anio)
 {
@@ -2934,4 +3358,3 @@ function gnf_get_puntos_potenciales($centro_id, $anio)
 
 	return $potencial;
 }
-

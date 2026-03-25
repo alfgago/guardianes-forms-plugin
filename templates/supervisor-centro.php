@@ -71,7 +71,7 @@ $icons = array(
 		<div class="gnf-sidebar__logo">
 			<img src="<?php echo esc_url(GNF_LOGO_URL); ?>" alt="Guardianes" style="height: 40px; width: auto; background: #fff; border-radius: 4px;" />
 			<div>
-				<small style="opacity: 0.7; font-size: 0.75rem;">Panel Supervisor</small>
+				<small style="opacity: 0.7; font-size: 0.75rem;">Panel DRE</small>
 			</div>
 		</div>
 
@@ -189,133 +189,150 @@ $icons = array(
 				</div>
 			</div>
 
-			<!-- Retos Table -->
+			<!-- Retos Accordion -->
 			<div class="gnf-section">
 				<div class="gnf-section__header">
 					<h3 class="gnf-section__title">Eco Retos del Centro</h3>
 				</div>
-				<div class="gnf-section__body gnf-section__body--table">
-					<table class="gnf-table">
-						<thead>
-							<tr>
-								<th>Reto</th>
-								<th>Estado</th>
-								<th>Puntaje</th>
-								<th>Evidencias</th>
-								<th>Notas</th>
-								<th>Acciones</th>
-							</tr>
-						</thead>
-						<tbody>
-							<?php while ($retos->have_posts()) : $retos->the_post(); ?>
-								<?php
-								$reto_id = get_the_ID();
-								$entry   = $entries[$reto_id] ?? null;
-								$estado  = $entry ? $entry->estado : 'no_iniciado';
-								$puntaje = $entry ? (int) $entry->puntaje : 0;
-								$puntaje_max = gnf_get_reto_max_points($reto_id, $anio);
-								$reto_icon_sv = gnf_get_reto_icon_url($reto_id);
-								$reto_color_sv = gnf_get_reto_color($reto_id);
-								$notes   = $entry ? $entry->supervisor_notes : '';
-								$warnings = array();
-								if ($entry && ! empty($entry->evidencias)) {
-									$evs = json_decode($entry->evidencias, true);
-									foreach ((array) $evs as $ev) {
-										if (! empty($ev['requires_year_validation'])) {
-											$warnings[] = 'Foto requiere validación de año';
-										}
+				<div class="gnf-section__body">
+					<div class="gnf-reto-accordion">
+						<?php while ($retos->have_posts()) : $retos->the_post(); ?>
+							<?php
+							$reto_id = get_the_ID();
+							$entry   = $entries[$reto_id] ?? null;
+							$estado  = $entry ? $entry->estado : 'no_iniciado';
+							$puntaje = $entry ? (int) $entry->puntaje : 0;
+							$puntaje_max = gnf_get_reto_max_points($reto_id, $anio);
+							$reto_icon_sv = gnf_get_reto_icon_url($reto_id);
+							$reto_color_sv = gnf_get_reto_color($reto_id);
+							$notes   = $entry ? $entry->supervisor_notes : '';
+							$warnings = array();
+							if ($entry && ! empty($entry->evidencias)) {
+								$evs = json_decode($entry->evidencias, true);
+								foreach ((array) $evs as $ev) {
+									if (! empty($ev['requires_year_validation'])) {
+										$warnings[] = 'Foto requiere validación de año';
 									}
 								}
-								?>
-								<tr class="<?php echo 'enviado' === $estado ? 'gnf-table__row--highlight' : ''; ?>">
-									<td>
-										<div style="display:flex;align-items:center;gap:8px;">
-											<?php if ( $reto_icon_sv ) : ?>
-												<span style="display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:6px;background:<?php echo esc_attr( $reto_color_sv ); ?>1a;flex-shrink:0;">
-													<img src="<?php echo esc_url( $reto_icon_sv ); ?>" alt="" style="width:22px;height:22px;object-fit:contain;" />
-												</span>
-											<?php endif; ?>
-											<strong><?php the_title(); ?></strong>
-										</div>
-									</td>
-									<td>
-										<span class="gnf-badge gnf-badge--<?php 
-											echo 'aprobado' === $estado ? 'forest' : 
-												('enviado' === $estado ? 'sun' : 
-												('correccion' === $estado ? 'coral' : 'default')); 
-										?>">
+							}
+							$badge_class = 'aprobado' === $estado ? 'forest' :
+								('enviado' === $estado ? 'sun' :
+								('correccion' === $estado ? 'coral' : 'default'));
+							$is_actionable = $entry && in_array($estado, array('enviado', 'correccion'), true);
+							?>
+							<details class="gnf-reto-accordion__item <?php echo 'enviado' === $estado ? 'gnf-reto-accordion__item--highlight' : ''; ?>"<?php echo $is_actionable ? ' open' : ''; ?>>
+								<summary class="gnf-reto-accordion__summary">
+									<?php if ( $reto_icon_sv ) : ?>
+										<span class="gnf-reto-accordion__icon" style="background:<?php echo esc_attr( $reto_color_sv ); ?>1a;">
+											<img src="<?php echo esc_url( $reto_icon_sv ); ?>" alt="" />
+										</span>
+									<?php endif; ?>
+									<span class="gnf-reto-accordion__title"><?php the_title(); ?></span>
+									<span class="gnf-reto-accordion__meta">
+										<span class="gnf-reto-accordion__points"><?php echo esc_html($puntaje); ?> / <?php echo esc_html($puntaje_max); ?></span>
+										<span class="gnf-badge gnf-badge--<?php echo $badge_class; ?>">
 											<?php echo esc_html(ucwords(str_replace('_', ' ', $estado))); ?>
 										</span>
-									</td>
-									<td><?php echo esc_html($puntaje); ?> / <?php echo esc_html($puntaje_max); ?></td>
-								<td>
-										<?php
-										if ($entry && ! empty($entry->evidencias)) {
-											$evidencias = json_decode($entry->evidencias, true);
-											if (! empty($evidencias)) {
-												echo '<div class="gnf-evidencias-list">';
-												foreach ($evidencias as $ev) {
-													$url = ! empty($ev['path_local'])
-														? add_query_arg(
-															array(
-																'action'    => 'gnf_descargar_evidencia',
-																'nonce'     => wp_create_nonce('gnf_nonce'),
-																'file'      => base64_encode($ev['path_local']),
-																'centro_id' => $centro_id,
-															),
-															admin_url('admin-ajax.php')
-														)
-														: ($ev['ruta'] ?? '');
-													echo '<a class="gnf-btn gnf-btn--sm gnf-btn--ghost" target="_blank" href="' . esc_url($url) . '">' . esc_html($ev['nombre'] ?? 'Archivo') . '</a> ';
-													if (! empty($ev['warning'])) {
-														echo '<small class="gnf-muted">' . esc_html($ev['warning']) . '</small>';
+									</span>
+								</summary>
+								<div class="gnf-reto-accordion__body">
+									<div class="gnf-reto-accordion__body-grid">
+										<!-- Evidencias -->
+										<div>
+											<div class="gnf-reto-accordion__field-label">Evidencias</div>
+											<?php
+											if ($entry && ! empty($entry->evidencias)) {
+												$evidencias = json_decode($entry->evidencias, true);
+												if (! empty($evidencias)) {
+													echo '<div class="gnf-evidencias-list">';
+													foreach ($evidencias as $ev) {
+														$url = ! empty($ev['path_local'])
+															? add_query_arg(
+																array(
+																	'action'    => 'gnf_descargar_evidencia',
+																	'nonce'     => wp_create_nonce('gnf_nonce'),
+																	'file'      => base64_encode($ev['path_local']),
+																	'centro_id' => $centro_id,
+																),
+																admin_url('admin-ajax.php')
+															)
+															: ($ev['ruta'] ?? '');
+														echo '<a class="gnf-btn gnf-btn--sm gnf-btn--ghost" target="_blank" href="' . esc_url($url) . '">' . esc_html($ev['nombre'] ?? 'Archivo') . '</a> ';
+														if (! empty($ev['warning'])) {
+															echo '<small class="gnf-muted">' . esc_html($ev['warning']) . '</small>';
+														}
 													}
+													echo '</div>';
 												}
-												echo '</div>';
+											} else {
+												echo '<span class="gnf-muted">Sin evidencias</span>';
 											}
-										} else {
-											echo '<span class="gnf-muted">Sin evidencias</span>';
-										}
-										?>
-									</td>
-									<td>
-										<?php if ($notes) : ?>
-											<span class="gnf-muted"><?php echo esc_html(substr($notes, 0, 50)); ?><?php echo strlen($notes) > 50 ? '...' : ''; ?></span>
-										<?php else : ?>
-											<span class="gnf-muted">—</span>
-										<?php endif; ?>
-										<?php if ($warnings) : ?>
-											<div style="margin-top: 4px;">
-												<?php foreach ($warnings as $w) : ?>
-													<span class="gnf-badge gnf-badge--coral" style="font-size: 0.7rem;"><?php echo esc_html($w); ?></span>
-												<?php endforeach; ?>
-											</div>
-										<?php endif; ?>
-									</td>
-									<td>
-										<?php if ($entry && in_array($estado, array('enviado', 'correccion'), true)) : ?>
-											<form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" style="display: flex; flex-direction: column; gap: 8px;">
-												<?php wp_nonce_field('gnf_supervisor_action', 'gnf_nonce'); ?>
-												<input type="hidden" name="action" value="gnf_supervisor_update" />
-												<input type="hidden" name="entry_id" value="<?php echo esc_attr($entry->id); ?>" />
-												<textarea name="nota" rows="2" placeholder="Nota para el docente..." style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 6px; font-size: 0.85rem;"><?php echo esc_textarea($notes); ?></textarea>
-												<div style="display: flex; gap: 4px;">
-													<button class="gnf-btn gnf-btn--sm" name="estado" value="aprobado"><?php echo $icons['check']; ?> Aprobar</button>
-													<button class="gnf-btn gnf-btn--sm gnf-btn--ghost" name="estado" value="correccion"><?php echo $icons['alert']; ?> Corrección</button>
+											?>
+											<?php if ($warnings) : ?>
+												<div style="margin-top: 8px;">
+													<?php foreach ($warnings as $w) : ?>
+														<span class="gnf-badge gnf-badge--coral" style="font-size: 0.7rem;"><?php echo esc_html($w); ?></span>
+													<?php endforeach; ?>
 												</div>
-											</form>
-										<?php elseif ($entry && 'aprobado' === $estado) : ?>
-											<span class="gnf-badge gnf-badge--forest"><?php echo $icons['check']; ?> Aprobado</span>
-										<?php else : ?>
-											<span class="gnf-muted">Sin envío</span>
-										<?php endif; ?>
-									</td>
-								</tr>
-							<?php endwhile; ?>
-						</tbody>
-					</table>
+											<?php endif; ?>
+										</div>
+
+										<!-- Notas -->
+										<div>
+											<div class="gnf-reto-accordion__field-label">Notas del supervisor</div>
+											<?php if ($notes) : ?>
+												<div class="gnf-correction-note">
+													<div class="gnf-correction-note__label">Observación</div>
+													<?php echo esc_html($notes); ?>
+												</div>
+											<?php else : ?>
+												<span class="gnf-muted">Sin notas</span>
+											<?php endif; ?>
+										</div>
+
+										<!-- Acciones -->
+										<div class="gnf-reto-accordion__actions">
+											<?php if ($is_actionable) : ?>
+												<form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" class="gnf-sv-review-form" style="display: flex; flex-direction: column; gap: 10px;">
+													<?php wp_nonce_field('gnf_supervisor_action', 'gnf_nonce'); ?>
+													<input type="hidden" name="action" value="gnf_supervisor_update" />
+													<input type="hidden" name="entry_id" value="<?php echo esc_attr($entry->id); ?>" />
+													<textarea name="nota" rows="2" placeholder="Escribe una observación para el docente..." style="width: 100%; padding: 10px; border: 1px solid var(--gnf-gray-200); border-radius: var(--gnf-radius-sm); font-size: 0.85rem; font-family: var(--gnf-font-body); resize: vertical;"><?php echo esc_textarea($notes); ?></textarea>
+													<div style="display: flex; gap: 8px;">
+														<button class="gnf-btn gnf-btn--sm" name="estado" value="aprobado"><?php echo $icons['check']; ?> Aprobar</button>
+														<button class="gnf-btn gnf-btn--sm gnf-btn--danger gnf-sv-correccion-btn" name="estado" value="correccion"><?php echo $icons['alert']; ?> Pedir Corrección</button>
+													</div>
+												</form>
+											<?php elseif ($entry && 'aprobado' === $estado) : ?>
+												<span class="gnf-badge gnf-badge--forest"><?php echo $icons['check']; ?> Aprobado</span>
+											<?php else : ?>
+												<span class="gnf-muted">Sin envío</span>
+											<?php endif; ?>
+										</div>
+									</div>
+								</div>
+							</details>
+						<?php endwhile; ?>
+					</div>
 				</div>
 			</div>
+
+			<script>
+			document.addEventListener('DOMContentLoaded', function() {
+				document.querySelectorAll('.gnf-sv-correccion-btn').forEach(function(btn) {
+					btn.addEventListener('click', function(e) {
+						var form = this.closest('.gnf-sv-review-form');
+						var nota = form.querySelector('textarea[name="nota"]');
+						if (! nota.value.trim()) {
+							e.preventDefault();
+							nota.style.borderColor = 'var(--gnf-coral)';
+							nota.setAttribute('placeholder', 'Debes indicar el motivo de la corrección...');
+							nota.focus();
+						}
+					});
+				});
+			});
+			</script>
 		</div><!-- /.gnf-main__inner -->
 	</main>
 </div><!-- /.gnf-dashboard -->

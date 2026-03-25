@@ -406,6 +406,16 @@ $active_tab_title = $tab_titles[$active_docente_tab] ?? 'Dashboard';
 												<a class="gnf-btn gnf-btn--sm gnf-btn--ghost" href="<?php echo esc_url($reto_url); ?>">Abrir reto</a>
 											</td>
 										</tr>
+										<?php if ('correccion' === $estado_resumen && $entry_resumen && ! empty($entry_resumen->supervisor_notes)) : ?>
+											<tr>
+												<td colspan="4" style="padding-top:0; border-top:none;">
+													<div class="gnf-correction-note">
+														<div class="gnf-correction-note__label">Observación del supervisor</div>
+														<?php echo esc_html($entry_resumen->supervisor_notes); ?>
+													</div>
+												</td>
+											</tr>
+										<?php endif; ?>
 									<?php endforeach; ?>
 								<?php else : ?>
 									<tr>
@@ -504,34 +514,34 @@ $active_tab_title = $tab_titles[$active_docente_tab] ?? 'Dashboard';
 									<td><?php echo esc_html($centro_jornada_label ?: '-'); ?></td>
 								</tr>
 								<tr>
-									<th>Tipologia</th>
-									<td><?php echo esc_html($centro_tipologia_label ?: '-'); ?></td>
 									<th>Total estudiantes</th>
 									<td><?php echo esc_html($centro_total_estudiantes); ?></td>
-								</tr>
-								<tr>
 									<th>Hombres</th>
 									<td><?php echo esc_html($centro_estudiantes_hombres); ?></td>
+								</tr>
+								<tr>
 									<th>Mujeres</th>
 									<td><?php echo esc_html($centro_estudiantes_mujeres); ?></td>
-								</tr>
-								<tr>
 									<th>Migrantes</th>
 									<td><?php echo esc_html($centro_estudiantes_migrantes); ?></td>
-									<th>Ultimo galardon</th>
-									<td><?php echo $centro_ultimo_galardon ? esc_html(str_repeat('*', $centro_ultimo_galardon) . " ({$centro_ultimo_galardon})") : '-'; ?></td>
 								</tr>
 								<tr>
-									<th>Ultimo ano participacion</th>
+									<th>Último galardón</th>
+									<td><?php echo $centro_ultimo_galardon ? esc_html(str_repeat('*', $centro_ultimo_galardon) . " ({$centro_ultimo_galardon})") : '-'; ?></td>
+									<th>Último año participación</th>
 									<td><?php echo esc_html($centro_ultimo_anio_label ?: '-'); ?></td>
+								</tr>
+								<tr>
 									<th>Cargo coordinador PBAE</th>
 									<td><?php echo esc_html($coordinador_cargo_label ?: '-'); ?></td>
-								</tr>
-								<tr>
 									<th>Coordinador PBAE</th>
 									<td><?php echo esc_html($coordinador_nombre ?: '-'); ?></td>
+								</tr>
+								<tr>
 									<th>Celular coordinador</th>
 									<td><?php echo esc_html($coordinador_celular ?: '-'); ?></td>
+									<th></th>
+									<td></td>
 								</tr>
 								<tr>
 									<th>Estado centro</th>
@@ -637,15 +647,7 @@ $active_tab_title = $tab_titles[$active_docente_tab] ?? 'Dashboard';
 											<?php endforeach; ?>
 										</select>
 									</div>
-									<div class="gnf-form-group">
-										<label class="gnf-label">Tipologia</label>
-										<select name="centro_tipologia" class="gnf-input" required>
-											<option value="">- Seleccione -</option>
-											<?php foreach ($centro_profile_choices['tipologia'] as $choice_key => $choice_label) : ?>
-												<option value="<?php echo esc_attr($choice_key); ?>" <?php selected((string) $centro_tipologia, (string) $choice_key); ?>><?php echo esc_html($choice_label); ?></option>
-											<?php endforeach; ?>
-										</select>
-									</div>
+									<input type="hidden" name="centro_tipologia" value="<?php echo esc_attr($centro_tipologia); ?>" />
 									<div class="gnf-form-group">
 										<label class="gnf-label">Total estudiantes</label>
 										<input type="number" min="0" name="centro_total_estudiantes" class="gnf-input" value="<?php echo esc_attr($centro_total_estudiantes); ?>" required />
@@ -663,7 +665,7 @@ $active_tab_title = $tab_titles[$active_docente_tab] ?? 'Dashboard';
 										<input type="number" min="0" name="centro_estudiantes_migrantes" class="gnf-input" value="<?php echo esc_attr($centro_estudiantes_migrantes); ?>" />
 									</div>
 									<div class="gnf-form-group">
-										<label class="gnf-label">Ultimo galardon</label>
+										<label class="gnf-label">Último galardón</label>
 										<select name="centro_ultimo_galardon_estrellas" class="gnf-input" required>
 											<?php foreach ($centro_profile_choices['ultimo_galardon_estrellas'] as $choice_key => $choice_label) : ?>
 												<option value="<?php echo esc_attr($choice_key); ?>" <?php selected((string) $centro_ultimo_galardon, (string) $choice_key); ?>><?php echo esc_html($choice_label); ?></option>
@@ -671,7 +673,7 @@ $active_tab_title = $tab_titles[$active_docente_tab] ?? 'Dashboard';
 										</select>
 									</div>
 									<div class="gnf-form-group">
-										<label class="gnf-label">Ultimo ano de participacion</label>
+										<label class="gnf-label">Último año de participación</label>
 										<select id="gnf-centro-edit-ultimo-anio" name="centro_ultimo_anio_participacion" class="gnf-input" required>
 											<?php foreach ($centro_profile_choices['ultimo_anio_participacion'] as $choice_key => $choice_label) : ?>
 												<option value="<?php echo esc_attr($choice_key); ?>" <?php selected((string) $centro_ultimo_anio, (string) $choice_key); ?>><?php echo esc_html($choice_label); ?></option>
@@ -679,7 +681,7 @@ $active_tab_title = $tab_titles[$active_docente_tab] ?? 'Dashboard';
 										</select>
 									</div>
 									<div class="gnf-form-group" id="gnf-centro-edit-otro-wrap" style="<?php echo 'otro' === (string) $centro_ultimo_anio ? '' : 'display:none;'; ?>">
-										<label class="gnf-label">Especifica el ano</label>
+										<label class="gnf-label">Especifica el año</label>
 										<input type="number" min="1900" max="<?php echo esc_attr(gmdate('Y')); ?>" name="centro_ultimo_anio_participacion_otro" class="gnf-input" value="<?php echo esc_attr($centro_ultimo_anio_otro); ?>" />
 									</div>
 									<div class="gnf-form-group">

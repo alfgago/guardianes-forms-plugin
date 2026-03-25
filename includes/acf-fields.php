@@ -198,7 +198,7 @@ function gnf_register_acf_fields()
 				),
 				array(
 					'key'           => 'field_gnf_ultimo_galardon_estrellas',
-					'label'         => 'Ultimo galardon logrado',
+					'label'         => 'Último galardón logrado',
 					'name'          => 'ultimo_galardon_estrellas',
 					'type'          => 'select',
 					'choices'       => array(
@@ -213,7 +213,7 @@ function gnf_register_acf_fields()
 				),
 				array(
 					'key'           => 'field_gnf_ultimo_anio_participacion',
-					'label'         => 'Ultimo ano de participacion',
+					'label'         => 'Último año de participación',
 					'name'          => 'ultimo_anio_participacion',
 					'type'          => 'select',
 					'choices'       => array(
@@ -226,7 +226,7 @@ function gnf_register_acf_fields()
 				),
 				array(
 					'key'   => 'field_gnf_ultimo_anio_participacion_otro',
-					'label' => 'Ultimo ano de participacion (otro)',
+					'label' => 'Último año de participación (otro)',
 					'name'  => 'ultimo_anio_participacion_otro',
 					'type'  => 'number',
 					'min'   => 1900,

@@ -32,7 +32,37 @@ function gnf_collect_evidencias( $fields, $anio, $centro_id, $reto_id ) {
 			continue;
 		}
 
-		$files = is_array( $value ) ? $value : array( $value );
+		// WPForms Modern Upload (Dropzone) stores file data as JSON in the
+		// hidden input, e.g. [{"file":"hash.png","url":"https://..."}].
+		// The autosave sends this JSON string. Parse it and extract URLs.
+		$files = array();
+		if ( is_array( $value ) ) {
+			$files = $value;
+		} elseif ( is_string( $value ) ) {
+			$trimmed = trim( $value );
+			if ( 0 === strpos( $trimmed, '[' ) || 0 === strpos( $trimmed, '{' ) ) {
+				$parsed = json_decode( $trimmed, true );
+				if ( is_array( $parsed ) ) {
+					// Single object: wrap in array.
+					if ( isset( $parsed['url'] ) || isset( $parsed['file'] ) ) {
+						$parsed = array( $parsed );
+					}
+					foreach ( $parsed as $file_obj ) {
+						if ( is_array( $file_obj ) && ! empty( $file_obj['url'] ) ) {
+							$files[] = $file_obj['url'];
+						} elseif ( is_array( $file_obj ) && ! empty( $file_obj['file'] ) ) {
+							$files[] = 'wpforms/tmp/' . $file_obj['file'];
+						} elseif ( is_string( $file_obj ) && '' !== $file_obj ) {
+							$files[] = $file_obj;
+						}
+					}
+				}
+			}
+			// If not JSON or parsing failed, treat as a plain path/URL.
+			if ( empty( $files ) && '' !== $trimmed ) {
+				$files = array( $trimmed );
+			}
+		}
 		foreach ( $files as $file_path ) {
 			$file_path = is_string( $file_path ) ? trim( $file_path ) : '';
 			if ( '' === $file_path ) {
@@ -109,6 +139,9 @@ function gnf_collect_evidencias( $fields, $anio, $centro_id, $reto_id ) {
 
 			// Validación de fecha por EXIF (solo imágenes).
 			if ( 'imagen' === $tipo ) {
+				if ( ! function_exists( 'wp_read_image_metadata' ) ) {
+					require_once ABSPATH . 'wp-admin/includes/image.php';
+				}
 				$metadata = wp_read_image_metadata( $dest );
 				$year_ok  = false;
 				if ( ! empty( $metadata['created_timestamp'] ) ) {
@@ -175,16 +208,8 @@ add_action( 'wp_ajax_nopriv_gnf_descargar_evidencia', 'gnf_ajax_descargar_eviden
  * Dispara notificación para fotos sin fecha válida.
  */
 function gnf_notify_invalid_photo_date( $centro_id, $file_path ) {
-	$region = get_post_meta( $centro_id, 'region', true );
-	if ( empty( $region ) ) {
-		$terms = wp_get_post_terms( $centro_id, 'gn_region', array( 'fields' => 'ids' ) );
-		$region = $terms ? $terms[0] : '';
-	}
-	$supervisores = gnf_get_supervisores_by_region( $region );
-	$mensaje      = 'Evidencia requiere validación de año: ' . wp_basename( $file_path );
-	if ( $supervisores ) {
-		foreach ( $supervisores as $sup ) {
-			gnf_insert_notification( $sup->ID, 'invalid_photo_date', $mensaje, 'evidencia', $centro_id );
-		}
-	}
+	// La notificación final para supervisión se emite una vez que existe
+	// el reto entry, para incluir centro/reto exactos y evitar duplicados.
+	// Este hook se conserva solo por compatibilidad y trazabilidad local.
+	do_action( 'gnf_invalid_photo_date_detected', (int) $centro_id, wp_basename( (string) $file_path ) );
 }

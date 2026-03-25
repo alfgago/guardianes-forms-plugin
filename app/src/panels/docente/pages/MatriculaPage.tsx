@@ -1,17 +1,22 @@
-﻿import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { Save } from 'lucide-react';
 import { matriculaApi } from '@/api/matricula';
-import { useYearStore } from '@/stores/useYearStore';
-import { Spinner } from '@/components/ui/Spinner';
 import { Alert } from '@/components/ui/Alert';
-import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
+import { Card } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
+import { Spinner } from '@/components/ui/Spinner';
 import { Textarea } from '@/components/ui/Textarea';
 import { useToast } from '@/components/ui/Toast';
-import type { MatriculaFormValues, MatriculaReto } from '@/types';
-import { Save } from 'lucide-react';
+import { useDebounce } from '@/hooks/useDebounce';
+import { useYearStore } from '@/stores/useYearStore';
+import type { MatriculaFormValues, MatriculaPrefill, MatriculaReto } from '@/types';
+
+type MatriculaSavePayload = MatriculaFormValues & { retosSeleccionados: number[] };
+type SaveMode = 'auto' | 'manual';
+type SaveState = 'idle' | 'saving' | 'saved' | 'error';
 
 function toOptions(record: Record<string, string>) {
   return Object.entries(record).map(([value, label]) => ({ value, label }));
@@ -27,6 +32,21 @@ function getRequiredSelectedIds(retos: MatriculaReto[], selectedIds: number[]) {
   return Array.from(ids);
 }
 
+function formatSavedStamp(savedAt?: string | null) {
+  if (!savedAt) return '';
+
+  const date = new Date(savedAt);
+  if (Number.isNaN(date.getTime())) return '';
+
+  return date.toLocaleString('es-CR', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
 export function MatriculaPage() {
   const year = useYearStore((s) => s.selectedYear);
   const queryClient = useQueryClient();
@@ -39,25 +59,49 @@ export function MatriculaPage() {
 
   const [form, setForm] = useState<MatriculaFormValues | null>(null);
   const [selectedRetos, setSelectedRetos] = useState<number[]>([]);
+  const [saveState, setSaveState] = useState<SaveState>('idle');
+  const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
+  const initializedRef = useRef(false);
+  const mountedRef = useRef(true);
+  const saveInFlightRef = useRef(false);
+  const lastSavedKeyRef = useRef('');
+  const queuedSaveRef = useRef<{ payload: MatriculaSavePayload; mode: SaveMode; key: string } | null>(null);
 
   useEffect(() => {
-    if (!data) return;
+    mountedRef.current = true;
+
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    initializedRef.current = false;
+    setForm(null);
+    setSelectedRetos([]);
+    setSaveState('idle');
+    setLastSavedAt(null);
+    lastSavedKeyRef.current = '';
+    queuedSaveRef.current = null;
+  }, [year]);
+
+  useEffect(() => {
+    if (!data || initializedRef.current) return;
+
+    const initialPayload = {
+      ...data.prefill,
+      retosSeleccionados: getRequiredSelectedIds(data.retosDisponibles, data.retosSeleccionados),
+    };
+
     setForm(data.prefill);
     setSelectedRetos(data.retosSeleccionados);
+    setLastSavedAt(new Date().toISOString());
+    lastSavedKeyRef.current = JSON.stringify(initialPayload);
+    initializedRef.current = true;
   }, [data]);
 
   const saveMatricula = useMutation({
-    mutationFn: (payload: MatriculaFormValues & { retosSeleccionados: number[] }) => matriculaApi.save(payload, year),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['matricula-prefill', year] });
-      queryClient.invalidateQueries({ queryKey: ['docente-dashboard', year] });
-      queryClient.invalidateQueries({ queryKey: ['docente-retos', year] });
-      queryClient.invalidateQueries({ queryKey: ['wizard-steps', year] });
-      toast('success', 'MatrÃ­cula guardada correctamente.');
-    },
-    onError: (error: Error) => {
-      toast('error', error.message || 'No se pudo guardar la matrÃ­cula.');
-    },
+    mutationFn: (payload: MatriculaSavePayload) => matriculaApi.save(payload, year),
   });
 
   const regionOptions = useMemo(
@@ -65,15 +109,100 @@ export function MatriculaPage() {
     [data?.regiones],
   );
 
+  const savePayload = useMemo<MatriculaSavePayload | null>(() => {
+    if (!data || !form) return null;
+
+    return {
+      ...form,
+      retosSeleccionados: getRequiredSelectedIds(data.retosDisponibles, selectedRetos),
+    };
+  }, [data, form, selectedRetos]);
+
+  const debouncedSavePayload = useDebounce(savePayload, 900);
+
+  const persistMatricula = useCallback(async (payload: MatriculaSavePayload, mode: SaveMode) => {
+    const payloadKey = JSON.stringify(payload);
+
+    if (mode === 'auto' && payloadKey === lastSavedKeyRef.current) {
+      return;
+    }
+
+    if (saveInFlightRef.current) {
+      queuedSaveRef.current = { payload, mode, key: payloadKey };
+      return;
+    }
+
+    saveInFlightRef.current = true;
+    if (mountedRef.current) {
+      setSaveState('saving');
+    }
+
+    try {
+      await saveMatricula.mutateAsync(payload);
+
+      lastSavedKeyRef.current = payloadKey;
+      queryClient.setQueryData<MatriculaPrefill>(['matricula-prefill', year], (current) => (
+        current
+          ? {
+            ...current,
+            prefill: payload,
+            retosSeleccionados: payload.retosSeleccionados,
+          }
+          : current
+      ));
+      queryClient.invalidateQueries({ queryKey: ['docente-dashboard', year] });
+      queryClient.invalidateQueries({ queryKey: ['docente-retos', year] });
+      queryClient.invalidateQueries({ queryKey: ['wizard-steps', year] });
+
+      if (mountedRef.current) {
+        setLastSavedAt(new Date().toISOString());
+        setSaveState('saved');
+      }
+
+      if (mode === 'manual') {
+        toast('success', 'Matrícula guardada correctamente.');
+      }
+    } catch (error) {
+      if (mountedRef.current) {
+        setSaveState('error');
+      }
+
+      if (mode === 'manual') {
+        const message = error instanceof Error ? error.message : 'No se pudo guardar la matrícula.';
+        toast('error', message || 'No se pudo guardar la matrícula.');
+      }
+    } finally {
+      saveInFlightRef.current = false;
+
+      const nextSave = queuedSaveRef.current;
+      queuedSaveRef.current = null;
+
+      if (nextSave && nextSave.key !== lastSavedKeyRef.current) {
+        void persistMatricula(nextSave.payload, nextSave.mode);
+      }
+    }
+  }, [queryClient, saveMatricula, toast, year]);
+
+  useEffect(() => {
+    if (!initializedRef.current || !debouncedSavePayload) return;
+    void persistMatricula(debouncedSavePayload, 'auto');
+  }, [debouncedSavePayload, persistMatricula]);
+
   if (isLoading) return <Spinner />;
-  if (!data || !form) return <Alert variant="error">Error al cargar los datos de matrÃ­cula.</Alert>;
+  if (!data || !form) return <Alert variant="error">Error al cargar los datos de matrícula.</Alert>;
 
   const selectedSet = new Set(selectedRetos);
   const cantones = data.cantonesPorProvincia[form.centroProvincia] ?? [];
-  const totalSelected = getRequiredSelectedIds(data.retosDisponibles, selectedRetos).length;
+  const totalSelected = savePayload?.retosSeleccionados.length ?? 0;
+  const saveStatusLabel = (() => {
+    if (saveState === 'saving') return 'Guardando cambios...';
+    if (saveState === 'saved' && lastSavedAt) return `Guardado automatico: ${formatSavedStamp(lastSavedAt)}`;
+    if (saveState === 'error') return 'No se pudo guardar automaticamente. Revisa la conexion y vuelve a intentarlo.';
+    return 'Guardado automatico activo. Los cambios en la matricula y en la seleccion de eco retos se guardan al editar.';
+  })();
 
   const handleField = <K extends keyof MatriculaFormValues>(key: K, value: MatriculaFormValues[K]) => {
-    setForm((current) => current ? { ...current, [key]: value } : current);
+    setForm((current) => (current ? { ...current, [key]: value } : current));
   };
 
   const toggleReto = (reto: MatriculaReto) => {
@@ -87,10 +216,8 @@ export function MatriculaPage() {
   };
 
   const handleSave = () => {
-    saveMatricula.mutate({
-      ...form,
-      retosSeleccionados: getRequiredSelectedIds(data.retosDisponibles, selectedRetos),
-    });
+    if (!savePayload) return;
+    void persistMatricula(savePayload, 'manual');
   };
 
   return (
@@ -106,15 +233,21 @@ export function MatriculaPage() {
         }}
       >
         <div>
-          <h2 style={{ marginBottom: 'var(--gnf-space-2)' }}>MatrÃ­cula del Centro Educativo {year}</h2>
+          <h2 style={{ marginBottom: 'var(--gnf-space-2)' }}>Matrícula del Centro Educativo {year}</h2>
           <p style={{ color: 'var(--gnf-muted)', marginBottom: 0 }}>
-            AquÃ­ puedes editar los datos del centro y definir todos los eco retos matriculados del aÃ±o.
+            Aquí puedes editar los datos del centro y definir todos los eco retos matriculados del año.
           </p>
         </div>
 
-        <Button variant="primary" icon={<Save size={16} />} loading={saveMatricula.isPending} onClick={handleSave}>
-          Guardar matrÃ­cula
+        <Button variant="primary" icon={<Save size={16} />} loading={saveState === 'saving'} onClick={handleSave}>
+          Guardar ahora
         </Button>
+      </div>
+
+      <div style={{ marginBottom: 'var(--gnf-space-6)' }}>
+        <Alert variant={saveState === 'error' ? 'error' : saveState === 'saved' ? 'success' : 'info'}>
+          {saveStatusLabel}
+        </Alert>
       </div>
 
       <Card style={{ marginBottom: 'var(--gnf-space-6)' }}>
@@ -128,7 +261,7 @@ export function MatriculaPage() {
           <div>
             <strong>{form.centroNombre || data.centro?.nombre || 'Centro educativo'}</strong>
             <p style={{ margin: '6px 0 0', color: 'var(--gnf-muted)' }}>
-              CÃ³digo MEP: {form.centroCodigoMep || 'Sin cÃ³digo'}
+              Código MEP: {form.centroCodigoMep || 'Sin código'}
             </p>
           </div>
           <div>
@@ -142,25 +275,25 @@ export function MatriculaPage() {
         <h3 style={{ marginBottom: 'var(--gnf-space-4)' }}>Datos del centro educativo</h3>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 'var(--gnf-space-4)' }}>
           <Input label="Nombre del centro educativo" value={form.centroNombre} onChange={(e) => handleField('centroNombre', e.target.value)} />
-          <Input label="CÃ³digo MEP" value={form.centroCodigoMep} onChange={(e) => handleField('centroCodigoMep', e.target.value)} />
+          <Input label="Código MEP" value={form.centroCodigoMep} onChange={(e) => handleField('centroCodigoMep', e.target.value)} />
           <Input label="Correo institucional" type="email" value={form.centroCorreoInstitucional} onChange={(e) => handleField('centroCorreoInstitucional', e.target.value)} />
-          <Input label="TelÃ©fono institucional" value={form.centroTelefono} onChange={(e) => handleField('centroTelefono', e.target.value)} />
-          <Select label="DirecciÃ³n regional" value={String(form.centroRegion || '')} onChange={(e) => handleField('centroRegion', Number(e.target.value) || 0)} options={regionOptions} placeholder="Selecciona una regiÃ³n" />
+          <Input label="Teléfono institucional" value={form.centroTelefono} onChange={(e) => handleField('centroTelefono', e.target.value)} />
+          <Select label="Dirección regional" value={String(form.centroRegion || '')} onChange={(e) => handleField('centroRegion', Number(e.target.value) || 0)} options={regionOptions} placeholder="Selecciona una región" />
           <Input label="Circuito" value={form.centroCircuito} onChange={(e) => handleField('centroCircuito', e.target.value)} />
           <Select label="Provincia" value={form.centroProvincia} onChange={(e) => { handleField('centroProvincia', e.target.value); handleField('centroCanton', ''); }} options={data.provincias.map((provincia) => ({ value: provincia, label: provincia }))} placeholder="Selecciona una provincia" />
-          <Select label="CantÃ³n" value={form.centroCanton} onChange={(e) => handleField('centroCanton', e.target.value)} options={cantones.map((canton) => ({ value: canton, label: canton }))} placeholder="Selecciona un cantÃ³n" />
-          <Input label="CÃ³digo presupuestario" value={form.centroCodigoPresupuestario} onChange={(e) => handleField('centroCodigoPresupuestario', e.target.value)} />
+          <Select label="Cantón" value={form.centroCanton} onChange={(e) => handleField('centroCanton', e.target.value)} options={cantones.map((canton) => ({ value: canton, label: canton }))} placeholder="Selecciona un cantón" />
+          <Input label="Código presupuestario" value={form.centroCodigoPresupuestario} onChange={(e) => handleField('centroCodigoPresupuestario', e.target.value)} />
         </div>
-        <Textarea label="DirecciÃ³n exacta" value={form.centroDireccion} onChange={(e) => handleField('centroDireccion', e.target.value)} />
+        <Textarea label="Dirección exacta" value={form.centroDireccion} onChange={(e) => handleField('centroDireccion', e.target.value)} />
       </Card>
 
       <Card style={{ marginBottom: 'var(--gnf-space-6)' }}>
         <h3 style={{ marginBottom: 'var(--gnf-space-4)' }}>Perfil institucional</h3>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 'var(--gnf-space-4)' }}>
-          <Select label="Nivel educativo" value={form.centroNivelEducativo} onChange={(e) => handleField('centroNivelEducativo', e.target.value)} options={toOptions(data.choiceSets.nivel_educativo)} placeholder="Selecciona una opciÃ³n" />
-          <Select label="Dependencia" value={form.centroDependencia} onChange={(e) => handleField('centroDependencia', e.target.value)} options={toOptions(data.choiceSets.dependencia)} placeholder="Selecciona una opciÃ³n" />
-          <Select label="Jornada" value={form.centroJornada} onChange={(e) => handleField('centroJornada', e.target.value)} options={toOptions(data.choiceSets.jornada)} placeholder="Selecciona una opciÃ³n" />
-          <Select label="TipologÃ­a" value={form.centroTipologia} onChange={(e) => handleField('centroTipologia', e.target.value)} options={toOptions(data.choiceSets.tipologia)} placeholder="Selecciona una opciÃ³n" />
+          <Select label="Nivel educativo" value={form.centroNivelEducativo} onChange={(e) => handleField('centroNivelEducativo', e.target.value)} options={toOptions(data.choiceSets.nivel_educativo)} placeholder="Selecciona una opción" />
+          <Select label="Dependencia" value={form.centroDependencia} onChange={(e) => handleField('centroDependencia', e.target.value)} options={toOptions(data.choiceSets.dependencia)} placeholder="Selecciona una opción" />
+          <Select label="Jornada" value={form.centroJornada} onChange={(e) => handleField('centroJornada', e.target.value)} options={toOptions(data.choiceSets.jornada)} placeholder="Selecciona una opción" />
+          <Select label="Tipo de Centro Educativo" value={form.centroTipoCentroEducativo} onChange={(e) => handleField('centroTipoCentroEducativo', e.target.value)} options={toOptions(data.choiceSets.tipo_centro_educativo)} placeholder="Selecciona una opción" />
           <Input label="Total de estudiantes" type="number" min={0} value={form.centroTotalEstudiantes} onChange={(e) => handleField('centroTotalEstudiantes', Number(e.target.value) || 0)} />
           <Input label="Estudiantes hombres" type="number" min={0} value={form.centroEstudiantesHombres} onChange={(e) => handleField('centroEstudiantesHombres', Number(e.target.value) || 0)} />
           <Input label="Estudiantes mujeres" type="number" min={0} value={form.centroEstudiantesMujeres} onChange={(e) => handleField('centroEstudiantesMujeres', Number(e.target.value) || 0)} />
@@ -169,19 +302,18 @@ export function MatriculaPage() {
       </Card>
 
       <Card style={{ marginBottom: 'var(--gnf-space-6)' }}>
-        <h3 style={{ marginBottom: 'var(--gnf-space-4)' }}>ParticipaciÃ³n y coordinaciÃ³n</h3>
+        <h3 style={{ marginBottom: 'var(--gnf-space-4)' }}>Participación y coordinación</h3>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 'var(--gnf-space-4)' }}>
-          <Select label="Ãšltimo galardÃ³n obtenido" value={form.centroUltimoGalardonEstrellas} onChange={(e) => handleField('centroUltimoGalardonEstrellas', e.target.value)} options={toOptions(data.choiceSets.ultimo_galardon_estrellas)} placeholder="Selecciona una opciÃ³n" />
-          <Select label="Ãšltimo aÃ±o de participaciÃ³n" value={form.centroUltimoAnioParticipacion} onChange={(e) => handleField('centroUltimoAnioParticipacion', e.target.value)} options={toOptions(data.choiceSets.ultimo_anio_participacion)} placeholder="Selecciona una opciÃ³n" />
+          <Select label="Último galardón obtenido" value={form.centroUltimoGalardonEstrellas} onChange={(e) => handleField('centroUltimoGalardonEstrellas', e.target.value)} options={toOptions(data.choiceSets.ultimo_galardon_estrellas)} placeholder="Selecciona una opción" />
+          <Select label="Último año de participación" value={form.centroUltimoAnioParticipacion} onChange={(e) => handleField('centroUltimoAnioParticipacion', e.target.value)} options={toOptions(data.choiceSets.ultimo_anio_participacion)} placeholder="Selecciona una opción" />
           {form.centroUltimoAnioParticipacion === 'otro' && (
-            <Input label="Otro aÃ±o de participaciÃ³n" value={form.centroUltimoAnioParticipacionOtro} onChange={(e) => handleField('centroUltimoAnioParticipacionOtro', e.target.value)} />
+            <Input label="Otro año de participación" value={form.centroUltimoAnioParticipacionOtro} onChange={(e) => handleField('centroUltimoAnioParticipacionOtro', e.target.value)} />
           )}
-          <Select label="Cargo de coordinaciÃ³n PBAE" value={form.coordinadorCargo} onChange={(e) => handleField('coordinadorCargo', e.target.value)} options={toOptions(data.choiceSets.coordinador_cargo)} placeholder="Selecciona una opciÃ³n" />
-          <Input label="Nombre de coordinaciÃ³n PBAE" value={form.coordinadorNombre} onChange={(e) => handleField('coordinadorNombre', e.target.value)} />
-          <Input label="Celular de coordinaciÃ³n" value={form.coordinadorCelular} onChange={(e) => handleField('coordinadorCelular', e.target.value)} />
-          <Input label="Cantidad de estudiantes en comitÃ©" type="number" min={0} value={form.comiteEstudiantes} onChange={(e) => handleField('comiteEstudiantes', Number(e.target.value) || 0)} />
-          <Select label="InscripciÃ³n anterior" value={form.inscripcionAnterior} onChange={(e) => handleField('inscripcionAnterior', e.target.value)} options={[{ value: 'SÃ­', label: 'SÃ­' }, { value: 'No', label: 'No' }]} />
-
+          <Select label="Cargo de coordinación PBAE" value={form.coordinadorCargo} onChange={(e) => handleField('coordinadorCargo', e.target.value)} options={toOptions(data.choiceSets.coordinador_cargo)} placeholder="Selecciona una opción" />
+          <Input label="Nombre de coordinación PBAE" value={form.coordinadorNombre} onChange={(e) => handleField('coordinadorNombre', e.target.value)} />
+          <Input label="Celular de coordinación" value={form.coordinadorCelular} onChange={(e) => handleField('coordinadorCelular', e.target.value)} />
+          <Input label="Cantidad de estudiantes en comité" type="number" min={0} value={form.comiteEstudiantes} onChange={(e) => handleField('comiteEstudiantes', Number(e.target.value) || 0)} />
+          <Select label="Inscripción anterior" value={form.inscripcionAnterior} onChange={(e) => handleField('inscripcionAnterior', e.target.value)} options={[{ value: 'Sí', label: 'Sí' }, { value: 'No', label: 'No' }]} />
         </div>
       </Card>
 
@@ -190,14 +322,14 @@ export function MatriculaPage() {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 'var(--gnf-space-4)' }}>
           <Input label="Nombre completo" value={form.representanteNombre} onChange={(e) => handleField('representanteNombre', e.target.value)} />
           <Input label="Cargo" value={form.representanteCargo} onChange={(e) => handleField('representanteCargo', e.target.value)} />
-          <Input label="TelÃ©fono" value={form.representanteTelefono} onChange={(e) => handleField('representanteTelefono', e.target.value)} />
-          <Input label="Correo electrÃ³nico" type="email" value={form.representanteEmail} onChange={(e) => handleField('representanteEmail', e.target.value)} />
-          <Input label="Confirmar correo electrÃ³nico" type="email" value={form.representanteEmailConfirm} onChange={(e) => handleField('representanteEmailConfirm', e.target.value)} />
+          <Input label="Teléfono" value={form.representanteTelefono} onChange={(e) => handleField('representanteTelefono', e.target.value)} />
+          <Input label="Correo electrónico" type="email" value={form.representanteEmail} onChange={(e) => handleField('representanteEmail', e.target.value)} />
+          <Input label="Confirmar correo electrónico" type="email" value={form.representanteEmailConfirm} onChange={(e) => handleField('representanteEmailConfirm', e.target.value)} />
         </div>
       </Card>
 
       <div style={{ marginBottom: 'var(--gnf-space-4)' }}>
-        <h3 style={{ marginBottom: 'var(--gnf-space-2)' }}>SelecciÃ³n de eco retos</h3>
+        <h3 style={{ marginBottom: 'var(--gnf-space-2)' }}>Selección de eco retos</h3>
         <p style={{ color: 'var(--gnf-muted)', marginBottom: 0 }}>
           Los retos marcados como <strong>REQUISITO</strong> siempre quedan seleccionados.
         </p>
@@ -268,11 +400,10 @@ export function MatriculaPage() {
       </div>
 
       <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 'var(--gnf-space-6)' }}>
-        <Button variant="primary" icon={<Save size={16} />} loading={saveMatricula.isPending} onClick={handleSave}>
-          Guardar matrÃ­cula
+        <Button variant="primary" icon={<Save size={16} />} loading={saveState === 'saving'} onClick={handleSave}>
+          Guardar ahora
         </Button>
       </div>
     </div>
   );
 }
-

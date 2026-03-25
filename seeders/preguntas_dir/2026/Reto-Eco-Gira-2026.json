@@ -1,0 +1,88 @@
+[
+  {
+    "id": "q1",
+    "pregunta": "1. ¿Realizaron una eco gira con estudiantes para la educación, sensibilización y contacto con la naturaleza? (no paseo o tour recreativo) - (si/no)",
+    "tipo_de_campo": "seleccion_unica",
+    "opciones": ["si", "no"],
+    "required": true,
+    "depends_on": null,
+    "suma_puntos": false
+  },
+  {
+    "id": "q1_1",
+    "pregunta": "1.1 ¿Cuál fue el área visitada?",
+    "tipo_de_campo": "text",
+    "opciones": null,
+    "required": false,
+    "depends_on": { "field": "q1", "value": "si" },
+    "suma_puntos": false
+  },
+  {
+    "id": "q1_2",
+    "pregunta": "1.2 ¿Cantidad de estudiantes?",
+    "tipo_de_campo": "numero_entero",
+    "opciones": null,
+    "required": false,
+    "depends_on": { "field": "q1", "value": "si" },
+    "suma_puntos": false
+  },
+  {
+    "id": "q1_e1",
+    "pregunta": "Fotografía que muestre la actividad educativa impartida a los estudiantes durante la eco gira.\n5 eco pt",
+    "tipo_de_campo": "subida_archivo",
+    "opciones": null,
+    "required": false,
+    "depends_on": { "field": "q1", "value": "si" },
+    "suma_puntos": true,
+    "puntos": 5
+  },
+  {
+    "id": "q1_e2",
+    "pregunta": "Fotografía de la circular enviada a los padres de familia que incluya el objetivo educativo de la eco gira y solicitando eco loncheras.\n5 eco pt",
+    "tipo_de_campo": "subida_archivo",
+    "opciones": null,
+    "required": false,
+    "depends_on": { "field": "q1", "value": "si" },
+    "suma_puntos": true,
+    "puntos": 5
+  },
+  {
+    "id": "q2",
+    "pregunta": "2. ¿Promovieron que la eco gira fuera cero residuos? - (si/no)",
+    "tipo_de_campo": "seleccion_unica",
+    "opciones": ["si", "no"],
+    "required": true,
+    "depends_on": null,
+    "suma_puntos": false
+  },
+  {
+    "id": "q2_e1",
+    "pregunta": "Fotografía que evidencie a los estudiantes durante una merienda con reducción de residuos o utilizando eco loncheras con recipientes reutilizables.\n5 eco pt",
+    "tipo_de_campo": "subida_archivo",
+    "opciones": null,
+    "required": false,
+    "depends_on": { "field": "q2", "value": "si" },
+    "suma_puntos": true,
+    "puntos": 5
+  },
+  {
+    "id": "q2_e2",
+    "pregunta": "Fotografía de los estudiantes durante la eco gira.\n10 eco pt",
+    "tipo_de_campo": "subida_archivo",
+    "opciones": null,
+    "required": false,
+    "depends_on": { "field": "q2", "value": "si" },
+    "suma_puntos": true,
+    "puntos": 10
+  },
+  {
+    "id": "q2_e3",
+    "pregunta": "Fotografía de estudiantes durante la eco gira (fotografía diferente a la anterior).\n10 eco pt",
+    "tipo_de_campo": "subida_archivo",
+    "opciones": null,
+    "required": false,
+    "depends_on": { "field": "q2", "value": "si" },
+    "suma_puntos": true,
+    "puntos": 10
+  }
+]

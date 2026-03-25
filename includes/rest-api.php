@@ -145,6 +145,16 @@ function gnf_register_rest_routes() {
 		)
 	);
 
+	register_rest_route(
+		$ns,
+		'/notifications/read-all',
+		array(
+			'methods'             => 'PUT',
+			'callback'            => 'gnf_rest_notifications_mark_all_read',
+			'permission_callback' => 'is_user_logged_in',
+		)
+	);
+
 	// ── Docente ─────────────────────────────────────────────────────
 	register_rest_route(
 		$ns,
@@ -239,6 +249,16 @@ function gnf_register_rest_routes() {
 		array(
 			'methods'             => 'POST',
 			'callback'            => 'gnf_rest_docente_autosave_reto',
+			'permission_callback' => 'gnf_rest_is_docente',
+		)
+	);
+
+	register_rest_route(
+		$ns,
+		'/docente/retos/(?P<reto_id>\d+)/remove-evidence',
+		array(
+			'methods'             => 'POST',
+			'callback'            => 'gnf_rest_docente_remove_evidence',
 			'permission_callback' => 'gnf_rest_is_docente',
 		)
 	);
@@ -379,9 +399,16 @@ function gnf_register_rest_routes() {
 		$ns,
 		'/admin/centros',
 		array(
-			'methods'             => 'GET',
-			'callback'            => 'gnf_rest_admin_centros',
-			'permission_callback' => 'gnf_rest_is_admin',
+			array(
+				'methods'             => 'GET',
+				'callback'            => 'gnf_rest_admin_centros',
+				'permission_callback' => 'gnf_rest_is_admin',
+			),
+			array(
+				'methods'             => 'POST',
+				'callback'            => 'gnf_rest_admin_create_centro',
+				'permission_callback' => 'gnf_rest_is_admin',
+			),
 		)
 	);
 
@@ -425,6 +452,16 @@ function gnf_register_rest_routes() {
 		)
 	);
 
+	register_rest_route(
+		$ns,
+		'/admin/seeders/retos',
+		array(
+			'methods'             => 'POST',
+			'callback'            => 'gnf_rest_admin_seed_retos',
+			'permission_callback' => 'gnf_rest_is_admin',
+		)
+	);
+
 	// ── Comité BAE ──────────────────────────────────────────────────
 	register_rest_route(
 		$ns,
@@ -455,36 +492,6 @@ function gnf_register_rest_routes() {
 			'permission_callback' => 'gnf_rest_is_comite',
 		)
 	);
-
-	register_rest_route(
-		$ns,
-		'/comite/centros/(?P<id>\d+)/validate',
-		array(
-			'methods'             => 'POST',
-			'callback'            => 'gnf_rest_comite_validate',
-			'permission_callback' => 'gnf_rest_is_comite',
-		)
-	);
-
-	register_rest_route(
-		$ns,
-		'/comite/centros/(?P<id>\d+)/observation',
-		array(
-			'methods'             => 'POST',
-			'callback'            => 'gnf_rest_comite_observation',
-			'permission_callback' => 'gnf_rest_is_comite',
-		)
-	);
-
-	register_rest_route(
-		$ns,
-		'/comite/historial',
-		array(
-			'methods'             => 'GET',
-			'callback'            => 'gnf_rest_comite_historial',
-			'permission_callback' => 'gnf_rest_is_comite',
-		)
-	);
 }
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -497,16 +504,16 @@ function gnf_rest_is_docente() {
 
 function gnf_rest_is_supervisor() {
 	$user = wp_get_current_user();
-	return is_user_logged_in() && ( gnf_user_has_role( $user, 'supervisor' ) || gnf_user_has_role( $user, 'comite_bae' ) || current_user_can( 'manage_options' ) );
+	return is_user_logged_in() && ( function_exists( 'gnf_user_can_access_panel' ) ? gnf_user_can_access_panel( $user, 'panel-supervisor' ) : ( gnf_user_has_role( $user, 'supervisor' ) || gnf_user_has_role( $user, 'comite_bae' ) || current_user_can( 'manage_options' ) ) );
 }
 
 function gnf_rest_is_admin() {
-	return current_user_can( 'manage_options' );
+	return is_user_logged_in() && ( function_exists( 'gnf_user_can_access_panel' ) ? gnf_user_can_access_panel( wp_get_current_user(), 'panel-admin' ) : ( current_user_can( 'manage_guardianes' ) || current_user_can( 'manage_options' ) ) );
 }
 
 function gnf_rest_is_comite() {
 	$user = wp_get_current_user();
-	return is_user_logged_in() && ( gnf_user_has_role( $user, 'comite_bae' ) || current_user_can( 'manage_options' ) );
+	return is_user_logged_in() && ( function_exists( 'gnf_user_can_access_panel' ) ? gnf_user_can_access_panel( $user, 'panel-comite' ) : ( gnf_user_has_role( $user, 'comite_bae' ) || current_user_can( 'manage_options' ) ) );
 }
 
 /**
@@ -524,7 +531,7 @@ function gnf_rest_get_default_redirect( $user ) {
 		return home_url( '/panel-admin/' );
 	}
 	if ( gnf_user_has_role( $user, 'comite_bae' ) ) {
-		return home_url( '/panel-comite/' );
+		return home_url( '/panel-supervisor/' );
 	}
 	if ( gnf_user_has_role( $user, 'supervisor' ) ) {
 		return home_url( '/panel-supervisor/' );
@@ -533,7 +540,7 @@ function gnf_rest_get_default_redirect( $user ) {
 		return home_url( '/panel-docente/' );
 	}
 
-	return home_url( '/' );
+	return home_url( '/panel-docente/' );
 }
 
 /**
@@ -592,6 +599,7 @@ function gnf_rest_build_centro_base( $centro_id ) {
 		'dependencia'     => (string) ( get_field( 'dependencia', $centro_id ) ?: get_post_meta( $centro_id, 'dependencia', true ) ?: '' ),
 		'jornada'         => (string) ( get_field( 'jornada', $centro_id ) ?: get_post_meta( $centro_id, 'jornada', true ) ?: '' ),
 		'tipologia'       => (string) ( get_field( 'tipologia', $centro_id ) ?: get_post_meta( $centro_id, 'tipologia', true ) ?: '' ),
+		'tipoCentroEducativo' => (string) ( get_field( 'tipo_centro_educativo', $centro_id ) ?: get_post_meta( $centro_id, 'tipo_centro_educativo', true ) ?: '' ),
 	);
 }
 
@@ -970,7 +978,7 @@ function gnf_rest_auth_register_docente( WP_REST_Request $request ) {
 	$centro_id = absint( $request->get_param( 'centroId' ) );
 
 	if ( '' === $nombre || '' === $email || '' === (string) $password ) {
-		return new WP_Error( 'missing_fields', 'Nombre, correo y contraseÃ±a son obligatorios.', array( 'status' => 400 ) );
+		return new WP_Error( 'missing_fields', 'Nombre, correo y contraseña son obligatorios.', array( 'status' => 400 ) );
 	}
 
 	if ( email_exists( $email ) ) {
@@ -1076,7 +1084,7 @@ function gnf_rest_auth_register_supervisor( WP_REST_Request $request ) {
 	$role_to_set = 'comite_bae' === $rol ? 'comite_bae' : 'supervisor';
 
 	if ( '' === $nombre || '' === $email || '' === (string) $password || ! $region ) {
-		return new WP_Error( 'missing_fields', 'Nombre, correo, contraseÃ±a y regiÃ³n son obligatorios.', array( 'status' => 400 ) );
+		return new WP_Error( 'missing_fields', 'Nombre, correo, contraseña y región son obligatorios.', array( 'status' => 400 ) );
 	}
 
 	if ( email_exists( $email ) ) {
@@ -1270,7 +1278,7 @@ function gnf_rest_centros_search( WP_REST_Request $request ) {
 
 	$args = array(
 		'post_type'      => 'centro_educativo',
-		'posts_per_page' => 20,
+		'posts_per_page' => $region_id ? -1 : 20,
 		'post_status'    => array( 'publish', 'pending' ),
 		'orderby'        => 'title',
 		'order'          => 'ASC',
@@ -1321,7 +1329,7 @@ function gnf_rest_centro_get( WP_REST_Request $request ) {
 		return new WP_Error( 'not_found', 'Centro no encontrado.', array( 'status' => 404 ) );
 	}
 
-	if ( ! gnf_user_can_access_centro( get_current_user_id(), $id ) && ! current_user_can( 'manage_options' ) ) {
+	if ( ! gnf_user_can_access_centro( get_current_user_id(), $id ) && ! gnf_rest_is_admin() ) {
 		return new WP_Error( 'forbidden', 'Sin acceso a este centro.', array( 'status' => 403 ) );
 	}
 
@@ -1343,13 +1351,14 @@ function gnf_rest_centro_get( WP_REST_Request $request ) {
 		'dependencia'          => get_field( 'dependencia', $id ) ?: '',
 		'jornada'              => get_field( 'jornada', $id ) ?: '',
 		'tipologia'            => get_field( 'tipologia', $id ) ?: '',
+		'tipoCentroEducativo'  => get_field( 'tipo_centro_educativo', $id ) ?: '',
 	);
 }
 
 function gnf_rest_centro_update( WP_REST_Request $request ) {
 	$id = (int) $request->get_param( 'id' );
 
-	if ( ! gnf_user_can_access_centro( get_current_user_id(), $id ) && ! current_user_can( 'manage_options' ) ) {
+	if ( ! gnf_user_can_access_centro( get_current_user_id(), $id ) && ! gnf_rest_is_admin() ) {
 		return new WP_Error( 'forbidden', 'Sin acceso a este centro.', array( 'status' => 403 ) );
 	}
 
@@ -1380,6 +1389,7 @@ function gnf_rest_centro_update( WP_REST_Request $request ) {
 		'dependencia'          => 'dependencia',
 		'jornada'              => 'jornada',
 		'tipologia'            => 'tipologia',
+		'tipoCentroEducativo'  => 'tipo_centro_educativo',
 	);
 	foreach ( $fields as $request_key => $meta_key ) {
 		$value = $request->get_param( $request_key );
@@ -1399,7 +1409,7 @@ function gnf_rest_centro_update( WP_REST_Request $request ) {
 		array(
 			'actor_user_id' => get_current_user_id(),
 			'centro_id'     => $id,
-			'panel'         => current_user_can( 'manage_options' ) ? 'admin' : 'docente',
+			'panel'         => gnf_rest_is_admin() ? 'admin' : 'docente',
 			'message'       => 'Datos del centro educativo actualizados.',
 		)
 	);
@@ -1409,10 +1419,99 @@ function gnf_rest_centro_update( WP_REST_Request $request ) {
 	return gnf_rest_centro_get( $response_request );
 }
 
+function gnf_rest_admin_create_centro( WP_REST_Request $request ) {
+	$nombre     = sanitize_text_field( (string) $request->get_param( 'nombre' ) );
+	$codigo_mep = sanitize_text_field( (string) $request->get_param( 'codigoMep' ) );
+
+	if ( '' === $nombre ) {
+		return new WP_Error( 'missing_name', 'Debes indicar el nombre del centro.', array( 'status' => 400 ) );
+	}
+
+	$existing_centro_id = 0;
+	if ( '' !== $codigo_mep && function_exists( 'gnf_find_centro_by_codigo' ) ) {
+		$existing_centro_id = (int) gnf_find_centro_by_codigo( $codigo_mep );
+	}
+	if ( ! $existing_centro_id ) {
+		$existing_centro_id = (int) gnf_rest_find_existing_centro_by_title( $nombre );
+	}
+
+	if ( $existing_centro_id ) {
+		return new WP_Error(
+			'centro_exists',
+			'Ya existe un centro con ese nombre o codigo MEP.',
+			array(
+				'status'   => 409,
+				'centroId' => $existing_centro_id,
+			)
+		);
+	}
+
+	$post_id = wp_insert_post(
+		array(
+			'post_title'  => $nombre,
+			'post_type'   => 'centro_educativo',
+			'post_status' => 'publish',
+		),
+		true
+	);
+
+	if ( is_wp_error( $post_id ) ) {
+		return $post_id;
+	}
+
+	if ( '' !== $codigo_mep ) {
+		gnf_rest_update_post_field( 'codigo_mep', $codigo_mep, $post_id );
+	}
+
+	$fields = array(
+		'direccion'            => 'direccion',
+		'provincia'            => 'provincia',
+		'canton'               => 'canton',
+		'telefono'             => 'telefono',
+		'correoInstitucional'  => 'correo_institucional',
+		'circuito'             => 'circuito',
+		'codigoPresupuestario' => 'codigo_presupuestario',
+		'nivelEducativo'       => 'nivel_educativo',
+		'dependencia'          => 'dependencia',
+		'jornada'              => 'jornada',
+		'tipologia'            => 'tipologia',
+		'tipoCentroEducativo'  => 'tipo_centro_educativo',
+	);
+
+	foreach ( $fields as $request_key => $meta_key ) {
+		$value = $request->get_param( $request_key );
+		if ( null !== $value ) {
+			gnf_rest_update_post_field( $meta_key, sanitize_text_field( (string) $value ), $post_id );
+		}
+	}
+
+	$region_id = absint( $request->get_param( 'regionId' ) );
+	if ( $region_id ) {
+		wp_set_object_terms( $post_id, array( $region_id ), 'gn_region', false );
+		update_post_meta( $post_id, 'region', $region_id );
+	}
+
+	update_post_meta( $post_id, 'estado_centro', 'activo' );
+
+	gnf_log_audit_event(
+		'admin_create_centro',
+		array(
+			'actor_user_id' => get_current_user_id(),
+			'centro_id'     => (int) $post_id,
+			'panel'         => 'admin',
+			'message'       => 'Centro educativo creado desde el panel admin.',
+		)
+	);
+
+	$response_request = new WP_REST_Request( 'GET', '/gnf/v1/centros/' . $post_id );
+	$response_request->set_param( 'id', $post_id );
+	return gnf_rest_centro_get( $response_request );
+}
+
 function gnf_rest_regions() {
 	$terms   = get_terms( array( 'taxonomy' => 'gn_region', 'hide_empty' => false ) );
 	$regions = array();
-	$is_admin_view = current_user_can( 'manage_options' );
+	$is_admin_view = gnf_rest_is_admin();
 
 	if ( ! is_wp_error( $terms ) ) {
 		foreach ( $terms as $term ) {
@@ -1446,16 +1545,31 @@ function gnf_rest_notifications_list() {
 	);
 
 	return array_map(
-		function ( $item ) {
+		static function ( $item ) use ( $user_id ) {
+			$context = function_exists( 'gnf_build_notification_context' ) ? gnf_build_notification_context( $item, $user_id ) : array();
+
 			return array(
-				'id'           => (int) $item->id,
-				'userId'       => (int) $item->user_id,
-				'tipo'         => $item->tipo,
-				'mensaje'      => $item->mensaje,
-				'relacionTipo' => $item->relacion_tipo,
-				'relacionId'   => (int) $item->relacion_id,
-				'leido'        => (bool) $item->leido,
-				'createdAt'    => $item->created_at,
+				'id'                   => (int) $item->id,
+				'userId'               => (int) $item->user_id,
+				'tipo'                 => $item->tipo,
+				'mensaje'              => $item->mensaje,
+				'relacionTipo'         => $item->relacion_tipo,
+				'relacionId'           => (int) $item->relacion_id,
+				'leido'                => (bool) $item->leido,
+				'createdAt'            => $item->created_at,
+				'actionTarget'         => $context['actionTarget'] ?? null,
+				'actionLabel'          => $context['actionLabel'] ?? '',
+				'canReview'            => ! empty( $context['canReview'] ),
+				'entryId'              => (int) ( $context['entryId'] ?? 0 ),
+				'retoId'               => (int) ( $context['retoId'] ?? 0 ),
+				'retoTitulo'           => (string) ( $context['retoTitulo'] ?? '' ),
+				'centroId'             => (int) ( $context['centroId'] ?? 0 ),
+				'centroNombre'         => (string) ( $context['centroNombre'] ?? '' ),
+				'regionName'           => (string) ( $context['regionName'] ?? '' ),
+				'circuito'             => (string) ( $context['circuito'] ?? '' ),
+				'year'                 => (int) ( $context['year'] ?? 0 ),
+				'entryStatus'          => (string) ( $context['entryStatus'] ?? '' ),
+				'requiresYearValidation' => ! empty( $context['requiresYearValidation'] ),
 			);
 		},
 		$items
@@ -1468,6 +1582,21 @@ function gnf_rest_notification_mark_read( WP_REST_Request $request ) {
 	$id    = (int) $request->get_param( 'id' );
 
 	$wpdb->update( $table, array( 'leido' => 1 ), array( 'id' => $id, 'user_id' => get_current_user_id() ) );
+	return array( 'success' => true );
+}
+
+function gnf_rest_notifications_mark_all_read() {
+	global $wpdb;
+	$table = $wpdb->prefix . 'gn_notificaciones';
+
+	$wpdb->update(
+		$table,
+		array( 'leido' => 1 ),
+		array( 'user_id' => get_current_user_id(), 'leido' => 0 ),
+		array( '%d' ),
+		array( '%d', '%d' )
+	);
+
 	return array( 'success' => true );
 }
 
@@ -1653,6 +1782,7 @@ function gnf_rest_docente_matricula( WP_REST_Request $request ) {
 			'centroDependencia'            => (string) ( $prefill['centro_dependencia'] ?? '' ),
 			'centroJornada'                => (string) ( $prefill['centro_jornada'] ?? '' ),
 			'centroTipologia'              => (string) ( $prefill['centro_tipologia'] ?? '' ),
+			'centroTipoCentroEducativo'    => (string) ( $prefill['centro_tipo_centro_educativo'] ?? '' ),
 			'centroRegion'                 => (int) ( $prefill['centro_region'] ?? 0 ),
 			'centroCircuito'               => (string) ( $prefill['centro_circuito'] ?? '' ),
 			'centroProvincia'              => (string) ( $prefill['centro_provincia'] ?? '' ),
@@ -1734,6 +1864,7 @@ function gnf_rest_docente_matricula_save( WP_REST_Request $request ) {
 		'centro-dependencia'               => gnf_normalize_centro_choice( 'dependencia', sanitize_text_field( (string) ( $fields['centroDependencia'] ?? '' ) ) ),
 		'centro-jornada'                   => gnf_normalize_centro_choice( 'jornada', sanitize_text_field( (string) ( $fields['centroJornada'] ?? '' ) ) ),
 		'centro-tipologia'                 => gnf_normalize_centro_choice( 'tipologia', sanitize_text_field( (string) ( $fields['centroTipologia'] ?? '' ) ) ),
+		'centro-tipo-centro-educativo'     => gnf_normalize_centro_choice( 'tipo_centro_educativo', sanitize_text_field( (string) ( $fields['centroTipoCentroEducativo'] ?? '' ) ) ),
 		'centro-region'                    => absint( $fields['centroRegion'] ?? 0 ),
 		'centro-circuito'                  => sanitize_text_field( (string) ( $fields['centroCircuito'] ?? '' ) ),
 		'centro-provincia'                 => $provincia,
@@ -1937,14 +2068,31 @@ function gnf_rest_notify_review_submission( $centro_id, $anio, $user_id = 0 ) {
 
 	$reviewers    = gnf_rest_get_region_reviewers( (int) $region );
 	$centro_title = get_the_title( $centro_id );
-	$mensaje      = sprintf( 'La participacion de "%s" (%d) fue enviada para revision.', $centro_title, (int) $anio );
+	$mensaje      = sprintf( 'La participación de "%s" (%d) fue enviada para revision.', $centro_title, (int) $anio );
 
 	foreach ( $reviewers as $reviewer ) {
-		gnf_insert_notification( $reviewer->ID, 'participacion_enviada', $mensaje, 'centro', $centro_id );
+		gnf_insert_or_refresh_notification( $reviewer->ID, 'participacion_enviada', $mensaje, 'centro', $centro_id );
 	}
 
 	if ( $user_id ) {
-		gnf_insert_notification( $user_id, 'participacion_enviada', 'Tu participacion fue enviada a supervision y comite.', 'centro', $centro_id );
+		gnf_insert_or_refresh_notification( $user_id, 'participacion_enviada', 'Tu participación fue enviada a supervision y comite.', 'centro', $centro_id );
+	}
+}
+
+function gnf_rest_notify_feedback_response( $entry, $tipo, $mensaje ) {
+	if ( ! $entry ) {
+		return;
+	}
+
+	$centro_id = (int) $entry->centro_id;
+	$region    = get_post_meta( $centro_id, 'region', true );
+	if ( empty( $region ) ) {
+		$terms  = wp_get_post_terms( $centro_id, 'gn_region', array( 'fields' => 'ids' ) );
+		$region = $terms ? $terms[0] : 0;
+	}
+
+	foreach ( gnf_rest_get_region_reviewers( (int) $region ) as $reviewer ) {
+		gnf_insert_or_refresh_notification( $reviewer->ID, $tipo, $mensaje, 'reto_entry', (int) $entry->id );
 	}
 }
 
@@ -1963,6 +2111,80 @@ function gnf_rest_build_saved_form_state( $entry, $anio ) {
 		'savedValues' => (array) ( $data['__raw_values__'] ?? array() ),
 		'savedAt'     => (string) ( $data['__saved_at'] ?? $entry->updated_at ?? '' ),
 	);
+}
+
+function gnf_rest_get_wpforms_conditional_rules( $form_id ) {
+	if ( ! function_exists( 'wpforms' ) ) {
+		return array();
+	}
+
+	$form = wpforms()->form->get( absint( $form_id ) );
+	if ( ! $form || empty( $form->post_content ) ) {
+		return array();
+	}
+
+	$form_data = json_decode( $form->post_content, true );
+	$fields    = $form_data['fields'] ?? array();
+	if ( empty( $fields ) || ! is_array( $fields ) ) {
+		return array();
+	}
+
+	$rules = array();
+	foreach ( $fields as $field ) {
+		$field_id = absint( $field['id'] ?? 0 );
+		if ( ! $field_id || empty( $field['conditionals'] ) || ! is_array( $field['conditionals'] ) ) {
+			continue;
+		}
+
+		$groups = array();
+		foreach ( $field['conditionals'] as $group ) {
+			if ( ! is_array( $group ) ) {
+				continue;
+			}
+
+			$group_rules = array();
+			foreach ( $group as $rule ) {
+				$parent_field_id = absint( $rule['field'] ?? 0 );
+				if ( ! $parent_field_id ) {
+					continue;
+				}
+
+				$value = (string) ( $rule['value'] ?? '' );
+
+				// WPForms stores choice indices (1-based) for radio/checkbox/select
+				// conditional values. Resolve the index to the actual choice value
+				// so the frontend can compare against the DOM value directly.
+				$parent_field = $fields[ $parent_field_id ] ?? null;
+				if ( $parent_field && ! empty( $parent_field['choices'] ) && is_array( $parent_field['choices'] ) && is_numeric( $value ) ) {
+					$choice_index = (int) $value;
+					$choice       = $parent_field['choices'][ $choice_index ] ?? null;
+					if ( $choice ) {
+						$value = (string) ( $choice['value'] ?? $choice['label'] ?? $value );
+					}
+				}
+
+				$group_rules[] = array(
+					'fieldId'  => $parent_field_id,
+					'operator' => (string) ( $rule['operator'] ?? 'is' ),
+					'value'    => $value,
+				);
+			}
+
+			if ( ! empty( $group_rules ) ) {
+				$groups[] = $group_rules;
+			}
+		}
+
+		if ( ! empty( $groups ) ) {
+			$rules[] = array(
+				'fieldId'         => $field_id,
+				'conditionalType' => (string) ( $field['conditional_type'] ?? 'show' ),
+				'groups'          => $groups,
+			);
+		}
+	}
+
+	return $rules;
 }
 
 function gnf_rest_docente_form_html( WP_REST_Request $request ) {
@@ -1993,6 +2215,7 @@ function gnf_rest_docente_form_html( WP_REST_Request $request ) {
 		'html'        => $html,
 		'formId'      => (int) $form_id,
 		'fieldPoints' => $field_points,
+		'conditionalRules' => gnf_rest_get_wpforms_conditional_rules( $form_id ),
 		'savedValues' => $saved_state['savedValues'],
 		'savedAt'     => $saved_state['savedAt'],
 		'entry'       => $saved_state['entry'],
@@ -2034,8 +2257,18 @@ function gnf_rest_docente_autosave_reto( WP_REST_Request $request ) {
 			continue;
 		}
 
-		$value = $field['value'] ?? '';
-		if ( is_array( $value ) ) {
+		$value     = $field['value'] ?? '';
+		$field_type = sanitize_key( (string) ( $field['type'] ?? 'text' ) );
+
+		// File-upload values contain JSON from Dropzone — don't strip with
+		// sanitize_text_field which could corrupt the JSON structure.
+		if ( 'file-upload' === $field_type ) {
+			if ( is_array( $value ) ) {
+				$value = array_map( 'wp_strip_all_tags', array_map( 'strval', $value ) );
+			} else {
+				$value = wp_strip_all_tags( (string) $value );
+			}
+		} elseif ( is_array( $value ) ) {
 			$value = array_map(
 				static function ( $item ) {
 					return sanitize_text_field( (string) $item );
@@ -2048,7 +2281,7 @@ function gnf_rest_docente_autosave_reto( WP_REST_Request $request ) {
 
 		$raw_fields[ $fid ] = array(
 			'id'    => $fid,
-			'type'  => sanitize_key( (string) ( $field['type'] ?? 'text' ) ),
+			'type'  => $field_type,
 			'name'  => sanitize_text_field( (string) ( $field['name'] ?? ('Campo ' . $fid) ) ),
 			'value' => $value,
 		);
@@ -2092,6 +2325,80 @@ function gnf_rest_docente_autosave_reto( WP_REST_Request $request ) {
 	);
 }
 
+function gnf_rest_docente_remove_evidence( WP_REST_Request $request ) {
+	$reto_id   = (int) $request->get_param( 'reto_id' );
+	$anio      = (int) ( $request->get_param( 'year' ) ?: gnf_get_active_year() );
+	$index     = $request->get_param( 'index' );
+	$user_id   = get_current_user_id();
+	$centro_id = gnf_get_centro_for_docente( $user_id );
+
+	if ( ! $centro_id ) {
+		return new WP_Error( 'missing_centro', 'No hay un centro asociado.', array( 'status' => 400 ) );
+	}
+
+	if ( null === $index || '' === $index ) {
+		return new WP_Error( 'missing_index', 'Falta el indice de evidencia.', array( 'status' => 400 ) );
+	}
+
+	$index = (int) $index;
+	$entry = gnf_rest_get_docente_entry_row( $centro_id, $reto_id, $anio );
+
+	if ( ! $entry ) {
+		return new WP_Error( 'not_found', 'Entrada no encontrada.', array( 'status' => 404 ) );
+	}
+
+	if ( in_array( $entry->estado, array( 'enviado', 'aprobado' ), true ) ) {
+		return new WP_Error( 'not_editable', 'No se puede editar en este estado.', array( 'status' => 403 ) );
+	}
+
+	$evidencias = $entry->evidencias ? json_decode( $entry->evidencias, true ) : array();
+	if ( ! is_array( $evidencias ) || ! isset( $evidencias[ $index ] ) ) {
+		return new WP_Error( 'invalid_index', 'Indice de evidencia invalido.', array( 'status' => 400 ) );
+	}
+
+	$removed = $evidencias[ $index ];
+
+	// Delete the physical file if it exists.
+	if ( ! empty( $removed['path_local'] ) && file_exists( $removed['path_local'] ) ) {
+		$uploads_base = wp_normalize_path( wp_upload_dir()['basedir'] );
+		$norm_path    = wp_normalize_path( $removed['path_local'] );
+		if ( 0 === strpos( $norm_path, $uploads_base ) ) {
+			@unlink( $norm_path ); // phpcs:ignore
+		}
+	}
+
+	array_splice( $evidencias, $index, 1 );
+
+	global $wpdb;
+	$table = $wpdb->prefix . 'gn_reto_entries';
+	$wpdb->update(
+		$table,
+		array(
+			'evidencias' => wp_json_encode( array_values( $evidencias ) ),
+			'updated_at' => current_time( 'mysql' ),
+		),
+		array( 'id' => (int) $entry->id ),
+		array( '%s', '%s' ),
+		array( '%d' )
+	);
+
+	// Recalculate score.
+	$updated_entry = gnf_rest_get_docente_entry_row( $centro_id, $reto_id, $anio );
+	if ( $updated_entry && function_exists( 'gnf_recalcular_puntaje_reto' ) ) {
+		if ( function_exists( 'gnf_refresh_reto_entry_score' ) ) {
+			gnf_refresh_reto_entry_score( $updated_entry );
+		}
+		gnf_clear_supervisor_cache();
+		$updated_entry = gnf_rest_get_docente_entry_row( $centro_id, $reto_id, $anio );
+	}
+
+	$saved_state = gnf_rest_build_saved_form_state( $updated_entry, $anio );
+	return array(
+		'success' => true,
+		'entry'   => $saved_state['entry'],
+	);
+}
+
 function gnf_rest_docente_finalize_reto( WP_REST_Request $request ) {
 	$reto_id   = (int) $request->get_param( 'reto_id' );
 	$user_id   = get_current_user_id();
@@ -2115,6 +2422,18 @@ function gnf_rest_docente_finalize_reto( WP_REST_Request $request ) {
 		array( 'estado' => 'completo', 'updated_at' => current_time( 'mysql' ) ),
 		array( 'id' => $entry->id )
 	);
+
+	if ( ! empty( $entry->supervisor_notes ) ) {
+		gnf_rest_notify_feedback_response(
+			$entry,
+			'feedback_actualizado',
+			sprintf(
+				'El centro "%s" actualizo el reto "%s" despues del feedback.',
+				get_the_title( $centro_id ),
+				get_the_title( $reto_id )
+			)
+		);
+	}
 
 	gnf_log_audit_event(
 		'docente_finalize_reto',
@@ -2160,7 +2479,6 @@ function gnf_rest_docente_reopen_reto( WP_REST_Request $request ) {
 		$table,
 		array(
 			'estado'           => 'en_progreso',
-			'supervisor_notes' => '',
 			'updated_at'       => current_time( 'mysql' ),
 		),
 		array( 'id' => $entry->id )
@@ -2178,7 +2496,7 @@ function gnf_rest_docente_submit( WP_REST_Request $request ) {
 	$centro_id = gnf_get_centro_for_docente( $user_id );
 
 	if ( ! gnf_are_all_retos_complete( $centro_id, $anio ) ) {
-		return new WP_Error( 'incomplete', 'Completa todos los retos antes de enviar la participacion.', array( 'status' => 400 ) );
+		return new WP_Error( 'incomplete', 'Completa todos los retos antes de enviar la participación.', array( 'status' => 400 ) );
 	}
 
 	global $wpdb;
@@ -2344,6 +2662,10 @@ function gnf_rest_supervisor_centro_detail( WP_REST_Request $request ) {
 		return new WP_Error( 'not_found', 'Centro no encontrado.', array( 'status' => 404 ) );
 	}
 
+	if ( ! gnf_user_can_access_centro( get_current_user_id(), $centro_id ) && ! current_user_can( 'manage_options' ) ) {
+		return new WP_Error( 'forbidden', 'Sin acceso a este centro.', array( 'status' => 403 ) );
+	}
+
 	// Get all entries for this centro/year.
 	global $wpdb;
 	$table       = $wpdb->prefix . 'gn_reto_entries';
@@ -2405,14 +2727,12 @@ function gnf_rest_supervisor_update_entry( WP_REST_Request $request ) {
 			array( 'id' => $entry_id )
 		);
 
-		// Recalculate points based on checklist.
-		if ( function_exists( 'gnf_recalcular_puntaje_reto' ) ) {
-			$updated_entry     = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$table} WHERE id = %d", $entry_id ) );
-			$puntaje_calculado = gnf_recalcular_puntaje_reto( $updated_entry );
-			$wpdb->update( $table, array( 'puntaje' => $puntaje_calculado ), array( 'id' => $entry_id ), array( '%d' ), array( '%d' ) );
+		if ( function_exists( 'gnf_refresh_reto_entry_score' ) ) {
+			$updated_entry = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$table} WHERE id = %d", $entry_id ) );
+			gnf_refresh_reto_entry_score( $updated_entry );
+		} else {
+			gnf_recalcular_puntaje_centro( $entry->centro_id, (int) $entry->anio );
 		}
-
-		gnf_recalcular_puntaje_centro( $entry->centro_id, (int) $entry->anio );
 
 		// Notify docente.
 		if ( function_exists( 'gnf_insert_notification' ) ) {
@@ -2426,14 +2746,6 @@ function gnf_rest_supervisor_update_entry( WP_REST_Request $request ) {
 			);
 		}
 	} elseif ( 'correccion' === $action ) {
-		$wpdb->update(
-			$table,
-			array( 'estado' => 'correccion', 'supervisor_notes' => $notes, 'updated_at' => current_time( 'mysql' ) ),
-			array( 'id' => $entry_id )
-		);
-
-		gnf_recalcular_puntaje_centro( $entry->centro_id, (int) $entry->anio );
-
 		if ( function_exists( 'gnf_request_correction' ) ) {
 			gnf_request_correction( $entry_id, $notes ?: 'Se solicitó corrección', get_current_user_id() );
 		}
@@ -2756,11 +3068,14 @@ function gnf_rest_admin_reject_user( WP_REST_Request $request ) {
 }
 
 function gnf_rest_admin_centros( WP_REST_Request $request ) {
-	$anio   = (int) ( $request->get_param( 'year' ) ?: gnf_get_active_year() );
-	$region = (int) ( $request->get_param( 'region' ) ?: 0 );
-	$search = sanitize_text_field( $request->get_param( 's' ) ?? '' );
+	$anio         = (int) ( $request->get_param( 'year' ) ?: gnf_get_active_year() );
+	$region       = (int) ( $request->get_param( 'region' ) ?: 0 );
+	$search       = sanitize_text_field( $request->get_param( 's' ) ?? '' );
+	$estado       = sanitize_key( (string) ( $request->get_param( 'estado' ) ?? '' ) );
+	$registration = gnf_normalize_centro_registration_filter( $request->get_param( 'registration' ) ?? 'registered' );
 
 	$centros_con_matricula = gnf_get_centros_with_matricula( $anio );
+	$centro_ids            = gnf_filter_centro_ids_by_registration( $centros_con_matricula, $registration );
 
 	$args = array(
 		'post_type'      => 'centro_educativo',
@@ -2768,7 +3083,7 @@ function gnf_rest_admin_centros( WP_REST_Request $request ) {
 		'posts_per_page' => -1,
 		'orderby'        => 'title',
 		'order'          => 'ASC',
-		'post__in'       => ! empty( $centros_con_matricula ) ? $centros_con_matricula : array( 0 ),
+		'post__in'       => ! empty( $centro_ids ) ? $centro_ids : array( 0 ),
 	);
 
 	if ( $region ) {
@@ -2777,6 +3092,15 @@ function gnf_rest_admin_centros( WP_REST_Request $request ) {
 				'taxonomy' => 'gn_region',
 				'field'    => 'term_id',
 				'terms'    => $region,
+			),
+		);
+	}
+
+	if ( $estado ) {
+		$args['meta_query'] = array(
+			array(
+				'key'   => 'estado_centro',
+				'value' => $estado,
 			),
 		);
 	}
@@ -2910,6 +3234,42 @@ function gnf_rest_admin_dre_toggle( WP_REST_Request $request ) {
 	return array( 'success' => true, 'enabled' => $new );
 }
 
+function gnf_rest_admin_seed_retos( WP_REST_Request $request ) {
+	$anio = gnf_normalize_year( $request->get_param( 'year' ) );
+
+	require_once GNF_PATH . 'seeders/seed-retos.php';
+
+	$result   = gnf_run_retos_seeder( false );
+	$backfill = function_exists( 'gnf_backfill_required_retos_for_active_centros' )
+		? gnf_backfill_required_retos_for_active_centros( $anio )
+		: array( 'centros' => 0, 'actualizados' => 0 );
+
+	gnf_log_audit_event(
+		'admin_seed_retos',
+		array(
+			'panel'   => 'admin',
+			'anio'    => $anio,
+			'message' => sprintf( 'Seeder de retos ejecutado para %d.', $anio ),
+			'meta'    => array(
+				'backfill' => $backfill,
+			),
+		)
+	);
+
+	return array(
+		'success'  => true,
+		'year'     => $anio,
+		'seeded'   => is_array( $result ) ? $result : array(),
+		'backfill' => $backfill,
+		'message'  => sprintf(
+			'Retos %d resembrados. Se revisaron %d centros activos y se actualizaron %d.',
+			$anio,
+			(int) $backfill['centros'],
+			(int) $backfill['actualizados']
+		),
+	);
+}
+
 function gnf_rest_admin_audit_logs( WP_REST_Request $request ) {
 	$anio  = (int) ( $request->get_param( 'year' ) ?: 0 );
 	$limit = (int) ( $request->get_param( 'limit' ) ?: 100 );
@@ -2958,127 +3318,15 @@ function gnf_rest_track_event( WP_REST_Request $request ) {
 // ============================================================================
 
 function gnf_rest_comite_dashboard( WP_REST_Request $request ) {
-	$result = gnf_rest_supervisor_dashboard( $request );
-	return array( 'stats' => $result['stats'] ?? array() );
+	return gnf_rest_supervisor_dashboard( $request );
 }
 
 function gnf_rest_comite_centros( WP_REST_Request $request ) {
-	$anio     = (int) ( $request->get_param( 'year' ) ?: gnf_get_active_year() );
-	$region   = (int) ( $request->get_param( 'region' ) ?: 0 );
-	$circuito = sanitize_text_field( $request->get_param( 'circuito' ) ?? '' );
-	$search   = sanitize_text_field( $request->get_param( 's' ) ?? '' );
-	$user     = wp_get_current_user();
-
-	if ( ! current_user_can( 'manage_options' ) ) {
-		$user_region = gnf_get_user_region( $user->ID );
-		if ( $user_region ) {
-			$region = $user_region;
-		}
-	}
-
-	$centros_con_matricula = gnf_get_centros_with_matricula( $anio );
-	if ( empty( $centros_con_matricula ) ) {
-		return array();
-	}
-
-	$args = array(
-		'post_type'      => 'centro_educativo',
-		'posts_per_page' => -1,
-		'orderby'        => 'title',
-		'order'          => 'ASC',
-		'post_status'    => 'publish',
-		'post__in'       => $centros_con_matricula,
-	);
-
-	if ( $region ) {
-		$args['tax_query'] = array(
-			array(
-				'taxonomy' => 'gn_region',
-				'field'    => 'term_id',
-				'terms'    => $region,
-			),
-		);
-	}
-
-	if ( $circuito ) {
-		$args['meta_query'] = array(
-			array(
-				'key'   => 'circuito',
-				'value' => $circuito,
-			),
-		);
-	}
-
-	if ( $search ) {
-		$args['s'] = $search;
-	}
-
-	$query = new WP_Query( $args );
-	if ( ! $query->have_posts() ) {
-		return array();
-	}
-
-	$centro_ids = wp_list_pluck( $query->posts, 'ID' );
-	$counts     = gnf_rest_get_entry_counts_by_centro( $centro_ids, $anio );
-	$items      = array();
-
-	foreach ( $query->posts as $post ) {
-		$review  = gnf_rest_get_comite_review( $post->ID, $anio );
-		$items[] = gnf_rest_build_centro_with_stats(
-			$post->ID,
-			$anio,
-			$counts,
-			array(
-				'validado'     => 'validado' === ( $review['status'] ?? '' ),
-				'comiteStatus' => $review['status'] ?? '',
-			)
-		);
-	}
-
-	wp_reset_postdata();
-	return $items;
+	return gnf_rest_supervisor_centros( $request );
 }
 
 function gnf_rest_comite_centro_detail( WP_REST_Request $request ) {
-	$centro_id = (int) $request->get_param( 'id' );
-	$anio      = (int) ( $request->get_param( 'year' ) ?: gnf_get_active_year() );
-	$post      = get_post( $centro_id );
-
-	if ( ! $post || 'centro_educativo' !== $post->post_type ) {
-		return new WP_Error( 'not_found', 'Centro no encontrado.', array( 'status' => 404 ) );
-	}
-
-	global $wpdb;
-	$table       = $wpdb->prefix . 'gn_reto_entries';
-	$entries_raw = $wpdb->get_results(
-		$wpdb->prepare(
-			"SELECT * FROM {$table} WHERE centro_id = %d AND anio = %d",
-			$centro_id,
-			$anio
-		)
-	);
-
-	$entries = array();
-	foreach ( $entries_raw as $entry ) {
-		$entries[] = gnf_format_reto_entry( $entry, $anio );
-	}
-
-	$review = gnf_rest_get_comite_review( $centro_id, $anio );
-
-	return array(
-		'centro'       => gnf_rest_build_centro_with_stats(
-			$centro_id,
-			$anio,
-			gnf_rest_get_entry_counts_by_centro( array( $centro_id ), $anio ),
-			array(
-				'validado'     => 'validado' === ( $review['status'] ?? '' ),
-				'comiteStatus' => $review['status'] ?? '',
-			)
-		),
-		'entries'      => $entries,
-		'review'       => $review,
-		'observations' => gnf_rest_get_comite_observations( $centro_id, $anio ),
-	);
+	return gnf_rest_supervisor_centro_detail( $request );
 }
 
 function gnf_rest_comite_validate( WP_REST_Request $request ) {

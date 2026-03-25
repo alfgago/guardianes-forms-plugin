@@ -22,7 +22,7 @@ export function YearSelector() {
           <CalendarDays size={16} />
         </span>
         <div>
-          <div className="gnf-year-selector__eyebrow">Ano activo</div>
+          <div className="gnf-year-selector__eyebrow">Año activo</div>
           <div className="gnf-year-selector__value">{selectedYear}</div>
         </div>
       </div>
@@ -32,7 +32,7 @@ export function YearSelector() {
           className="gnf-year-selector__select"
           value={selectedYear}
           onChange={(e) => handleYearChange(Number(e.target.value))}
-          aria-label="Seleccionar ano"
+          aria-label="Seleccionar año"
         >
           {availableYears.map((year) => (
             <option key={year} value={year}>

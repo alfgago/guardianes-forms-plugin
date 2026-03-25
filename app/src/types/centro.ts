@@ -15,6 +15,7 @@ export interface Centro {
   dependencia?: string;
   jornada?: string;
   tipologia?: string;
+  tipoCentroEducativo?: string;
 }
 
 export interface CentroAnnualData {

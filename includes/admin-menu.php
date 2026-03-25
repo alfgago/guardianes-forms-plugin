@@ -1,5 +1,4 @@
 <?php
-
 /**
  * Menu agrupado "Formularios Bandera Azul".
  */
@@ -62,22 +61,6 @@ function gnf_register_admin_menu()
 
 	add_submenu_page(
 		'gnf-admin',
-		__('Centros Educativos', 'guardianes-formularios'),
-		__('Centros educativos', 'guardianes-formularios'),
-		$cap,
-		'edit.php?post_type=centro_educativo'
-	);
-
-	add_submenu_page(
-		'gnf-admin',
-		__('Retos', 'guardianes-formularios'),
-		__('Retos', 'guardianes-formularios'),
-		$cap,
-		'edit.php?post_type=reto'
-	);
-
-	add_submenu_page(
-		'gnf-admin',
 		__('Direcciones Regionales', 'guardianes-formularios'),
 		__('Direcciones Regionales', 'guardianes-formularios'),
 		$cap,
@@ -108,7 +91,535 @@ function gnf_register_admin_menu()
 add_action('admin_menu', 'gnf_register_admin_menu', 2);
 
 /**
- * Resalta el menú correcto cuando estamos en la taxonomía de regiones.
+ * Returns the transient key used to store the final centro import result.
+ *
+ * @param int|null $user_id User ID.
+ * @return string
+ */
+function gnf_get_reimport_result_key( $user_id = null ) {
+	$user_id = $user_id ? (int) $user_id : get_current_user_id();
+	return 'gnf_reimport_result_' . $user_id;
+}
+
+/**
+ * Returns the transient key used to store the active centro import job.
+ *
+ * @param int|null $user_id User ID.
+ * @return string
+ */
+function gnf_get_centros_import_job_key( $user_id = null ) {
+	$user_id = $user_id ? (int) $user_id : get_current_user_id();
+	return 'gnf_centros_import_job_' . $user_id;
+}
+
+/**
+ * Ensures the batch importer helpers are loaded.
+ *
+ * @return void
+ */
+function gnf_require_centros_importer() {
+	if ( ! function_exists( 'gnf_import_centros_from_csv_batch' ) ) {
+		require_once GNF_PATH . 'seeders/seed-centros-mep.php';
+	}
+}
+
+/**
+ * Batch size used by the admin importer.
+ *
+ * @return int
+ */
+function gnf_get_centros_import_batch_size() {
+	return 250;
+}
+
+/**
+ * Returns the current import job for the active user.
+ *
+ * @param int|null $user_id User ID.
+ * @return array<string,mixed>|null
+ */
+function gnf_get_centros_import_job( $user_id = null ) {
+	$job = get_transient( gnf_get_centros_import_job_key( $user_id ) );
+	return is_array( $job ) ? $job : null;
+}
+
+/**
+ * Computes a progress snapshot for the current job.
+ *
+ * @param array<string,mixed>|null $job Import job.
+ * @return array<string,mixed>
+ */
+function gnf_get_centros_import_progress( $job ) {
+	$progress = array(
+		'percent'      => 0,
+		'done_units'   => 0,
+		'total_units'  => 0,
+		'status_label' => 'Listo para iniciar.',
+	);
+
+	if ( empty( $job ) || ! is_array( $job ) ) {
+		return $progress;
+	}
+
+	$total_units = 0;
+	$done_units  = 0;
+
+	if ( ! empty( $job['purge']['total'] ) ) {
+		$total_units += (int) $job['purge']['total'];
+		$done_units  += min( (int) $job['purge']['offset'], (int) $job['purge']['total'] );
+	}
+
+	if ( ! empty( $job['sources'] ) && is_array( $job['sources'] ) ) {
+		foreach ( $job['sources'] as $source ) {
+			$total_units += (int) ( $source['total'] ?? 0 );
+			$done_units  += min( (int) ( $source['offset'] ?? 0 ), (int) ( $source['total'] ?? 0 ) );
+		}
+	}
+
+	$progress['done_units']  = $done_units;
+	$progress['total_units'] = $total_units;
+	$progress['percent']     = $total_units > 0 ? round( min( 100, ( $done_units / $total_units ) * 100 ), 1 ) : 0;
+
+	if ( ! empty( $job['purge']['total'] ) && (int) $job['purge']['offset'] < (int) $job['purge']['total'] ) {
+		$progress['status_label'] = 'Eliminando centros sin docente asignado.';
+	} elseif ( isset( $job['current_source'] ) && isset( $job['sources'][ $job['current_source'] ] ) ) {
+		$source = $job['sources'][ $job['current_source'] ];
+		$progress['status_label'] = 'Importando ' . ( $source['label'] ?? 'centros' ) . '.';
+	} elseif ( ! empty( $job['status'] ) && 'completed' === $job['status'] ) {
+		$progress['status_label'] = 'Importacion completada.';
+	} elseif ( ! empty( $job['status'] ) && 'running' === $job['status'] ) {
+		$progress['status_label'] = 'Preparando siguiente lote.';
+	}
+
+	return $progress;
+}
+
+/**
+ * Merge two import stats arrays (CSV + JSON).
+ *
+ * @param array<string,mixed> $a Left stats array.
+ * @param array<string,mixed> $b Right stats array.
+ * @return array<string,mixed>
+ */
+function gnf_merge_import_stats( $a, $b ) {
+	$a['total']      = ( $a['total'] ?? 0 ) + ( $b['total'] ?? 0 );
+	$a['created']    = ( $a['created'] ?? 0 ) + ( $b['created'] ?? 0 );
+	$a['updated']    = ( $a['updated'] ?? 0 ) + ( $b['updated'] ?? 0 );
+	$a['skipped']    = ( $a['skipped'] ?? 0 ) + ( $b['skipped'] ?? 0 );
+	$a['duplicates'] = ( $a['duplicates'] ?? 0 ) + ( $b['duplicates'] ?? 0 );
+	$a['errors']     = array_merge( $a['errors'] ?? array(), $b['errors'] ?? array() );
+	return $a;
+}
+
+/**
+ * Builds and stores a new import job.
+ *
+ * @param string $mode Import mode.
+ * @return array<string,mixed>|WP_Error
+ */
+function gnf_create_centros_import_job( $mode = 'reimport' ) {
+	gnf_require_centros_importer();
+
+	$csv_file = GNF_PATH . 'seeders/escuelas-mep.csv';
+	if ( ! file_exists( $csv_file ) ) {
+		return new WP_Error( 'csv_not_found', 'No se encontro escuelas-mep.csv.' );
+	}
+
+	$job = array(
+		'mode'           => $mode,
+		'status'         => 'running',
+		'batch_size'     => gnf_get_centros_import_batch_size(),
+		'current_source' => 0,
+		'created_at'     => time(),
+		'updated_at'     => time(),
+		'stats'          => gnf_get_centros_import_stats_template(),
+		'sources'        => array(
+			array(
+				'type'   => 'csv',
+				'label'  => 'escuelas-mep.csv',
+				'path'   => $csv_file,
+				'offset' => 0,
+				'total'  => gnf_count_centros_csv_rows( $csv_file ),
+			),
+		),
+	);
+
+	$json_file = GNF_PATH . 'seeders/centros_educativos_2024.json';
+	if ( file_exists( $json_file ) ) {
+		$job['sources'][] = array(
+			'type'   => 'json',
+			'label'  => 'centros_educativos_2024.json',
+			'path'   => $json_file,
+			'offset' => 0,
+			'total'  => gnf_count_centros_json_entries( $json_file ),
+		);
+	}
+
+	if ( 'purge_reimport' === $mode ) {
+		global $wpdb;
+
+		$claimed_ids = $wpdb->get_col(
+			"SELECT DISTINCT CAST(meta_value AS UNSIGNED) FROM {$wpdb->usermeta}
+			 WHERE meta_key IN ('centro_educativo_id','centro_solicitado','gnf_centro_id')
+			   AND meta_value != '0' AND meta_value != '' AND meta_value IS NOT NULL"
+		);
+		$claimed_ids   = array_filter( array_map( 'intval', (array) $claimed_ids ) );
+		$all_ids       = $wpdb->get_col(
+			"SELECT ID FROM {$wpdb->posts}
+			 WHERE post_type = 'centro_educativo'
+			   AND post_status NOT IN ('auto-draft')"
+		);
+		$all_ids       = array_map( 'intval', (array) $all_ids );
+		$ids_to_delete = array_values( array_diff( $all_ids, $claimed_ids ) );
+
+		$job['purge'] = array(
+			'ids'    => $ids_to_delete,
+			'offset' => 0,
+			'total'  => count( $ids_to_delete ),
+		);
+		$job['stats']['deleted'] = 0;
+	}
+
+	set_transient( gnf_get_centros_import_job_key(), $job, HOUR_IN_SECONDS );
+
+	return $job;
+}
+
+/**
+ * Deletes a chunk of centro posts directly for purge mode.
+ *
+ * @param int[] $ids IDs to delete.
+ * @return int
+ */
+function gnf_delete_centros_import_chunk( $ids ) {
+	global $wpdb;
+
+	$ids = array_values( array_filter( array_map( 'intval', $ids ) ) );
+	if ( empty( $ids ) ) {
+		return 0;
+	}
+
+	$ids_sql = implode( ',', $ids );
+
+	// phpcs:disable WordPress.DB.PreparedSQL.NotPrepared
+	$wpdb->query( "DELETE FROM {$wpdb->posts} WHERE ID IN ({$ids_sql})" );
+	$wpdb->query( "DELETE FROM {$wpdb->postmeta} WHERE post_id IN ({$ids_sql})" );
+	$wpdb->query( "DELETE FROM {$wpdb->term_relationships} WHERE object_id IN ({$ids_sql})" );
+	// phpcs:enable
+
+	return count( $ids );
+}
+
+/**
+ * Processes a single AJAX batch for the active import job.
+ *
+ * @return void
+ */
+function gnf_ajax_process_centros_import_batch() {
+	check_ajax_referer( 'gnf_centros_import_batch', 'nonce' );
+
+	if ( ! current_user_can( 'manage_options' ) ) {
+		wp_send_json_error( array( 'message' => 'Sin permisos.' ), 403 );
+	}
+
+	$job = gnf_get_centros_import_job();
+	if ( empty( $job ) ) {
+		wp_send_json_error( array( 'message' => 'No hay una importacion activa para este usuario.' ), 404 );
+	}
+
+	gnf_require_centros_importer();
+	@set_time_limit( 60 ); // phpcs:ignore WordPress.PHP.NoSilencedErrors
+
+	$batch_message = 'Procesando lote...';
+	$fatal_batch   = false;
+
+	wp_suspend_cache_invalidation( true );
+	wp_defer_term_counting( true );
+	wp_defer_comment_counting( true );
+
+	try {
+		if ( ! empty( $job['purge']['total'] ) && (int) $job['purge']['offset'] < (int) $job['purge']['total'] ) {
+			$start       = (int) $job['purge']['offset'];
+			$chunk       = array_slice( $job['purge']['ids'], $start, (int) $job['batch_size'] );
+			$deleted_now = gnf_delete_centros_import_chunk( $chunk );
+			$job['purge']['offset'] += $deleted_now;
+			$job['stats']['deleted'] = ( $job['stats']['deleted'] ?? 0 ) + $deleted_now;
+			$batch_message = sprintf( 'Eliminados %d centros sin docente en este lote.', $deleted_now );
+
+			if ( (int) $job['purge']['offset'] >= (int) $job['purge']['total'] ) {
+				unset( $job['purge']['ids'] );
+			}
+		} else {
+			while ( isset( $job['sources'][ $job['current_source'] ] ) ) {
+				$current_source = $job['sources'][ $job['current_source'] ];
+				if ( (int) $current_source['offset'] < (int) $current_source['total'] ) {
+					break;
+				}
+				$job['current_source']++;
+			}
+
+			if ( isset( $job['sources'][ $job['current_source'] ] ) ) {
+				$current_source = $job['sources'][ $job['current_source'] ];
+				$offset         = (int) $current_source['offset'];
+				$limit          = (int) $job['batch_size'];
+
+				if ( 'json' === $current_source['type'] ) {
+					$batch = gnf_import_centros_from_json_batch( $current_source['path'], $offset, $limit, false );
+				} else {
+					$batch = gnf_import_centros_from_csv_batch( $current_source['path'], $offset, $limit, false );
+				}
+
+				$job['stats'] = gnf_merge_import_stats( $job['stats'], $batch['stats'] );
+				$job['sources'][ $job['current_source'] ]['offset'] = (int) $batch['next_offset'];
+				$batch_message = sprintf(
+					'%s: %d/%d filas procesadas.',
+					$current_source['label'],
+					(int) $batch['next_offset'],
+					(int) $current_source['total']
+				);
+
+				if ( ! empty( $batch['stats']['errors'] ) && 0 === (int) $batch['processed'] ) {
+					$fatal_batch = true;
+				}
+
+				if ( empty( $batch['has_more'] ) ) {
+					$job['current_source']++;
+				}
+			}
+		}
+	} finally {
+		wp_defer_term_counting( false );
+		wp_defer_comment_counting( false );
+		wp_suspend_cache_invalidation( false );
+	}
+
+	$job['updated_at'] = time();
+	$is_done           = $fatal_batch;
+
+	if ( ! $is_done ) {
+		$is_done = true;
+
+		if ( ! empty( $job['purge']['total'] ) && (int) $job['purge']['offset'] < (int) $job['purge']['total'] ) {
+			$is_done = false;
+		}
+
+		if ( $is_done && ! empty( $job['sources'] ) && is_array( $job['sources'] ) ) {
+			foreach ( $job['sources'] as $source ) {
+				if ( (int) ( $source['offset'] ?? 0 ) < (int) ( $source['total'] ?? 0 ) ) {
+					$is_done = false;
+					break;
+				}
+			}
+		}
+	}
+
+	if ( $is_done ) {
+		$job['status'] = 'completed';
+		set_transient( gnf_get_reimport_result_key(), $job['stats'], 120 );
+		delete_transient( gnf_get_centros_import_job_key() );
+
+		if ( ! empty( $job['stats']['deleted'] ) ) {
+			wp_cache_flush();
+		}
+
+		$progress            = gnf_get_centros_import_progress( $job );
+		$progress['percent'] = 100;
+
+		wp_send_json_success(
+			array(
+				'done'        => true,
+				'message'     => $fatal_batch ? 'La importacion termino con errores.' : 'Importacion completada.',
+				'progress'    => $progress,
+				'stats'       => $job['stats'],
+				'redirectUrl' => admin_url( 'options-general.php' ),
+			)
+		);
+	}
+
+	set_transient( gnf_get_centros_import_job_key(), $job, HOUR_IN_SECONDS );
+	$progress = gnf_get_centros_import_progress( $job );
+
+	wp_send_json_success(
+		array(
+			'done'     => false,
+			'message'  => $batch_message,
+			'progress' => $progress,
+			'stats'    => $job['stats'],
+		)
+	);
+}
+add_action( 'wp_ajax_gnf_process_centros_import_batch', 'gnf_ajax_process_centros_import_batch' );
+
+/**
+ * Renders the settings-page notice used to launch and monitor the import.
+ *
+ * @return void
+ */
+function gnf_render_centros_import_notice() {
+	global $pagenow;
+
+	if ( 'options-general.php' !== $pagenow ) {
+		return;
+	}
+
+	if ( ! current_user_can( 'manage_options' ) ) {
+		return;
+	}
+
+	gnf_require_centros_importer();
+
+	$result = get_transient( gnf_get_reimport_result_key() );
+	if ( $result ) {
+		delete_transient( gnf_get_reimport_result_key() );
+		$errors_html = '';
+		if ( ! empty( $result['errors'] ) ) {
+			$errors_html = '<ul style="margin:8px 0 0;padding-left:20px;">';
+			foreach ( array_slice( $result['errors'], 0, 5 ) as $err ) {
+				$errors_html .= '<li>' . esc_html( $err ) . '</li>';
+			}
+			if ( count( $result['errors'] ) > 5 ) {
+				$errors_html .= '<li>... y ' . ( count( $result['errors'] ) - 5 ) . ' errores mas.</li>';
+			}
+			$errors_html .= '</ul>';
+		}
+
+		$variant      = empty( $result['errors'] ) ? 'notice-success' : 'notice-warning';
+		$deleted_line = isset( $result['deleted'] ) ? sprintf( ' &nbsp;&middot;&nbsp; <strong>%d eliminados</strong>', (int) $result['deleted'] ) : '';
+
+		printf(
+			'<div class="notice %s is-dismissible"><p><strong>Importacion completada:</strong> %d nuevos &nbsp;&middot;&nbsp; %d actualizados &nbsp;&middot;&nbsp; %d omitidos &nbsp;&middot;&nbsp; %d duplicados%s %s</p></div>',
+			esc_attr( $variant ),
+			(int) $result['created'],
+			(int) $result['updated'],
+			(int) $result['skipped'],
+			(int) $result['duplicates'],
+			$deleted_line,
+			$errors_html
+		);
+	}
+
+	if ( isset( $_GET['gnf_reimport_error'] ) && 'csv_not_found' === sanitize_key( wp_unslash( $_GET['gnf_reimport_error'] ) ) ) {
+		echo '<div class="notice notice-error"><p>No se encontro <code>seeders/escuelas-mep.csv</code>.</p></div>';
+	}
+
+	$job         = gnf_get_centros_import_job();
+	$job_running = ! empty( $job ) && is_array( $job ) && 'running' === ( $job['status'] ?? '' );
+	$progress    = gnf_get_centros_import_progress( $job );
+
+	$csv_path  = GNF_PATH . 'seeders/escuelas-mep.csv';
+	$csv_rows  = gnf_count_centros_csv_rows( $csv_path );
+	$csv_label = $csv_rows ? number_format_i18n( $csv_rows ) . ' filas en escuelas-mep.csv' : 'escuelas-mep.csv no encontrado';
+
+	$json_path  = GNF_PATH . 'seeders/centros_educativos_2024.json';
+	$json_rows  = file_exists( $json_path ) ? gnf_count_centros_json_entries( $json_path ) : 0;
+	$json_label = $json_rows ? ' + ' . number_format_i18n( $json_rows ) . ' en centros_educativos_2024.json' : '';
+	?>
+	<div class="notice notice-info" style="padding:16px 20px;">
+		<strong style="font-size:14px;">Importar Centros Educativos MEP</strong>
+		<p style="margin:6px 0 12px;color:#555;">
+			Re-importa todos los centros del archivo <code>escuelas-mep.csv</code> y <code>centros_educativos_2024.json</code> que no esten aun en el sistema.
+			Los ya existentes se actualizan sin duplicar. Ahora corre en lotes de <?php echo esc_html( (string) gnf_get_centros_import_batch_size() ); ?> filas para evitar timeouts.
+			(<?php echo esc_html( $csv_label . $json_label ); ?>)
+		</p>
+		<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" style="display:inline;margin-right:12px;">
+			<?php wp_nonce_field( 'gnf_reimport_centros', 'gnf_reimport_nonce' ); ?>
+			<input type="hidden" name="action" value="gnf_reimport_centros" />
+			<button type="submit" class="button button-primary" <?php disabled( $job_running ); ?> onclick="return confirm('Esto iniciara una importacion en lotes y mostrara el progreso en esta pantalla.');">
+				Importar centros nuevos
+			</button>
+		</form>
+		<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" style="display:inline;">
+			<?php wp_nonce_field( 'gnf_purge_reimport_centros', 'gnf_reimport_nonce' ); ?>
+			<input type="hidden" name="action" value="gnf_purge_reimport_centros" />
+			<button type="submit" class="button button-secondary" style="border-color:#b91c1c;color:#b91c1c;" <?php disabled( $job_running ); ?> onclick="return confirm('Esto eliminara todos los centros sin docente asignado y luego reimportara el catalogo en lotes. Esta accion no se puede deshacer.');">
+				Limpiar duplicados y reimportar
+			</button>
+		</form>
+		<?php if ( $job_running ) : ?>
+			<p style="margin:10px 0 0;color:#555;">Hay una importacion activa. Deja esta pantalla abierta para ver el progreso.</p>
+		<?php endif; ?>
+	</div>
+
+	<div
+		id="gnf-centros-import-progress"
+		class="notice notice-info"
+		data-active="<?php echo esc_attr( $job_running ? '1' : '0' ); ?>"
+		data-autostart="<?php echo esc_attr( $job_running ? '1' : '0' ); ?>"
+		style="<?php echo $job_running ? 'padding:16px 20px;' : 'display:none;padding:16px 20px;'; ?>">
+		<strong style="font-size:14px;">Progreso de importacion</strong>
+		<p class="gnf-centros-import-status" style="margin:8px 0 12px;color:#374151;">
+			<?php echo esc_html( $progress['status_label'] ); ?>
+		</p>
+		<div style="height:12px;background:#e5e7eb;border-radius:999px;overflow:hidden;">
+			<div class="gnf-centros-import-bar" style="height:12px;width:<?php echo esc_attr( (string) $progress['percent'] ); ?>%;background:linear-gradient(90deg,#2563eb,#0891b2);"></div>
+		</div>
+		<p class="gnf-centros-import-meta" style="margin:10px 0 14px;color:#555;">
+			<?php echo esc_html( number_format_i18n( (int) $progress['done_units'] ) . ' de ' . number_format_i18n( (int) $progress['total_units'] ) . ' filas procesadas (' . $progress['percent'] . '%)' ); ?>
+		</p>
+		<div style="display:flex;gap:18px;flex-wrap:wrap;">
+			<span><strong class="gnf-stat-created"><?php echo esc_html( (string) ( $job['stats']['created'] ?? 0 ) ); ?></strong> nuevos</span>
+			<span><strong class="gnf-stat-updated"><?php echo esc_html( (string) ( $job['stats']['updated'] ?? 0 ) ); ?></strong> actualizados</span>
+			<span><strong class="gnf-stat-skipped"><?php echo esc_html( (string) ( $job['stats']['skipped'] ?? 0 ) ); ?></strong> omitidos</span>
+			<span><strong class="gnf-stat-errors"><?php echo esc_html( (string) count( $job['stats']['errors'] ?? array() ) ); ?></strong> errores</span>
+			<span class="gnf-stat-deleted-wrap" style="<?php echo isset( $job['stats']['deleted'] ) ? '' : 'display:none;'; ?>">
+				<strong class="gnf-stat-deleted"><?php echo esc_html( (string) ( $job['stats']['deleted'] ?? 0 ) ); ?></strong> eliminados
+			</span>
+		</div>
+		<p class="gnf-centros-import-message" style="margin:12px 0 0;color:#1f2937;"></p>
+		<p class="gnf-centros-import-error" style="display:none;margin:12px 0 0;color:#b91c1c;font-weight:600;"></p>
+	</div>
+	<?php
+}
+add_action( 'admin_notices', 'gnf_render_centros_import_notice' );
+
+/**
+ * Starts the standard import job and redirects back to settings.
+ *
+ * @return void
+ */
+function gnf_handle_reimport_centros() {
+	check_admin_referer( 'gnf_reimport_centros', 'gnf_reimport_nonce' );
+
+	if ( ! current_user_can( 'manage_options' ) ) {
+		wp_die( 'Sin permisos.' );
+	}
+
+	$job = gnf_create_centros_import_job( 'reimport' );
+	if ( is_wp_error( $job ) ) {
+		wp_safe_redirect( add_query_arg( 'gnf_reimport_error', 'csv_not_found', admin_url( 'options-general.php' ) ) );
+		exit;
+	}
+
+	wp_safe_redirect( add_query_arg( 'gnf_centros_import', 'reimport', admin_url( 'options-general.php' ) ) );
+	exit;
+}
+add_action( 'admin_post_gnf_reimport_centros', 'gnf_handle_reimport_centros' );
+
+/**
+ * Starts the purge + reimport job and redirects back to settings.
+ *
+ * @return void
+ */
+function gnf_handle_purge_and_reimport_centros() {
+	check_admin_referer( 'gnf_purge_reimport_centros', 'gnf_reimport_nonce' );
+
+	if ( ! current_user_can( 'manage_options' ) ) {
+		wp_die( 'Sin permisos.' );
+	}
+
+	$job = gnf_create_centros_import_job( 'purge_reimport' );
+	if ( is_wp_error( $job ) ) {
+		wp_safe_redirect( add_query_arg( 'gnf_reimport_error', 'csv_not_found', admin_url( 'options-general.php' ) ) );
+		exit;
+	}
+
+	wp_safe_redirect( add_query_arg( 'gnf_centros_import', 'purge_reimport', admin_url( 'options-general.php' ) ) );
+	exit;
+}
+add_action( 'admin_post_gnf_purge_reimport_centros', 'gnf_handle_purge_and_reimport_centros' );
+
+/**
+ * Resalta el menu correcto cuando estamos en la taxonomia de regiones.
  */
 function gnf_highlight_region_menu($parent_file)
 {
@@ -119,7 +630,6 @@ function gnf_highlight_region_menu($parent_file)
 	return $parent_file;
 }
 add_filter('parent_file', 'gnf_highlight_region_menu');
-
 
 /**
  * Vista del panel raiz con resumen y accesos.
@@ -624,3 +1134,4 @@ function gnf_render_admin_dashboard()
 	</div>
 <?php
 }
+

@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
 import { Alert } from '@/components/ui/Alert';
 import { CentroSearch } from '@/components/domain/CentroSearch';
+import { RegionFilter } from '@/components/domain/RegionFilter';
 import { useToast } from '@/components/ui/Toast';
 import { PendingUsersSection } from '../components/PendingUsersSection';
 import type { CentroSearchResult, PendingUser, Region } from '@/types';
@@ -20,6 +21,7 @@ export function UsuariosPage() {
   const [search, setSearch] = useState('');
   const [role, setRole] = useState('all');
   const [status, setStatus] = useState('all');
+  const [region, setRegion] = useState('');
   const [editingUser, setEditingUser] = useState<PendingUser | null>(null);
   const [formState, setFormState] = useState({
     name: '',
@@ -44,6 +46,7 @@ export function UsuariosPage() {
 
   useEffect(() => {
     if (!editingUser) return;
+
     setFormState({
       name: editingUser.name ?? '',
       email: editingUser.email ?? '',
@@ -53,6 +56,7 @@ export function UsuariosPage() {
       identificacion: editingUser.identificacion ?? '',
       regionId: editingUser.regionId ? String(editingUser.regionId) : '',
     });
+
     setSelectedCentro(
       editingUser.centroId
         ? {
@@ -93,10 +97,47 @@ export function UsuariosPage() {
       const matchesSearch = !search.trim() || haystack.includes(search.trim().toLowerCase());
       const matchesRole = role === 'all' || user.role === role;
       const matchesStatus = status === 'all' || (user.status ?? 'activo') === status;
+      const matchesRegion = !region || String(user.regionId ?? '') === region;
 
-      return matchesSearch && matchesRole && matchesStatus;
+      return matchesSearch && matchesRole && matchesStatus && matchesRegion;
     });
-  }, [role, search, status, users]);
+  }, [region, role, search, status, users]);
+
+  const docenteCenterSummary = useMemo(() => {
+    const distinctCenters = new Map<number | string, PendingUser>();
+    const pendingCenters = new Set<number | string>();
+    const visibleSupervisors = filteredUsers.filter((user) => user.role === 'supervisor').length;
+
+    filteredUsers.forEach((user) => {
+      if (user.role !== 'docente') return;
+
+      const key = user.centroId ?? `user-${user.id}`;
+      if (!distinctCenters.has(key)) {
+        distinctCenters.set(key, user);
+      }
+
+      if ((user.status ?? 'activo') === 'pendiente') {
+        pendingCenters.add(key);
+      }
+    });
+
+    const regionCounter = new Map<string, number>();
+    distinctCenters.forEach((user) => {
+      const regionName = user.regionName || 'Sin región';
+      regionCounter.set(regionName, (regionCounter.get(regionName) ?? 0) + 1);
+    });
+
+    const byRegion = Array.from(regionCounter.entries())
+      .map(([name, total]) => ({ name, total }))
+      .sort((a, b) => b.total - a.total || a.name.localeCompare(b.name, 'es'));
+
+    return {
+      visibleCenters: distinctCenters.size,
+      pendingCenters: pendingCenters.size,
+      visibleSupervisors,
+      byRegion,
+    };
+  }, [filteredUsers]);
 
   return (
     <div>
@@ -107,12 +148,14 @@ export function UsuariosPage() {
           <div style={{ flex: '1 1 280px' }}>
             <Input
               label="Buscar"
-              placeholder="Nombre, correo, centro o region..."
+              placeholder="Nombre, correo, centro o región..."
               value={search}
               onChange={(event) => setSearch(event.target.value)}
               style={{ marginBottom: 0 }}
             />
           </div>
+
+          <RegionFilter regions={regions ?? []} value={region} onChange={setRegion} />
 
           <label style={{ display: 'grid', gap: 6, fontSize: '0.8125rem', color: 'var(--gnf-muted)' }}>
             Rol
@@ -156,9 +199,66 @@ export function UsuariosPage() {
         </div>
       </Card>
 
-      <p style={{ fontSize: '0.875rem', color: 'var(--gnf-muted)', marginBottom: 'var(--gnf-space-4)' }}>
-        {filteredUsers.length} usuario{filteredUsers.length === 1 ? '' : 's'} visibles.
-      </p>
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+          gap: 'var(--gnf-space-4)',
+          marginBottom: 'var(--gnf-space-4)',
+        }}
+      >
+        <Card padding="var(--gnf-space-5)">
+          <strong style={{ display: 'block', fontSize: '1.5rem', color: 'var(--gnf-ocean-dark)' }}>{docenteCenterSummary.visibleCenters}</strong>
+          <span style={{ color: 'var(--gnf-muted)', fontSize: '0.875rem' }}>Centros educativos visibles</span>
+        </Card>
+        <Card padding="var(--gnf-space-5)">
+          <strong style={{ display: 'block', fontSize: '1.5rem', color: '#b45309' }}>{docenteCenterSummary.pendingCenters}</strong>
+          <span style={{ color: 'var(--gnf-muted)', fontSize: '0.875rem' }}>Centros pendientes</span>
+        </Card>
+        <Card padding="var(--gnf-space-5)">
+          <strong style={{ display: 'block', fontSize: '1.5rem', color: 'var(--gnf-forest)' }}>{docenteCenterSummary.visibleSupervisors}</strong>
+          <span style={{ color: 'var(--gnf-muted)', fontSize: '0.875rem' }}>Supervisores visibles</span>
+        </Card>
+      </div>
+
+      <Card style={{ marginBottom: 'var(--gnf-space-4)' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 'var(--gnf-space-4)', flexWrap: 'wrap', marginBottom: 'var(--gnf-space-3)' }}>
+          <div>
+            <strong>Resumen por DRE</strong>
+            <p style={{ margin: '4px 0 0', fontSize: '0.875rem', color: 'var(--gnf-muted)' }}>
+              Conteo distinto por centro educativo para no inflar matrículas.
+            </p>
+          </div>
+          <span style={{ fontSize: '0.875rem', color: 'var(--gnf-muted)' }}>
+            {filteredUsers.length} usuario{filteredUsers.length === 1 ? '' : 's'} visible{filteredUsers.length === 1 ? '' : 's'}
+          </span>
+        </div>
+
+        {docenteCenterSummary.byRegion.length > 0 ? (
+          <div style={{ display: 'grid', gap: 'var(--gnf-space-2)' }}>
+            {docenteCenterSummary.byRegion.map((item) => (
+              <div
+                key={item.name}
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  gap: 'var(--gnf-space-3)',
+                  padding: 'var(--gnf-space-3)',
+                  borderRadius: 'var(--gnf-radius-sm)',
+                  background: 'rgba(30, 95, 138, 0.05)',
+                }}
+              >
+                <span>{item.name}</span>
+                <strong>{item.total} centro{item.total === 1 ? '' : 's'}</strong>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p style={{ margin: 0, color: 'var(--gnf-muted)', fontSize: '0.875rem' }}>
+            No hay centros visibles con los filtros actuales.
+          </p>
+        )}
+      </Card>
 
       {isLoading ? <Spinner /> : <PendingUsersSection users={filteredUsers} onEdit={setEditingUser} />}
 
@@ -221,7 +321,7 @@ export function UsuariosPage() {
                     setFormState((current) => ({ ...current, regionId: event.target.value }));
                     setSelectedCentro(null);
                   }}
-                  options={(regions ?? []).map((region) => ({ value: String(region.id), label: region.name }))}
+                  options={(regions ?? []).map((item) => ({ value: String(item.id), label: item.name }))}
                   placeholder="Seleccionar region..."
                 />
                 <CentroSearch
@@ -241,7 +341,7 @@ export function UsuariosPage() {
                 label="Region"
                 value={formState.regionId}
                 onChange={(event) => setFormState((current) => ({ ...current, regionId: event.target.value }))}
-                options={(regions ?? []).map((region) => ({ value: String(region.id), label: region.name }))}
+                options={(regions ?? []).map((item) => ({ value: String(item.id), label: item.name }))}
                 placeholder="Seleccionar region..."
               />
             )}
