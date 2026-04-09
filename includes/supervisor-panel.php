@@ -24,9 +24,8 @@ function gnf_render_supervisor_panel() {
 		return '<div class="gnf-auth"><div class="gnf-auth__card"><p class="gnf-muted">No tienes permisos para ver este panel.</p></div></div>';
 	}
 
-	// Comité BAE ve todas las regiones.
-	$is_comite = gnf_user_has_role( $user, 'comite_bae' ) || current_user_can( 'gnf_view_all_regions' );
-	$region_slug = $is_comite ? '' : gnf_get_user_region( $user->ID );
+	// Tanto supervisor como comité BAE ven solo su región asignada.
+	$region_slug = gnf_get_user_region( $user->ID );
 	$anio_activo = gnf_get_active_year();
 	$anio        = gnf_normalize_year( isset( $_GET['gnf_year'] ) ? absint( $_GET['gnf_year'] ) : null );
 	$centro_id   = isset( $_GET['centro_id'] ) ? absint( $_GET['centro_id'] ) : 0;
@@ -68,7 +67,16 @@ function gnf_render_supervisor_panel() {
 		array_unshift( $years_available, $anio_activo );
 	}
 
-	$circuito_filter = isset( $_GET['circuito'] ) ? sanitize_text_field( wp_unslash( $_GET['circuito'] ) ) : '';
+	// Supervisors auto-filter to their assigned circuito. Comité BAE/DRE sees all.
+	$user_circuito  = gnf_get_user_circuito( $user->ID );
+	$is_supervisor  = gnf_user_has_role( $user, 'supervisor' ) && '' !== $user_circuito;
+	if ( $is_supervisor ) {
+		// Supervisor always filters by their circuito (URL param ignored).
+		$circuito_filter = $user_circuito;
+	} else {
+		// Comité BAE/DRE can filter by circuito via URL, or see all.
+		$circuito_filter = isset( $_GET['circuito'] ) ? sanitize_text_field( wp_unslash( $_GET['circuito'] ) ) : '';
+	}
 
 	// Solo centros con matrícula activa para el año.
 	$centros_con_matricula = gnf_get_centros_with_matricula( $anio );

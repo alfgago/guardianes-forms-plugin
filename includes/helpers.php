@@ -913,6 +913,21 @@ function gnf_get_user_region($user_id)
 }
 
 /**
+ * Obtiene el circuito asignado a un usuario supervisor.
+ *
+ * @param int $user_id ID del usuario.
+ * @return string Circuito (e.g. '01', '02') o cadena vacía si no tiene.
+ */
+function gnf_get_user_circuito( $user_id ) {
+	$user_id = absint( $user_id );
+	if ( ! $user_id ) {
+		return '';
+	}
+	$circuito = get_user_meta( $user_id, 'circuito', true );
+	return is_string( $circuito ) ? trim( $circuito ) : '';
+}
+
+/**
  * Comprueba si el usuario tiene acceso al centro (docente, supervisor regiÃ³n o comitÃ©).
  */
 function gnf_user_can_access_centro($user_id, $centro_id)
@@ -923,15 +938,15 @@ function gnf_user_can_access_centro($user_id, $centro_id)
 
 	$user = get_userdata($user_id);
 
-	// ComitÃ© BAE puede acceder a todos los centros.
-	if (gnf_user_has_role($user, 'comite_bae') || user_can($user_id, 'gnf_view_all_regions')) {
-		return true;
-	}
-
 	$centro_region = get_post_meta($centro_id, 'region', true);
 	if (empty($centro_region)) {
 		$terms = wp_get_post_terms($centro_id, 'gn_region', array('fields' => 'ids'));
 		$centro_region = $terms ? $terms[0] : '';
+	}
+
+	// Comité BAE: misma lógica que supervisor — solo su región asignada.
+	if ( gnf_user_has_role( $user, 'comite_bae' ) ) {
+		return (string) gnf_get_user_region( $user_id ) === (string) $centro_region;
 	}
 
 	if (gnf_user_has_role($user, 'docente')) {
@@ -946,8 +961,16 @@ function gnf_user_can_access_centro($user_id, $centro_id)
 		return (int) gnf_get_centro_for_docente( $user_id ) === (int) $centro_id;
 	}
 
-	if (gnf_user_has_role($user, 'supervisor')) {
-		return (string) gnf_get_user_region($user_id) === (string) $centro_region;
+	if ( gnf_user_has_role( $user, 'supervisor' ) ) {
+		if ( (string) gnf_get_user_region( $user_id ) !== (string) $centro_region ) {
+			return false;
+		}
+		$user_circuito = gnf_get_user_circuito( $user_id );
+		if ( '' === $user_circuito ) {
+			return true; // No circuito assigned = sees whole region (fallback).
+		}
+		$centro_circuito = get_post_meta( $centro_id, 'circuito', true );
+		return (string) $user_circuito === (string) $centro_circuito;
 	}
 
 	return false;
@@ -3739,18 +3762,24 @@ function gnf_get_reto_allowed_tipos($reto_id)
  */
 function gnf_get_supervisores_by_region($region_id)
 {
-	$args = array(
-		'role'   => 'supervisor',
-		'number' => 200,
-		'meta_query' => array(
-			array(
-				'key'   => 'region',
-				'value' => $region_id,
-			),
+	$meta_query = array(
+		array(
+			'key'   => 'region',
+			'value' => $region_id,
 		),
 	);
-	$users = get_users($args);
-	return $users;
+	// Include both supervisors and comité BAE (DRE) for the region.
+	$supervisors = get_users( array(
+		'role'       => 'supervisor',
+		'number'     => 200,
+		'meta_query' => $meta_query,
+	) );
+	$comite = get_users( array(
+		'role'       => 'comite_bae',
+		'number'     => 200,
+		'meta_query' => $meta_query,
+	) );
+	return array_merge( $supervisors, $comite );
 }
 
 /**

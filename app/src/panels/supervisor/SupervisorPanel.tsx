@@ -59,10 +59,10 @@ export function SupervisorPanel() {
             />
           ))}
           <SidebarLink
-            page="centros-detail"
+            page="centros"
             label="Centros"
             icon={<School size={18} />}
-            active={page === 'centro'}
+            active={page === 'dashboard' || page === 'centro'}
             onClick={() => navigate('dashboard')}
           />
         </>

@@ -45,7 +45,6 @@ function gnf_register_roles() {
 		array(
 			'read'                      => true,
 			'gnf_view_supervisor_panel' => true,
-			'gnf_view_all_regions'      => true,
 			'gnf_validate_entries'      => true,
 		)
 	);
@@ -85,10 +84,9 @@ function gnf_add_custom_caps() {
 		'view_guardianes_notificaciones',
 	);
 
-	// Comité BAE: puede ver todo pero NO asignar puntos.
+	// Comité BAE: misma lógica que supervisor, region-scoped.
 	$caps_comite = array(
 		'view_guardianes_supervisor',
-		'gnf_view_all_regions',
 		'gnf_validate_entries',
 		'view_guardianes_notificaciones',
 	);
@@ -147,7 +145,6 @@ function gnf_user_can_access_panel( $user, $panel_slug ) {
 		case 'panel-comite':
 			return $is_admin_panel_user
 				|| in_array( 'comite_bae', $roles, true )
-				|| user_can( $user, 'gnf_view_all_regions' )
 				|| user_can( $user, 'view_guardianes_supervisor' );
 
 		case 'panel-supervisor':

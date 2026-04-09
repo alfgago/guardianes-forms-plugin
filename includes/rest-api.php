@@ -462,6 +462,16 @@ function gnf_register_rest_routes() {
 		)
 	);
 
+	register_rest_route(
+		$ns,
+		'/admin/audit-logs',
+		array(
+			'methods'             => 'GET',
+			'callback'            => 'gnf_rest_admin_audit_logs',
+			'permission_callback' => 'gnf_rest_is_admin',
+		)
+	);
+
 	// ── Comité BAE ──────────────────────────────────────────────────
 	register_rest_route(
 		$ns,
@@ -2588,8 +2598,8 @@ function gnf_rest_supervisor_dashboard( WP_REST_Request $request ) {
 		)
 	);
 
-	// Filter by region if supervisor (not admin/comité).
-	if ( $region && ! current_user_can( 'gnf_view_all_regions' ) ) {
+	// Filter by region for all supervisor/comité users.
+	if ( $region ) {
 		$region_centros = get_posts( array(
 			'post_type'   => 'centro_educativo',
 			'numberposts' => -1,
@@ -2648,8 +2658,8 @@ function gnf_rest_supervisor_centros( WP_REST_Request $request ) {
 		'post__in'       => $centros_con_matricula,
 	);
 
-	// Region-scope for supervisors (not admin/comité).
-	if ( $region && ! current_user_can( 'gnf_view_all_regions' ) ) {
+	// Region-scope for all supervisor/comité users.
+	if ( $region ) {
 		$centros_args['tax_query'] = array(
 			array(
 				'taxonomy' => 'gn_region',
@@ -2710,9 +2720,39 @@ function gnf_rest_supervisor_centro_detail( WP_REST_Request $request ) {
 		)
 	);
 
-	$entries = array();
+	$entries         = array();
+	$retos_with_entry = array();
 	foreach ( $entries_raw as $entry ) {
-		$entries[] = gnf_format_reto_entry( $entry, $anio );
+		$entries[]                              = gnf_format_reto_entry( $entry, $anio );
+		$retos_with_entry[ (int) $entry->reto_id ] = true;
+	}
+
+	// Include stub entries for selected retos that don't have submissions yet.
+	$retos_seleccionados = gnf_get_centro_retos_seleccionados( $centro_id, $anio );
+	foreach ( (array) $retos_seleccionados as $reto_id ) {
+		if ( isset( $retos_with_entry[ (int) $reto_id ] ) ) {
+			continue;
+		}
+		$reto    = get_post( $reto_id );
+		$max_pts = gnf_get_reto_max_points( $reto_id, $anio );
+		$entries[] = array(
+			'id'              => 0,
+			'retoId'          => (int) $reto_id,
+			'retoTitulo'      => $reto ? $reto->post_title : '',
+			'retoColor'       => $reto ? gnf_get_reto_color( $reto->ID ) : '',
+			'retoIconUrl'     => $reto ? gnf_get_reto_icon_url( $reto->ID, 'thumbnail', $anio ) : '',
+			'centroId'        => $centro_id,
+			'userId'          => 0,
+			'anio'            => $anio,
+			'estado'          => 'sin_evidencias',
+			'puntaje'         => 0,
+			'puntajeMaximo'   => $max_pts,
+			'supervisorNotes' => '',
+			'evidencias'      => array(),
+			'responses'       => array(),
+			'createdAt'       => null,
+			'updatedAt'       => null,
+		);
 	}
 
 	return array(

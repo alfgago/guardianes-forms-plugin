@@ -40,8 +40,8 @@
       "_query-GzUKkhGG.js"
     ]
   },
-  "_SupervisorPanel-CD5v6lM-.js": {
-    "file": "chunks/SupervisorPanel-CD5v6lM-.js",
+  "_SupervisorPanel-0_9-hR2f.js": {
+    "file": "chunks/SupervisorPanel-0_9-hR2f.js",
     "name": "SupervisorPanel",
     "imports": [
       "_query-GzUKkhGG.js",
@@ -115,14 +115,14 @@
     ]
   },
   "src/entries/comite.tsx": {
-    "file": "comite-BaVM2QS9.js",
+    "file": "comite-Brjj1b31.js",
     "name": "comite",
     "src": "src/entries/comite.tsx",
     "isEntry": true,
     "imports": [
       "_query-GzUKkhGG.js",
       "_components-VEMsIRzL.js",
-      "_SupervisorPanel-CD5v6lM-.js",
+      "_SupervisorPanel-0_9-hR2f.js",
       "_EmptyState-qBZYIAWa.js",
       "_react-DZbidvcN.js",
       "_NotificacionesPage--z7M6-2B.js",
@@ -145,14 +145,14 @@
     ]
   },
   "src/entries/supervisor.tsx": {
-    "file": "supervisor-VvgFBbXe.js",
+    "file": "supervisor-DzT_DQjX.js",
     "name": "supervisor",
     "src": "src/entries/supervisor.tsx",
     "isEntry": true,
     "imports": [
       "_query-GzUKkhGG.js",
       "_components-VEMsIRzL.js",
-      "_SupervisorPanel-CD5v6lM-.js",
+      "_SupervisorPanel-0_9-hR2f.js",
       "_EmptyState-qBZYIAWa.js",
       "_react-DZbidvcN.js",
       "_NotificacionesPage--z7M6-2B.js",

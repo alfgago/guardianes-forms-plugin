@@ -234,6 +234,10 @@ $icons = array(
 									$completos        = 0;
 									$enviados         = 0;
 									$correccion       = 0;
+									$total_evidencias = 0;
+									$ev_aprobadas     = 0;
+									$ev_rechazadas    = 0;
+									$ev_pendientes    = 0;
 									foreach ($entries as $entry) {
 										$computed = gnf_get_reto_entry_computed_status( $entry );
 										if ( 'completo' === $computed['status'] ) {
@@ -243,8 +247,14 @@ $icons = array(
 										} elseif ( 'en_progreso' === $computed['status'] ) {
 											$enviados++;
 										}
+										$total_evidencias += $computed['total'];
+										$ev_aprobadas     += $computed['aprobadas'];
+										$ev_rechazadas    += $computed['rechazadas'];
+										$ev_pendientes    += $computed['pendientes'];
 									}
-									$tiene_pendientes = $enviados > 0;
+									$tiene_pendientes = $ev_pendientes > 0 || $correccion > 0;
+									$retos_con_entry  = count( $entries );
+									$sin_actividad    = 0 === $retos_con_entry;
 									?>
 									<?php $dependencia = get_post_meta($centro_id, 'dependencia', true); ?>
 									<tr<?php echo $tiene_pendientes ? ' class="gnf-table__row--highlight"' : ''; ?>>
@@ -261,22 +271,33 @@ $icons = array(
 										<td><?php echo esc_html($puntaje); ?> pts</td>
 										<td class="gnf-stars"><?php echo $estrella > 0 ? str_repeat('<span class="gnf-star">★</span>', $estrella) : '—'; ?></td>
 										<td>
-											<span class="gnf-badge gnf-badge--forest" title="Aprobados"><?php echo esc_html($completos); ?></span>
-											<span class="gnf-badge gnf-badge--sun" title="Enviados"><?php echo esc_html($enviados); ?></span>
-											<?php if ($correccion > 0) : ?>
-												<span class="gnf-badge gnf-badge--coral" title="Corrección"><?php echo esc_html($correccion); ?></span>
+											<?php if ( $sin_actividad ) : ?>
+												<span class="gnf-badge gnf-badge--gray">Sin actividad</span>
+												<small class="gnf-muted"><?php echo esc_html($total_matriculados); ?> retos</small>
+											<?php else : ?>
+												<span class="gnf-badge gnf-badge--forest" title="Retos completos"><?php echo esc_html($completos); ?></span>
+												<span class="gnf-badge gnf-badge--sun" title="En progreso"><?php echo esc_html($enviados); ?></span>
+												<?php if ($correccion > 0) : ?>
+													<span class="gnf-badge gnf-badge--coral" title="Requiere atención"><?php echo esc_html($correccion); ?></span>
+												<?php endif; ?>
+												<small class="gnf-muted">de <?php echo esc_html($total_matriculados); ?></small>
 											<?php endif; ?>
-											<small class="gnf-muted">de <?php echo esc_html($total_matriculados); ?></small>
 										</td>
 										<td>
-											<?php if ($correccion > 0) : ?>
-												<span class="gnf-badge gnf-badge--coral"><?php echo esc_html($correccion); ?> requiere atención</span>
-											<?php elseif ($enviados > 0) : ?>
-												<span class="gnf-badge gnf-badge--sun"><?php echo esc_html($enviados); ?> en progreso</span>
-											<?php elseif ($completos === $total_matriculados && $total_matriculados > 0) : ?>
-												<span class="gnf-badge gnf-badge--forest">Completo</span>
+											<?php if ( $sin_actividad ) : ?>
+												<span class="gnf-muted">Sin evidencias</span>
+											<?php elseif ( $total_evidencias > 0 ) : ?>
+												<?php if ( $ev_rechazadas > 0 ) : ?>
+													<span class="gnf-badge gnf-badge--coral"><?php echo esc_html($ev_pendientes); ?> por revisar</span>
+												<?php elseif ( $ev_pendientes > 0 ) : ?>
+													<span class="gnf-badge gnf-badge--sun"><?php echo esc_html($ev_pendientes); ?> por revisar</span>
+												<?php elseif ( $ev_aprobadas === $total_evidencias ) : ?>
+													<span class="gnf-badge gnf-badge--forest">Todo aprobado</span>
+												<?php else : ?>
+													<span class="gnf-badge gnf-badge--forest"><?php echo esc_html($ev_aprobadas); ?>/<?php echo esc_html($total_evidencias); ?> aprobadas</span>
+												<?php endif; ?>
 											<?php else : ?>
-												<span class="gnf-muted">En progreso</span>
+												<span class="gnf-muted">Sin evidencias</span>
 											<?php endif; ?>
 										</td>
 										<td><a class="gnf-btn gnf-btn--sm gnf-btn--ghost" href="<?php echo esc_url(add_query_arg('centro_id', $centro_id)); ?>">Ver detalle</a></td>

@@ -114,6 +114,17 @@ function gnf_get_tools_page_url( $args = array() ) {
  * @return void
  */
 function gnf_render_tools_result_notices() {
+	// Generic transient-based notices (used by circuito normalization, supervisor seeder).
+	$notice = get_transient( 'gnf_tools_notice' );
+	if ( $notice ) {
+		delete_transient( 'gnf_tools_notice' );
+		printf(
+			'<div class="notice notice-%s is-dismissible"><p>%s</p></div>',
+			esc_attr( $notice['type'] ?? 'info' ),
+			esc_html( $notice['message'] ?? '' )
+		);
+	}
+
 	$run     = absint( $_GET['gnf_fixed_run'] ?? 0 );
 	$updated = absint( $_GET['gnf_fixed_updated'] ?? 0 );
 	$skipped = absint( $_GET['gnf_fixed_skipped'] ?? 0 );
@@ -317,6 +328,8 @@ function gnf_render_admin_tools() {
 		<?php gnf_render_tools_result_notices(); ?>
 		<?php gnf_render_docente_repairs_tools_card(); ?>
 		<?php gnf_render_centros_import_tools_card(); ?>
+		<?php gnf_render_circuito_normalization_card(); ?>
+		<?php gnf_render_supervisor_seeder_card(); ?>
 		<div style="margin-top:24px;">
 			<?php if ( function_exists( 'gnf_render_reset_tools_card' ) ) { gnf_render_reset_tools_card(); } ?>
 		</div>
@@ -490,6 +503,305 @@ function gnf_handle_bulk_fix_docente_centros() {
 	exit;
 }
 add_action( 'admin_post_gnf_bulk_fix_docente_centros', 'gnf_handle_bulk_fix_docente_centros' );
+
+/* ─── Normalizar circuitos ────────────────────────────────────── */
+
+/**
+ * Renderiza tarjeta de normalización de circuitos.
+ */
+function gnf_render_circuito_normalization_card() {
+	?>
+	<div style="max-width: 960px; margin-top: 24px; background: #fff; border-radius: 12px; padding: 24px; box-shadow: 0 2px 12px rgba(0,0,0,0.06);">
+		<h2 style="margin-top:0;">Normalizar circuitos</h2>
+		<p>Unifica el formato de circuito de todos los centros educativos a 2 dígitos con cero a la izquierda (1 → 01, 2 → 02, etc.). Solo afecta valores numéricos simples.</p>
+		<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+			<?php wp_nonce_field( 'gnf_normalize_circuitos', 'gnf_nonce' ); ?>
+			<input type="hidden" name="action" value="gnf_normalize_circuitos" />
+			<input type="hidden" name="redirect_to" value="<?php echo esc_url( admin_url( 'admin.php?page=gnf-tools' ) ); ?>" />
+			<?php submit_button( 'Normalizar circuitos', 'secondary', 'submit', false ); ?>
+		</form>
+	</div>
+	<?php
+}
+
+/**
+ * Handler: normaliza circuitos de centros a formato 2 dígitos.
+ */
+function gnf_handle_normalize_circuitos() {
+	if ( ! current_user_can( gnf_menu_capability() ) ) {
+		wp_die( 'No autorizado' );
+	}
+	check_admin_referer( 'gnf_normalize_circuitos', 'gnf_nonce' );
+
+	$centros = get_posts( array(
+		'post_type'      => 'centro_educativo',
+		'post_status'    => 'any',
+		'posts_per_page' => -1,
+		'fields'         => 'ids',
+	) );
+
+	$updated = 0;
+	$skipped = 0;
+	foreach ( $centros as $centro_id ) {
+		$raw = get_post_meta( $centro_id, 'circuito', true );
+		if ( '' === $raw || null === $raw ) {
+			$skipped++;
+			continue;
+		}
+		$trimmed = trim( (string) $raw );
+		// Only normalize purely numeric values (1 → 01, 9 → 09, 10 stays 10).
+		if ( preg_match( '/^\d+$/', $trimmed ) ) {
+			$normalized = str_pad( $trimmed, 2, '0', STR_PAD_LEFT );
+			if ( $normalized !== $trimmed ) {
+				update_post_meta( $centro_id, 'circuito', $normalized );
+				$updated++;
+			} else {
+				$skipped++;
+			}
+		} else {
+			$skipped++;
+		}
+	}
+
+	set_transient( 'gnf_tools_notice', array(
+		'type'    => 'success',
+		'message' => sprintf( 'Circuitos normalizados. Actualizados: %d. Sin cambio: %d.', $updated, $skipped ),
+	), 60 );
+
+	wp_safe_redirect( admin_url( 'admin.php?page=gnf-tools' ) );
+	exit;
+}
+add_action( 'admin_post_gnf_normalize_circuitos', 'gnf_handle_normalize_circuitos' );
+
+/* ─── Seeder de supervisores y comité BAE ─────────────────────── */
+
+/**
+ * Renderiza tarjeta de seeder de supervisores/comité.
+ */
+function gnf_render_supervisor_seeder_card() {
+	?>
+	<div style="max-width: 960px; margin-top: 24px; background: #fff; border-radius: 12px; padding: 24px; box-shadow: 0 2px 12px rgba(0,0,0,0.06);">
+		<h2 style="margin-top:0;">Seed supervisores y comité BAE (DRE)</h2>
+		<p>Crea o actualiza usuarios supervisores y comité BAE para las regiones piloto. Si el usuario ya existe (por correo), solo actualiza rol, región y circuito. Contraseña por defecto: <code>Guardianes2026!</code></p>
+		<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+			<?php wp_nonce_field( 'gnf_seed_supervisors', 'gnf_nonce' ); ?>
+			<input type="hidden" name="action" value="gnf_seed_supervisors" />
+			<input type="hidden" name="redirect_to" value="<?php echo esc_url( admin_url( 'admin.php?page=gnf-tools' ) ); ?>" />
+			<?php submit_button( 'Ejecutar seeder de supervisores', 'primary', 'submit', false ); ?>
+		</form>
+	</div>
+	<?php
+}
+
+/**
+ * Returns the supervisor/comité seed data keyed by region name.
+ *
+ * Each entry: [ 'nombre', 'correo', 'circuito' ]
+ * circuito = 'DRE' means comite_bae role (region-wide).
+ * circuito = '01', '02' etc. means supervisor role (circuito-scoped).
+ */
+function gnf_get_supervisor_seed_data() {
+	return array(
+		'HEREDIA' => array(
+			array( 'Karla Vanessa Alfaro Gutiérrez', 'karla.alfaro.gutierrez@mep.go.cr', 'DRE' ),
+			array( 'Diana Gabriela Chavarría Valladares', 'diana.chavarria.valladares@mep.go.cr', 'DRE' ),
+			array( 'Daliana Vargas Ramos', 'daliana.vargas.ramos@mep.go.cr', 'DRE' ),
+			array( 'Juan León Fallas', 'juan.leon.fallas@mep.go.cr', 'DRE' ),
+			array( 'Randall Centeno Hernández', 'randall.centeno.hernandez@mep.go.cr', '02' ),
+			array( 'María del Pilar Zúñiga Ramírez', 'delpilar.zuniga.ramirez@mep.go.cr', '03' ),
+			array( 'María Alexandra Araya Benavides', 'alexandra.araya.benavides@mep.go.cr', 'DRE' ),
+			array( 'Maureen Oviedo Rodríguez', 'maureen.oviedo.rodriguez@mep.go.cr', '04' ),
+			array( 'Silvia Guerrero Rodríguez', 'silvia.guerrero.rodriguez@mep.go.cr', '05' ),
+			array( 'Héctor López Solís', 'hector.lopez.solis@mep.go.cr', '06' ),
+			array( 'Estefanie Villalobos Sánchez', 'estefanie.villalobos.sanchez@mep.go.cr', 'DRE' ),
+			array( 'Vera Violeta Barrios Rodríguez', 'vera.barrios.rodriguez@mep.go.cr', '07' ),
+			array( 'Cintia Rojas Díaz', 'cintia.rojas.diaz@mep.go.cr', 'DRE' ),
+		),
+		'OCCIDENTE' => array(
+			array( 'Kathia Alpízar Muñoz', 'kathia.alpizar.munoz@mep.go.cr', 'DRE' ),
+			array( 'Marta Cecilia Rodríguez Herrera', 'marta.rodriguez.herrera@mep.go.cr', 'DRE' ),
+			array( 'María Del Rocio Rojas Montero', 'delrocio.rojas.montero@mep.go.cr', 'DRE' ),
+			array( 'Marvin Gerardo Rodríguez Arrieta', 'marvin.rodriguez.arrieta@mep.go.cr', '01' ),
+			array( 'Michael Chaves Chavarría', 'supervision02.occidente@mep.go.cr', '02' ),
+			array( 'Cesar Avila Vargas', 'cesar.avila.vargas@mep.go.cr', '03' ),
+			array( 'Margot Maria Chaves Aguilera', 'margot.chaves.aguilera@mep.go.cr', '04' ),
+			array( 'Maria Jesus Zumbado Vega', 'maria.zumbado.vega@mep.go.cr', '05' ),
+			array( 'Natalia Rojas Araya', 'natalia.rojas.araya@mep.go.cr', '06' ),
+			array( 'Bernardita Villegas Salazar', 'bernardita.villegas.salazar@mep.go.cr', '07' ),
+			array( 'Oscar Rojas Arias', 'oscar.rojas.arias@mep.go.cr', '08' ),
+			array( 'Eulin Chacon Gamboa', 'eulin.chacon.gamboa@mep.go.cr', '09' ),
+		),
+		'COTO' => array(
+			array( 'Aurelio Noguera Valverde', 'aurelio.noguera.valverde@mep.go.cr', 'DRE' ),
+			array( 'Rosalba Jiménez Cisneros', 'supervision01.coto@mep.go.cr', '01' ),
+			array( 'Randall López Cerdas', 'supervision02.coto@mep.go.cr', '02' ),
+			array( 'Lilliana Vindas Chaves', 'supervision03.coto@mep.go.cr', '03' ),
+			array( 'Ana Yanci Alvarado Enriquez', 'supervision04.coto@mep.go.cr', '04' ),
+			array( 'Marco Tulio Castillo Aguero', 'supervision05.coto@mep.go.cr', '05' ),
+			array( 'Sindy Araya Ramirez', 'supervision06.coto@mep.go.cr', '06' ),
+			array( 'Mac Donald Perez Barquero', 'supervision07.coto@mep.go.cr', '07' ),
+			array( 'Jesus Solano Herrera', 'supervision08.coto@mep.go.cr', '08' ),
+			array( 'Katia Salazar Arroyo', 'supervision09.coto@mep.go.cr', '09' ),
+			array( 'Deivin Rodríguez Ramírez', 'supervision10.coto@mep.go.cr', '10' ),
+			array( 'Alex Casal Bérmudez', 'supervision11.coto@mep.go.cr', '11' ),
+			array( 'Ademar Ugalde Espinoza', 'supervision12.coto@mep.go.cr', '12' ),
+			array( 'Fernando Mendoza Palacios', 'supervision13.coto@mep.go.cr', '13' ),
+			array( 'Pio Montezuma Bejarano', 'supervision14.coto@mep.go.cr', '14' ),
+			array( 'Ariel Gómez Hidrogo', 'ariel.gomez.hidrogo@mep.go.cr', 'DRE' ),
+		),
+		'SANTA CRUZ' => array(
+			array( 'Ana Isabel Hernández Ulate', 'ana.hernandez.ulate@mep.go.cr', 'DRE' ),
+			array( 'Rolando Pizarro Pizarro', 'supervision01.santacruz@mep.go.cr', '01' ),
+			array( 'Gustavo Muñoz Casares', 'supervision02.santacruz@mep.go.cr', '02' ),
+			array( 'Alba Rosa Soto Cerdas', 'supervision03.santacruz@mep.go.cr', '03' ),
+			array( 'Dorita Gutierrez Matarrita', 'supervision04.santacruz@mep.go.cr', '04' ),
+			array( 'Geishi Jimenez Mora', 'supervision05.santacruz@mep.go.cr', '05' ),
+			array( 'Gustavo Chavarría Serrano', 'supervision06.santacruz@mep.go.cr', '06' ),
+			array( 'Luz Mary Marin Briceño', 'supervision07.santacruz@mep.go.cr', '07' ),
+			array( 'José Mauricio Vargas Gallo', 'jose.vargas.gallo@mep.go.cr', 'DRE' ),
+			array( 'Melina Guzman Mora', 'melina.guzma.mora@mep.go.cr', 'DRE' ),
+			array( 'Beleida Alvarez Cordero', 'beleida.alvarez.cordero@mep.go.cr', 'DRE' ),
+			array( 'Grehivin Ortiz Aviles', 'grehivin.ortiz.aviles@mep.go.cr', 'DRE' ),
+		),
+		'NICOYA' => array(
+			array( 'Leidy Patricia Bermúdez Villalobos', 'leidy.bermudez.villalobos@mep.go.cr', 'DRE' ),
+			array( 'Mary Mar Cruz Cuendis', 'mary.cruz.cuendis@mep.go.cr', 'DRE' ),
+			array( 'Oscar Arias Sanchez', 'oscar.arias.sanchez@mep.go.cr', 'DRE' ),
+			array( 'Hannia Avila Quirós', 'hannia.avila.quiros@mep.go.cr', '01' ),
+			array( 'Rodolfo Orozco Juarez', 'luis.orozco.juarez@mep.go.cr', '02' ),
+			array( 'Susan Obando Perez', 'susan.obando.perez@mep.go.cr', '03' ),
+			array( 'Yorleny Padilla Matarrita', 'yorleny.padilla.matarrita@mep.go.cr', '04' ),
+			array( 'Luis Orlando Rojas Mesen', 'luis.rojas.mesen@mep.go.cr', '05' ),
+			array( 'Jose Carlos Sandoval Gomez', 'jose.sandoval.gomez@mep.go.cr', '06' ),
+			array( 'Gloriana Arnaez Carrillo', 'gloriana.arnaez.carrillo@mep.go.cr', '07' ),
+			array( 'Guillermo Juarez Garcia', 'guillermo.juarez.garcia@mep.go.cr', '08' ),
+		),
+		'CANAS' => array(
+			array( 'Nayiba López Cespedes', 'nayiba.lopez.cespedes@mep.go.cr', 'DRE' ),
+			array( 'Edwin Alonso Amador Campos', 'alonso.amador.campos@mep.go.cr', 'DRE' ),
+			array( 'Laura Patricia Briceno Cabezas', 'laura.briceno.cabezas@mep.go.cr', 'DRE' ),
+			array( 'Erling Patricia Ugalde Perez', 'erling.ugalde.perez@mep.go.cr', 'DRE' ),
+			array( 'Maria Gabriela Monge Delgado', 'maria.monge.delgado@mep.go.cr', 'DRE' ),
+			array( 'Yesenia Ruiz Matarrita', 'yesenia.ruiz.matarrita@mep.go.cr', '01' ),
+			array( 'Gricelda Vargas Segura', 'gricelda.vargas.segura@mep.go.cr', '02' ),
+			array( 'Dayhala Marchena Mora', 'dayhala.marchena.mora@mep.go.cr', '03' ),
+			array( 'Ana Yancy Morales Murillo', 'ana.morales.murillo@mep.go.cr', '04' ),
+			array( 'Adriana Álvarez Murillo', 'adriana.alvarez.murillo@mep.go.cr', '05' ),
+			array( 'Jose Mario Cortes Matarrita', 'jose.cortes.matarrita@mep.go.cr', 'DRE' ),
+		),
+		'LIBERIA' => array(
+			array( 'Grethel Anielka Arias Gutierrez', 'grethel.arias.gutierrez@mep.go.cr', '01' ),
+			array( 'Robran Díaz Duarte', 'robran.diaz.duarte@mep.go.cr', '02' ),
+			array( 'Kisy Sandoval Ledezma', 'kisy.sandoval.ledezma@mep.go.cr', '03' ),
+			array( 'José Edén Rivas Reyes', 'jose.rivas.reyes@mep.go.cr', '04' ),
+			array( 'Magaly Morales Angulo', 'magaly.morales.angulo@mep.go.cr', '05' ),
+		),
+	);
+}
+
+/**
+ * Handler: seed supervisores y comité BAE.
+ */
+function gnf_handle_seed_supervisors() {
+	if ( ! current_user_can( gnf_menu_capability() ) ) {
+		wp_die( 'No autorizado' );
+	}
+	check_admin_referer( 'gnf_seed_supervisors', 'gnf_nonce' );
+
+	$data    = gnf_get_supervisor_seed_data();
+	$created = 0;
+	$updated = 0;
+	$errors  = array();
+
+	foreach ( $data as $region_name => $users ) {
+		// Resolve region term ID.
+		$normalized = strtoupper( remove_accents( trim( $region_name ) ) );
+		$term       = term_exists( $normalized, 'gn_region' );
+		if ( ! $term ) {
+			// Try original name.
+			$term = term_exists( $region_name, 'gn_region' );
+		}
+		if ( ! $term ) {
+			$errors[] = sprintf( 'Región "%s" no encontrada en taxonomía gn_region.', $region_name );
+			continue;
+		}
+		$region_id = is_array( $term ) ? (int) $term['term_id'] : (int) $term;
+
+		foreach ( $users as $entry ) {
+			$nombre   = trim( $entry[0] );
+			$email    = strtolower( trim( $entry[1] ) );
+			$circuito = trim( $entry[2] );
+			$is_dre   = 'DRE' === strtoupper( $circuito );
+			$role     = $is_dre ? 'comite_bae' : 'supervisor';
+
+			// Normalize circuito to 2-digit for supervisors.
+			if ( ! $is_dre && preg_match( '/^\d+$/', $circuito ) ) {
+				$circuito = str_pad( $circuito, 2, '0', STR_PAD_LEFT );
+			}
+
+			$existing = get_user_by( 'email', $email );
+			if ( $existing ) {
+				// Update existing user.
+				$user_id = $existing->ID;
+				$existing->set_role( $role );
+				wp_update_user( array(
+					'ID'           => $user_id,
+					'display_name' => $nombre,
+					'first_name'   => explode( ' ', $nombre )[0],
+				) );
+			} else {
+				// Create new user.
+				$username = sanitize_user( explode( '@', $email )[0], true );
+				// Ensure unique username.
+				$base_username = $username;
+				$suffix = 1;
+				while ( username_exists( $username ) ) {
+					$username = $base_username . $suffix;
+					$suffix++;
+				}
+				$user_id = wp_insert_user( array(
+					'user_login'   => $username,
+					'user_email'   => $email,
+					'user_pass'    => 'Guardianes2026!',
+					'display_name' => $nombre,
+					'first_name'   => explode( ' ', $nombre )[0],
+					'role'         => $role,
+				) );
+				if ( is_wp_error( $user_id ) ) {
+					$errors[] = sprintf( '%s: %s', $email, $user_id->get_error_message() );
+					continue;
+				}
+				$created++;
+			}
+
+			// Set region and circuito meta.
+			update_user_meta( $user_id, 'region', $region_id );
+			if ( $is_dre ) {
+				delete_user_meta( $user_id, 'circuito' );
+			} else {
+				update_user_meta( $user_id, 'circuito', $circuito );
+			}
+
+			if ( $existing ) {
+				$updated++;
+			}
+		}
+	}
+
+	$msg = sprintf( 'Seeder ejecutado. Creados: %d. Actualizados: %d.', $created, $updated );
+	if ( $errors ) {
+		$msg .= ' Errores: ' . implode( ' | ', array_slice( $errors, 0, 5 ) );
+	}
+
+	set_transient( 'gnf_tools_notice', array(
+		'type'    => empty( $errors ) ? 'success' : 'warning',
+		'message' => $msg,
+	), 60 );
+
+	wp_safe_redirect( admin_url( 'admin.php?page=gnf-tools' ) );
+	exit;
+}
+add_action( 'admin_post_gnf_seed_supervisors', 'gnf_handle_seed_supervisors' );
 
 /**
  * Muestra en Ajustes > General el aviso y botón para corregir roles subscriber/docente.
