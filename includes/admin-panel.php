@@ -521,7 +521,11 @@ function gnf_handle_admin_panel_actions() {
 			if ( $user_id ) {
 				$user = get_user_by( 'ID', $user_id );
 				if ( $user ) {
-					$user->add_role( 'supervisor' );
+					$requested_role = sanitize_key( (string) get_user_meta( $user_id, 'gnf_rol_solicitado', true ) );
+					$role_to_set    = 'comite_bae' === $requested_role ? 'comite_bae' : 'supervisor';
+					if ( function_exists( 'gnf_set_user_role_strict' ) ) {
+						gnf_set_user_role_strict( $user_id, $role_to_set, 'admin_panel_approve_supervisor' );
+					}
 					update_user_meta( $user_id, 'gnf_supervisor_status', 'activo' );
 					gnf_insert_notification( $user_id, 'aprobado', 'Tu cuenta de supervisor ha sido aprobada.', 'user', $user_id );
 				}

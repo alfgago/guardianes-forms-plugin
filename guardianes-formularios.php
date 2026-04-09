@@ -306,7 +306,8 @@ add_action('wp_enqueue_scripts', 'gnf_enqueue_assets');
  */
 function gnf_admin_enqueue_assets($hook)
 {
-	if ('options-general.php' === $hook && current_user_can('manage_options')) {
+	$is_tools_page = isset( $_GET['page'] ) && 'gnf-tools' === sanitize_key( wp_unslash( $_GET['page'] ) );
+	if ( $is_tools_page && current_user_can('manage_options')) {
 		wp_enqueue_script(
 			'gnf-centros-import-admin',
 			GNF_URL . 'assets/js/centros-import-admin.js',
@@ -317,7 +318,7 @@ function gnf_admin_enqueue_assets($hook)
 		wp_localize_script('gnf-centros-import-admin', 'gnfCentrosImportAdmin', array(
 			'ajaxUrl'     => admin_url('admin-ajax.php'),
 			'nonce'       => wp_create_nonce('gnf_centros_import_batch'),
-			'redirectUrl' => admin_url('options-general.php'),
+			'redirectUrl' => function_exists( 'gnf_get_tools_page_url' ) ? gnf_get_tools_page_url() : admin_url( 'admin.php?page=gnf-tools' ),
 		));
 		return;
 	}
@@ -365,12 +366,7 @@ function gnf_locate_template($template, $slug)
  */
 function gnf_register_reset_settings_section()
 {
-	add_settings_section(
-		'gnf_reset_section',
-		'Guardianes Formularios — Reinicio de BD',
-		'gnf_render_reset_section',
-		'general'
-	);
+	return;
 }
 add_action('admin_init', 'gnf_register_reset_settings_section');
 
@@ -462,6 +458,88 @@ function gnf_render_reset_section()
 		</div>
 	</div>
 <?php
+}
+
+/**
+ * Renderiza la tarjeta de reset y reseed para la pantalla de herramientas.
+ *
+ * @return void
+ */
+function gnf_render_reset_tools_card() {
+	$nonce        = wp_create_nonce( 'gnf_reset_db_nonce' );
+	$url          = admin_url( 'admin-post.php?action=gnf_reset_db&_wpnonce=' . $nonce );
+	$reseed_nonce = wp_create_nonce( 'gnf_reseed_retos_nonce' );
+	$reseed_url   = admin_url( 'admin-post.php?action=gnf_reseed_retos&_wpnonce=' . $reseed_nonce );
+	?>
+	<div style="background:#fff8f0;border:1px solid #f59e0b;border-radius:8px;padding:20px;max-width:960px;">
+		<h2 style="margin:0 0 12px;">Reset DB y reseeds</h2>
+		<p style="margin:0 0 12px;color:#92400e;">
+			<strong>Esto eliminara y recreara:</strong> tablas custom, campos ACF, formularios WPForms, retos, centros, matriculas, entradas de retos, notificaciones, regiones y los usuarios de prueba listados abajo.<br>
+			<strong>NO se eliminaran:</strong> paginas, posts ni usuarios que no hayan sido creados por los seeders.
+		</p>
+		<p style="margin:0 0 12px;color:#92400e;">
+			Se configuraran automaticamente: <strong>Matricula nativa (sin WPForms)</strong>, <strong>Anio activo = 2026</strong> y <strong>Rangos de Estrellas</strong>.
+		</p>
+
+		<h4 style="margin:16px 0 8px;">Usuarios demo (seran eliminados y recreados):</h4>
+		<table class="widefat striped" style="max-width:600px;">
+			<thead>
+				<tr>
+					<th>Rol</th>
+					<th>Nombre</th>
+					<th>Email</th>
+					<th>Contrasena</th>
+				</tr>
+			</thead>
+			<tbody>
+				<tr>
+					<td><code>docente</code></td>
+					<td>Demo Docente</td>
+					<td>demo.docente@movimientoguardianes.org</td>
+					<td>demo123</td>
+				</tr>
+				<tr>
+					<td><code>supervisor</code></td>
+					<td>Demo Supervisor</td>
+					<td>demo.supervisor@movimientoguardianes.org</td>
+					<td>demo123</td>
+				</tr>
+				<tr>
+					<td><code>comite_bae</code></td>
+					<td>Demo Comite BAE</td>
+					<td>demo.comite@movimientoguardianes.org</td>
+					<td>demo123</td>
+				</tr>
+				<tr>
+					<td><code>administrator</code></td>
+					<td>Demo Administrador</td>
+					<td>demo.admin@movimientoguardianes.org</td>
+					<td>demo123</td>
+				</tr>
+			</tbody>
+		</table>
+		<p style="font-size:12px;color:#64748b;margin:8px 0 0;">
+			Solo los usuarios marcados con <code>gnf_seeded=1</code> seran eliminados. Los demas quedan intactos.
+		</p>
+
+		<div style="margin-top:20px;">
+			<a id="gnf-reset-tools-btn"
+				href="<?php echo esc_url( $url ); ?>"
+				class="button button-primary"
+				style="background:#dc2626;border-color:#b91c1c;color:#fff;font-weight:600;padding:4px 20px;"
+				onclick="return confirm('Esta accion eliminara y recreara datos seed, tablas y catalogos base. No se puede deshacer.');">
+				Reiniciar BD de Guardianes Forms
+			</a>
+			<a id="gnf-reseed-retos-tools-btn"
+				href="<?php echo esc_url( $reseed_url ); ?>"
+				class="button"
+				style="margin-left:8px;background:#2563eb;border-color:#1d4ed8;color:#fff;font-weight:600;padding:4px 20px;"
+				onclick="return confirm('Esto volvera a sembrar solo los eco retos 2026 y sus formularios, sin borrar centros, usuarios, matriculas ni demas datos.');">
+				Reseed retos 2026
+			</a>
+		</div>
+	</div>
+	<?php
 }
 
 /**
@@ -641,7 +719,7 @@ function gnf_handle_reset_db()
 
 	// ─── LINKS ───────────────────────────────────────────────────
 	echo '<div style="margin-top: 28px; padding-top: 20px; border-top: 1px solid #334155;">';
-	echo '<a class="btn btn-back" href="' . esc_url(admin_url('options-general.php')) . '">← Volver a Ajustes</a>';
+	echo '<a class="btn btn-back" href="' . esc_url( function_exists( 'gnf_get_tools_page_url' ) ? gnf_get_tools_page_url() : admin_url( 'admin.php?page=gnf-tools' ) ) . '">Volver a Herramientas</a>';
 	echo '<a class="btn btn-admin" href="' . esc_url(admin_url('admin.php?page=gnf-admin')) . '">Panel Guardianes</a>';
 	echo '</div>';
 
@@ -692,7 +770,7 @@ function gnf_handle_reseed_retos()
 		echo '<div class="step info">Retos procesados: ' . esc_html((string) $result['retos_processed']) . '</div>';
 	}
 
-	echo '<a class="btn btn-back" href="' . esc_url(admin_url('options-general.php')) . '">← Volver a Ajustes</a>';
+	echo '<a class="btn btn-back" href="' . esc_url( function_exists( 'gnf_get_tools_page_url' ) ? gnf_get_tools_page_url() : admin_url( 'admin.php?page=gnf-tools' ) ) . '">Volver a Herramientas</a>';
 	echo '<a class="btn btn-admin" href="' . esc_url(admin_url('admin.php?page=gnf-admin')) . '">Ir al Panel Admin</a>';
 	echo '</div></body></html>';
 	echo ob_get_clean();

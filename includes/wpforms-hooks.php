@@ -149,13 +149,16 @@ function gnf_handle_matricula_submission( $normalized_fields, $entry_id, $form_d
 	$user_id = get_current_user_id();
 	$anio    = isset( $normalized_fields['anio'] ) ? absint( $normalized_fields['anio'] ) : gnf_get_context_year( gnf_get_active_year() );
 	$anio    = gnf_normalize_year( $anio );
+	$user    = $user_id ? get_userdata( $user_id ) : null;
 
 	$nivel_educativo = gnf_normalize_centro_choice( 'nivel_educativo', (string) ( $normalized_fields['centro-nivel-educativo'] ?? $normalized_fields['centro-modalidad'] ?? '' ) );
 	$dependencia     = gnf_normalize_centro_choice( 'dependencia', (string) ( $normalized_fields['centro-dependencia'] ?? '' ) );
 	$jornada         = gnf_normalize_centro_choice( 'jornada', (string) ( $normalized_fields['centro-jornada'] ?? $normalized_fields['centro-horario'] ?? '' ) );
 	$tipologia       = gnf_normalize_centro_choice( 'tipologia', (string) ( $normalized_fields['centro-tipologia'] ?? '' ) );
 	$tipo_centro_educativo = gnf_normalize_centro_choice( 'tipo_centro_educativo', (string) ( $normalized_fields['centro-tipo-centro-educativo'] ?? '' ) );
-	$correo_inst     = sanitize_email( (string) ( $normalized_fields['centro-correo-institucional'] ?? '' ) );
+	$correo_inst     = $user instanceof WP_User && is_email( $user->user_email )
+		? $user->user_email
+		: sanitize_email( (string) ( $normalized_fields['centro-correo-institucional'] ?? '' ) );
 	$ultimo_galardon = max( 1, min( 5, absint( $normalized_fields['centro-ultimo-galardon-estrellas'] ?? 1 ) ) );
 	$ultimo_anio_participacion = sanitize_text_field( (string) ( $normalized_fields['centro-ultimo-anio-participacion'] ?? '' ) );
 	$ultimo_anio_otro = absint( $normalized_fields['centro-ultimo-anio-participacion-otro'] ?? 0 );
@@ -272,17 +275,15 @@ function gnf_handle_matricula_submission( $normalized_fields, $entry_id, $form_d
 	}
 
 	if ( $user_id ) {
-		$docentes = (array) get_field( 'docentes_asociados', $centro_id );
-		if ( ! in_array( $user_id, $docentes, true ) ) {
-			$docentes[] = $user_id;
-			if ( function_exists( 'update_field' ) ) {
-				update_field( 'docentes_asociados', $docentes, $centro_id );
-			}
-		}
-		update_user_meta( $user_id, 'centro_educativo_id', $centro_id );
+		gnf_sync_docente_centro_assignment( $user_id, $centro_id, array( 'sync_correo_institucional' => true ) );
 		$current_status = get_user_meta( $user_id, 'gnf_docente_status', true );
 		if ( empty( $current_status ) || 'pendiente' === $current_status ) {
-			update_user_meta( $user_id, 'gnf_docente_status', 'pendiente' );
+			if ( function_exists( 'gnf_approve_docente' ) ) {
+				gnf_approve_docente( $user_id );
+			} else {
+				update_user_meta( $user_id, 'gnf_docente_status', 'activo' );
+				update_user_meta( $user_id, 'gnf_docente_estado', 'activo' );
+			}
 		}
 		update_user_meta( $user_id, 'docente_cargo', $normalized_fields['docente-cargo'] ?? '' );
 		update_user_meta( $user_id, 'docente_telefono', $normalized_fields['docente-telefono'] ?? '' );
@@ -490,24 +491,56 @@ function gnf_merge_reto_evidencias( $existing, $incoming ) {
 	$merged = array();
 	$seen   = array();
 
-	foreach ( array_merge( (array) $existing, (array) $incoming ) as $evidencia ) {
+	// Index incoming evidence by field_id for replacement detection.
+	$incoming_field_ids = array();
+	foreach ( (array) $incoming as $ev ) {
+		if ( is_array( $ev ) && ! empty( $ev['field_id'] ) ) {
+			$incoming_field_ids[ (int) $ev['field_id'] ] = true;
+		}
+	}
+
+	// Process existing: mark replaced if incoming has same field_id and existing was rejected.
+	foreach ( (array) $existing as $evidencia ) {
 		if ( ! is_array( $evidencia ) ) {
 			continue;
 		}
+		if ( ! empty( $evidencia['replaced'] ) ) {
+			$merged[] = $evidencia;
+			continue;
+		}
 
-		$key = implode(
-			'|',
-			array(
-				(string) ( $evidencia['field_id'] ?? '' ),
-				(string) ( $evidencia['ruta'] ?? '' ),
-				(string) ( $evidencia['nombre'] ?? '' ),
-			)
-		);
+		$fid = (int) ( $evidencia['field_id'] ?? 0 );
+		if ( $fid && isset( $incoming_field_ids[ $fid ] ) && 'rechazada' === ( $evidencia['estado'] ?? '' ) ) {
+			$evidencia['replaced'] = true;
+			$merged[] = $evidencia;
+			continue;
+		}
+
+		$key = implode( '|', array(
+			(string) ( $evidencia['field_id'] ?? '' ),
+			(string) ( $evidencia['ruta'] ?? '' ),
+			(string) ( $evidencia['nombre'] ?? '' ),
+		) );
 
 		if ( isset( $seen[ $key ] ) ) {
 			continue;
 		}
+		$seen[ $key ] = true;
+		$merged[]     = $evidencia;
+	}
 
+	foreach ( (array) $incoming as $evidencia ) {
+		if ( ! is_array( $evidencia ) ) {
+			continue;
+		}
+		$key = implode( '|', array(
+			(string) ( $evidencia['field_id'] ?? '' ),
+			(string) ( $evidencia['ruta'] ?? '' ),
+			(string) ( $evidencia['nombre'] ?? '' ),
+		) );
+		if ( isset( $seen[ $key ] ) ) {
+			continue;
+		}
 		$seen[ $key ] = true;
 		$merged[]     = $evidencia;
 	}
@@ -545,7 +578,7 @@ function gnf_handle_reto_submission( $reto_post, $normalized_fields, $entry_id, 
 /**
  * Guarda reto entry con estado parametrizable.
  */
-function gnf_store_reto_entry( $reto_post, $normalized_fields, $entry_id, $form_data, $raw_fields, $estado = 'enviado', $centro_id = 0 ) {
+function gnf_store_reto_entry( $reto_post, $normalized_fields, $entry_id, $form_data, $raw_fields, $estado = 'en_progreso', $centro_id = 0 ) {
 	global $wpdb;
 
 	$user_id = get_current_user_id();
@@ -572,14 +605,6 @@ function gnf_store_reto_entry( $reto_post, $normalized_fields, $entry_id, $form_
 	$anio       = isset( $normalized_fields['anio'] ) ? absint( $normalized_fields['anio'] ) : gnf_get_context_year( gnf_get_active_year() );
 	$anio       = gnf_normalize_year( $anio );
 	$evidencias = gnf_collect_evidencias( $raw_fields, $anio, $centro_id, $reto_post->ID );
-
-	$evidence_warning     = false;
-	foreach ( (array) $evidencias as $ev ) {
-		if ( ! empty( $ev['requires_year_validation'] ) ) {
-			$evidence_warning = true;
-			break;
-		}
-	}
 
 	$table = $wpdb->prefix . 'gn_reto_entries';
 	$found = $wpdb->get_row(
@@ -643,46 +668,41 @@ function gnf_store_reto_entry( $reto_post, $normalized_fields, $entry_id, $form_
 	gnf_refresh_reto_entry_score( $entry_row );
 	gnf_clear_supervisor_cache();
 
-	// Notificar a supervisores cuando se envía reto a revisión.
-	if ( 'enviado' === $estado ) {
-		$region = get_post_meta( $centro_id, 'region', true );
-		if ( empty( $region ) ) {
-			$terms  = wp_get_post_terms( $centro_id, 'gn_region', array( 'fields' => 'ids' ) );
-			$region = $terms ? $terms[0] : '';
-		}
-		if ( $region ) {
-			$supervisores = gnf_get_supervisores_by_region( $region );
-			$reto_title   = get_the_title( $reto_post->ID );
-			$centro_title = get_the_title( $centro_id );
-			$mensaje      = sprintf( 'Reto "%s" enviado a revisión: %s', $reto_title, $centro_title );
+	// Notify supervisors per-evidence.
+	$region = get_post_meta( $centro_id, 'region', true );
+	if ( empty( $region ) ) {
+		$terms  = wp_get_post_terms( $centro_id, 'gn_region', array( 'fields' => 'ids' ) );
+		$region = $terms ? $terms[0] : '';
+	}
+	if ( $region && ! empty( $evidencias ) ) {
+		$supervisores = gnf_get_supervisores_by_region( $region );
+		$centro_title = get_the_title( $centro_id );
+		$reto_title   = get_the_title( $reto_post->ID );
+		foreach ( $evidencias as $ev ) {
+			$ev_nombre = $ev['nombre'] ?? 'Archivo';
+			// Skip auto-rejected EXIF evidences — supervisor will see them in the panel.
+			if ( 'rechazada' === ( $ev['estado'] ?? '' ) && 0 === ( $ev['reviewed_by'] ?? -1 ) ) {
+				continue;
+			}
+			$is_replacement = false;
+			if ( $found ) {
+				$old_evs = json_decode( $found->evidencias ?? '[]', true );
+				foreach ( (array) $old_evs as $old_ev ) {
+					if ( (int) ( $old_ev['field_id'] ?? 0 ) === (int) ( $ev['field_id'] ?? 0 )
+						&& 'rechazada' === ( $old_ev['estado'] ?? '' )
+						&& empty( $old_ev['replaced'] ) ) {
+						$is_replacement = true;
+						break;
+					}
+				}
+			}
+			$tipo_notif = $is_replacement ? 'evidencia_resubida' : 'evidencia_subida';
+			$mensaje    = $is_replacement
+				? sprintf( 'Centro "%s" resubió evidencia "%s" para el reto "%s".', $centro_title, $ev_nombre, $reto_title )
+				: sprintf( 'Centro "%s" subió evidencia "%s" para el reto "%s".', $centro_title, $ev_nombre, $reto_title );
 			foreach ( $supervisores as $sup ) {
-				gnf_insert_or_refresh_notification( $sup->ID, 'reto_enviado', $mensaje, 'reto_entry', $entry_row->id );
+				gnf_insert_notification( $sup->ID, $tipo_notif, $mensaje, 'reto_entry', $entry_row->id );
 			}
 		}
-	}
-
-	if ( $evidence_warning ) {
-		$region = get_post_meta( $centro_id, 'region', true );
-		if ( empty( $region ) ) {
-			$terms  = wp_get_post_terms( $centro_id, 'gn_region', array( 'fields' => 'ids' ) );
-			$region = $terms ? $terms[0] : '';
-		}
-		if ( $region ) {
-			$supervisores = gnf_get_supervisores_by_region( $region );
-			$centro_title = get_the_title( $centro_id );
-			foreach ( $supervisores as $sup ) {
-				gnf_insert_or_refresh_notification(
-					$sup->ID,
-					'invalid_photo_date',
-					sprintf( 'El centro "%s" subió evidencias del reto "%s" con validación de año pendiente.', $centro_title, get_the_title( $reto_post->ID ) ),
-					'reto_entry',
-					$entry_row->id
-				);
-			}
-		}
-	}
-
-	if ( $evidence_warning ) {
-		gnf_insert_or_refresh_notification( $user_id, 'invalid_photo_date', 'Hay evidencias de foto que requieren validar el año.', 'reto_entry', $entry_row->id );
 	}
 }

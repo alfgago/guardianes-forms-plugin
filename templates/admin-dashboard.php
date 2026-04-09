@@ -242,7 +242,7 @@ $icons = array(
 								</thead>
 								<tbody>
 									<?php foreach ($data['pending_docentes'] as $user_item) :
-										$centro_id = get_user_meta($user_item->ID, 'gnf_centro_id', true);
+										$centro_id = gnf_get_centro_for_docente( $user_item->ID );
 										$centro_name = $centro_id ? get_the_title($centro_id) : '—';
 									?>
 										<tr>
@@ -377,7 +377,7 @@ $icons = array(
 							<tbody>
 								<?php if (! empty($data['all_users']['docentes'])) : ?>
 									<?php foreach ($data['all_users']['docentes'] as $docente) :
-										$centro_id = get_user_meta($docente->ID, 'gnf_centro_id', true);
+										$centro_id = gnf_get_centro_for_docente( $docente->ID );
 										$centro_name = $centro_id ? get_the_title($centro_id) : '—';
 										$doc_status = get_user_meta($docente->ID, 'gnf_docente_status', true) ?: 'activo';
 									?>
@@ -681,7 +681,14 @@ $icons = array(
 							<h1 class="gnf-page-title">Centros Educativos</h1>
 							<p class="gnf-page-subtitle">Gestiona los centros participantes</p>
 						</div>
-						<a href="<?php echo esc_url(admin_url('post-new.php?post_type=centro_educativo')); ?>" class="gnf-btn"><?php echo $icons['plus']; ?> Nuevo Centro</a>
+						<div style="display:flex;gap:8px;align-items:center;">
+							<?php
+							$export_centros_url = admin_url('admin-post.php?action=gnf_export_centros_csv&year=' . $anio);
+							if (!empty($_GET['region'])) $export_centros_url = add_query_arg('region', absint($_GET['region']), $export_centros_url);
+							?>
+							<a href="<?php echo esc_url($export_centros_url); ?>" class="gnf-btn gnf-btn--ghost"><?php echo $icons['download']; ?> Exportar matriculados</a>
+							<a href="<?php echo esc_url(admin_url('post-new.php?post_type=centro_educativo')); ?>" class="gnf-btn"><?php echo $icons['plus']; ?> Nuevo Centro</a>
+						</div>
 					</div>
 
 					<!-- Filters -->
@@ -724,6 +731,19 @@ $icons = array(
 								</select>
 							</div>
 
+							<div class="gnf-filter-bar__group">
+								<label class="gnf-filter-bar__label">Matrícula <?php echo esc_html($anio); ?>:</label>
+								<?php
+								$centros_matriculados_ids = function_exists('gnf_get_centros_with_matricula') ? gnf_get_centros_with_matricula($anio) : array();
+								$selected_matricula = $_GET['matricula'] ?? '';
+								?>
+								<select name="matricula" class="gnf-select">
+									<option value="" <?php selected($selected_matricula, ''); ?>>Todos</option>
+									<option value="si" <?php selected($selected_matricula, 'si'); ?>>Matriculados</option>
+									<option value="no" <?php selected($selected_matricula, 'no'); ?>>Sin matrícula</option>
+								</select>
+							</div>
+
 							<div class="gnf-filter-bar__group gnf-filter-bar__search">
 								<input type="text" name="s" class="gnf-input" placeholder="Buscar centro..." value="<?php echo esc_attr($_GET['s'] ?? ''); ?>" />
 							</div>
@@ -742,6 +762,7 @@ $icons = array(
 										<th>Centro</th>
 										<th>Código MEP</th>
 										<th>Región</th>
+										<th>Matriculado <?php echo esc_html($anio); ?></th>
 										<th>Puntaje</th>
 										<th>Estrella</th>
 										<th>Estado</th>
@@ -749,9 +770,18 @@ $icons = array(
 									</tr>
 								</thead>
 								<tbody>
-									<?php if ($centros->have_posts()) : ?>
+									<?php
+									// Aplicar filtro de matrícula sobre el resultado de WP_Query.
+									$selected_matricula_filter = sanitize_key($_GET['matricula'] ?? '');
+									$centros_matriculados_set = isset($centros_matriculados_ids) ? array_map('intval', $centros_matriculados_ids) : array();
+									if ($centros->have_posts()) : ?>
 										<?php while ($centros->have_posts()) : $centros->the_post();
 											$centro_id = get_the_ID();
+											$esta_matriculado = in_array($centro_id, $centros_matriculados_set, true);
+											// Filtro de matrícula: saltar si no coincide.
+											if ('si' === $selected_matricula_filter && ! $esta_matriculado) { continue; }
+											if ('no' === $selected_matricula_filter && $esta_matriculado) { continue; }
+
 											$codigo = get_post_meta($centro_id, 'codigo_mep', true);
 											$region_id = get_post_meta($centro_id, 'region', true);
 											$region_term = $region_id ? get_term($region_id, 'gn_region') : null;
@@ -764,6 +794,13 @@ $icons = array(
 												<td><strong><?php the_title(); ?></strong></td>
 												<td><?php echo esc_html($codigo ?: '—'); ?></td>
 												<td><?php echo esc_html($region_name); ?></td>
+												<td>
+													<?php if ($esta_matriculado) : ?>
+														<span class="gnf-badge gnf-badge--forest">Sí</span>
+													<?php else : ?>
+														<span class="gnf-badge gnf-badge--default" style="background:#e2e8f0;color:#64748b;">No</span>
+													<?php endif; ?>
+												</td>
 												<td><?php echo esc_html($puntaje); ?> pts</td>
 												<td class="gnf-stars"><?php echo $estrella > 0 ? str_repeat('<span class="gnf-star">★</span>', $estrella) : '—'; ?></td>
 												<td>
@@ -780,7 +817,7 @@ $icons = array(
 										wp_reset_postdata(); ?>
 									<?php else : ?>
 										<tr>
-											<td colspan="7" class="gnf-table__empty">No se encontraron centros.</td>
+											<td colspan="8" class="gnf-table__empty">No se encontraron centros.</td>
 										</tr>
 									<?php endif; ?>
 								</tbody>
@@ -866,7 +903,10 @@ $icons = array(
 						<h1 class="gnf-page-title">Reportes</h1>
 						<p class="gnf-page-subtitle">Análisis y exportación de datos - Año <?php echo esc_html($data['report_data']['anio']); ?></p>
 					</div>
-					<a href="<?php echo esc_url(admin_url('admin-post.php?action=gnf_export_csv&year=' . $data['report_data']['anio'])); ?>" class="gnf-btn"><?php echo $icons['download']; ?> Exportar CSV</a>
+					<div style="display:flex;gap:8px;align-items:center;">
+						<a href="<?php echo esc_url(admin_url('admin-post.php?action=gnf_export_centros_csv&year=' . $data['report_data']['anio'])); ?>" class="gnf-btn gnf-btn--ghost"><?php echo $icons['download']; ?> Centros matriculados</a>
+						<a href="<?php echo esc_url(admin_url('admin-post.php?action=gnf_export_csv&year=' . $data['report_data']['anio'])); ?>" class="gnf-btn"><?php echo $icons['download']; ?> Retos CSV</a>
+					</div>
 				</div>
 
 				<!-- Top Centros -->
@@ -925,7 +965,8 @@ $icons = array(
 										<td><span class="gnf-badge gnf-badge--sun"><?php echo esc_html($region->pendientes ?? 0); ?></span></td>
 										<td>
 											<?php if ($region->term_id) : ?>
-												<a href="<?php echo esc_url(admin_url('admin-post.php?action=gnf_export_csv&year=' . $data['report_data']['anio'] . '&region=' . $region->term_id)); ?>" class="gnf-btn gnf-btn--sm gnf-btn--ghost">CSV</a>
+												<a href="<?php echo esc_url(admin_url('admin-post.php?action=gnf_export_csv&year=' . $data['report_data']['anio'] . '&region=' . $region->term_id)); ?>" class="gnf-btn gnf-btn--sm gnf-btn--ghost" title="CSV de retos">Retos</a>
+												<a href="<?php echo esc_url(admin_url('admin-post.php?action=gnf_export_centros_csv&year=' . $data['report_data']['anio'] . '&region=' . $region->term_id)); ?>" class="gnf-btn gnf-btn--sm gnf-btn--ghost" title="Centros matriculados">Centros</a>
 											<?php endif; ?>
 										</td>
 									</tr>

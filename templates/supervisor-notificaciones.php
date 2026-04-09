@@ -31,6 +31,10 @@ $icons = array(
 );
 
 $tipo_labels = array(
+	'evidencia_subida'      => 'Evidencia subida',
+	'evidencia_resubida'    => 'Evidencia resubida',
+	'evidencia_aprobada'    => 'Evidencia aprobada',
+	'evidencia_rechazada'   => 'Evidencia rechazada',
 	'reto_enviado'          => 'Enviado a revisión',
 	'participacion_enviada' => 'Participación enviada',
 	'invalid_photo_date'    => 'Validación de evidencia',
@@ -122,24 +126,97 @@ $tipo_labels = array(
 					<?php else : ?>
 						<ul class="gnf-notificaciones-list" style="list-style: none; margin: 0; padding: 0;">
 							<?php foreach ( $notificaciones as $n ) : ?>
-								<li class="gnf-notif-item" style="display: flex; align-items: flex-start; gap: 16px; padding: 16px; border-bottom: 1px solid #e2e8f0; <?php echo ! $n['leido'] ? 'background: #f0fdf4;' : ''; ?>">
-									<div style="flex-shrink: 0; width: 36px; height: 36px; border-radius: 50%; background: <?php echo in_array( $n['tipo'], array( 'reto_enviado', 'participacion_enviada' ), true ) ? 'var(--gnf-sun, #f59e0b)' : 'var(--gnf-leaf, #369484)'; ?>; color: #fff; display: flex; align-items: center; justify-content: center;">
-										<?php echo $icons['check']; ?>
-									</div>
-									<div style="flex: 1; min-width: 0;">
-										<div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
-											<span class="gnf-badge gnf-badge--sm <?php echo in_array( $n['tipo'], array( 'reto_enviado', 'participacion_enviada' ), true ) ? 'gnf-badge--sun' : 'gnf-badge--forest'; ?>">
-												<?php echo esc_html( isset( $tipo_labels[ $n['tipo'] ] ) ? $tipo_labels[ $n['tipo'] ] : $n['tipo'] ); ?>
-											</span>
-											<?php if ( ! $n['leido'] ) : ?>
-												<span class="gnf-badge gnf-badge--sm" style="background: #369484; color: #fff;">Nueva</span>
-											<?php endif; ?>
+								<?php
+								$ev_data  = $n['evidence_data'] ?? null;
+								$ev_info  = $ev_data && ! empty( $ev_data['evidencias'] ) ? $ev_data['evidencias'][0] : null;
+								$ev_state = $ev_info ? ( $ev_info['estado'] ?? 'pendiente' ) : null;
+
+								$icon_color = 'var(--gnf-sun, #f59e0b)';
+								if ( $ev_state === 'aprobada' ) {
+									$icon_color = 'var(--gnf-forest, #2d8a5f)';
+								} elseif ( $ev_state === 'rechazada' ) {
+									$icon_color = 'var(--gnf-coral, #ef6b4a)';
+								}
+
+								$state_badge = '';
+								$state_badge_class = '';
+								if ( $ev_info && $ev_info['puntos'] !== null ) {
+									if ( 'aprobada' === $ev_state ) {
+										$state_badge = 'Aprobada';
+										$state_badge_class = 'gnf-badge--forest';
+									} elseif ( 'rechazada' === $ev_state ) {
+										$state_badge = 'Rechazada';
+										$state_badge_class = 'gnf-badge--coral';
+									} else {
+										$state_badge = 'Pendiente';
+										$state_badge_class = 'gnf-badge--sun';
+									}
+								}
+								?>
+								<li class="gnf-notif-item" style="border-bottom: 1px solid #e2e8f0; <?php echo ! $n['leido'] ? 'background: #f0fdf4;' : ''; ?>">
+									<div class="gnf-notif-item__summary" style="display: flex; align-items: flex-start; gap: 16px; padding: 16px; cursor: <?php echo $ev_data ? 'pointer' : 'default'; ?>;">
+										<div style="flex-shrink: 0; width: 36px; height: 36px; border-radius: 50%; background: <?php echo $icon_color; ?>; color: #fff; display: flex; align-items: center; justify-content: center;">
+											<?php echo $icons['check']; ?>
 										</div>
-										<p style="margin: 0 0 4px; font-size: 0.95rem;"><?php echo esc_html( $n['mensaje'] ); ?></p>
-										<small class="gnf-muted" style="font-size: 0.8rem;"><?php echo esc_html( $n['created_at'] ); ?></small>
+										<div style="flex: 1; min-width: 0;">
+											<div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 4px;">
+												<span class="gnf-badge gnf-badge--sm <?php echo in_array( $n['tipo'], array( 'evidencia_subida', 'evidencia_resubida', 'reto_enviado', 'participacion_enviada' ), true ) ? 'gnf-badge--sun' : 'gnf-badge--forest'; ?>">
+													<?php echo esc_html( $tipo_labels[ $n['tipo'] ] ?? $n['tipo'] ); ?>
+												</span>
+												<?php if ( $state_badge ) : ?>
+													<span class="gnf-badge gnf-badge--sm <?php echo esc_attr( $state_badge_class ); ?>"><?php echo esc_html( $state_badge ); ?></span>
+												<?php endif; ?>
+												<?php if ( ! $n['leido'] ) : ?>
+													<span class="gnf-badge gnf-badge--sm" style="background: #369484; color: #fff;">Nueva</span>
+												<?php endif; ?>
+											</div>
+											<p style="margin: 0 0 4px; font-size: 0.95rem;"><?php echo esc_html( $n['mensaje'] ); ?></p>
+											<?php if ( $ev_info && 'imagen' === ( $ev_info['tipo'] ?? '' ) && ! empty( $ev_info['ruta'] ) ) : ?>
+												<div style="margin-top: 8px;">
+													<img src="<?php echo esc_url( $ev_info['ruta'] ); ?>" alt="Evidencia"
+														style="max-height: 60px; max-width: 90px; border-radius: 6px; border: 2px solid <?php echo 'rechazada' === $ev_state ? 'var(--gnf-coral)' : 'var(--gnf-gray-200)'; ?>; object-fit: cover;" />
+												</div>
+											<?php endif; ?>
+											<small class="gnf-muted" style="font-size: 0.8rem;"><?php echo esc_html( $n['created_at'] ); ?></small>
+										</div>
+										<?php if ( $n['link'] ) : ?>
+											<a href="<?php echo esc_url( $n['link'] ); ?>" class="gnf-btn gnf-btn--sm gnf-btn--ghost" style="flex-shrink: 0;">Ver centro</a>
+										<?php endif; ?>
 									</div>
-									<?php if ( $n['link'] ) : ?>
-										<a href="<?php echo esc_url( $n['link'] ); ?>" class="gnf-btn gnf-btn--sm gnf-btn--primary">Ver centro</a>
+
+									<?php if ( $ev_data && $ev_info && $ev_info['puntos'] !== null ) : ?>
+										<div class="gnf-notif-item__detail" style="display: none; padding: 0 16px 16px 68px; border-top: 1px solid #e2e8f0;">
+											<div style="display: flex; gap: 16px; align-items: flex-start; margin-top: 12px;">
+												<?php if ( 'imagen' === ( $ev_info['tipo'] ?? '' ) && ! empty( $ev_info['ruta'] ) ) : ?>
+													<a href="<?php echo esc_url( $ev_info['ruta'] ); ?>" target="_blank">
+														<img src="<?php echo esc_url( $ev_info['ruta'] ); ?>" alt="Evidencia"
+															style="max-height: 150px; max-width: 200px; border-radius: 8px; object-fit: cover;" />
+													</a>
+												<?php endif; ?>
+												<div style="flex: 1;" class="gnf-notif-ev-actions"
+													data-entry-id="<?php echo esc_attr( $ev_data['entry_id'] ); ?>"
+													data-ev-index="<?php echo esc_attr( $ev_info['index'] ); ?>">
+													<div style="margin-bottom: 8px;">
+														<strong><?php echo esc_html( $ev_info['nombre'] ); ?></strong>
+														<span class="gnf-muted"> — <?php echo esc_html( $ev_info['puntos'] ); ?> pts</span>
+													</div>
+													<?php if ( ! empty( $ev_info['supervisor_comment'] ) ) : ?>
+														<div class="gnf-correction-note" style="margin-bottom: 8px;">
+															<small><?php echo esc_html( $ev_info['supervisor_comment'] ); ?></small>
+														</div>
+													<?php endif; ?>
+													<textarea class="gnf-notif-ev-note gnf-input" rows="2" placeholder="Comentario (requerido al rechazar)..." style="width: 100%; margin-bottom: 8px; font-size: 0.85rem;"><?php echo esc_textarea( $ev_info['supervisor_comment'] ?? '' ); ?></textarea>
+													<div style="display: flex; gap: 8px;">
+														<button type="button" class="gnf-btn gnf-btn--sm gnf-notif-ev-aprobar"<?php echo 'aprobada' === $ev_state ? ' disabled' : ''; ?>>
+															<?php echo $icons['check']; ?> Aprobar
+														</button>
+														<button type="button" class="gnf-btn gnf-btn--sm gnf-btn--danger gnf-notif-ev-rechazar"<?php echo 'rechazada' === $ev_state ? ' disabled' : ''; ?>>
+															Rechazar
+														</button>
+													</div>
+												</div>
+											</div>
+										</div>
 									<?php endif; ?>
 								</li>
 							<?php endforeach; ?>
@@ -148,5 +225,76 @@ $tipo_labels = array(
 				</div>
 			</div>
 		</div>
+	<script>
+document.addEventListener('DOMContentLoaded', function() {
+	document.querySelectorAll('.gnf-notif-item__summary').forEach(function(summary) {
+		var detail = summary.nextElementSibling;
+		if (!detail || !detail.classList.contains('gnf-notif-item__detail')) return;
+		summary.addEventListener('click', function(e) {
+			if (e.target.closest('a')) return;
+			detail.style.display = detail.style.display === 'none' ? 'block' : 'none';
+		});
+	});
+
+	var restUrl = '<?php echo esc_js( rest_url( 'gnf/v1/supervisor/evidence/' ) ); ?>';
+	var restNonce = '<?php echo esc_js( wp_create_nonce( 'wp_rest' ) ); ?>';
+
+	function notifReviewEvidence(container, action) {
+		var entryId = container.getAttribute('data-entry-id');
+		var evIndex = container.getAttribute('data-ev-index');
+		var noteEl  = container.querySelector('.gnf-notif-ev-note');
+		var comment = noteEl ? noteEl.value.trim() : '';
+
+		if ('rechazar' === action && !comment) {
+			noteEl.style.borderColor = 'var(--gnf-coral)';
+			noteEl.focus();
+			return;
+		}
+		if (!confirm('aprobar' === action ? '¿Aprobar esta evidencia?' : '¿Rechazar esta evidencia?')) return;
+
+		var btns = container.querySelectorAll('button');
+		btns.forEach(function(b) { b.disabled = true; });
+
+		fetch(restUrl + entryId + '/' + evIndex, {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': restNonce },
+			body: JSON.stringify({ action: action, comment: comment }),
+		})
+		.then(function(r) { return r.json(); })
+		.then(function(resp) {
+			if (resp && resp.success) {
+				var li = container.closest('.gnf-notif-item');
+				var badges = li.querySelectorAll('.gnf-notif-item__summary .gnf-badge');
+				badges.forEach(function(badge) {
+					if (badge.classList.contains('gnf-badge--sun') || badge.classList.contains('gnf-badge--forest') || badge.classList.contains('gnf-badge--coral')) {
+						if (badge.textContent.trim() === 'Pendiente' || badge.textContent.trim() === 'Aprobada' || badge.textContent.trim() === 'Rechazada') {
+							badge.className = 'gnf-badge gnf-badge--sm gnf-badge--' + ('aprobar' === action ? 'forest' : 'coral');
+							badge.textContent = 'aprobar' === action ? 'Aprobada' : 'Rechazada';
+						}
+					}
+				});
+				btns.forEach(function(b) {
+					if (b.classList.contains('gnf-notif-ev-aprobar')) b.disabled = ('aprobar' === action);
+					else if (b.classList.contains('gnf-notif-ev-rechazar')) b.disabled = ('rechazar' === action);
+				});
+			} else {
+				alert((resp && resp.message) ? resp.message : 'Error al procesar.');
+				btns.forEach(function(b) { b.disabled = false; });
+			}
+		})
+		.catch(function() {
+			alert('Error de conexión.');
+			btns.forEach(function(b) { b.disabled = false; });
+		});
+	}
+
+	document.querySelectorAll('.gnf-notif-ev-aprobar').forEach(function(btn) {
+		btn.addEventListener('click', function() { notifReviewEvidence(this.closest('.gnf-notif-ev-actions'), 'aprobar'); });
+	});
+	document.querySelectorAll('.gnf-notif-ev-rechazar').forEach(function(btn) {
+		btn.addEventListener('click', function() { notifReviewEvidence(this.closest('.gnf-notif-ev-actions'), 'rechazar'); });
+	});
+});
+</script>
 	</main>
 </div>

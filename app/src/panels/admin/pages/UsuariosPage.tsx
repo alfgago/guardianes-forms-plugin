@@ -19,7 +19,7 @@ export function UsuariosPage() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [search, setSearch] = useState('');
-  const [role, setRole] = useState('all');
+  const [role, setRole] = useState('docente');
   const [status, setStatus] = useState('all');
   const [region, setRegion] = useState('');
   const [editingUser, setEditingUser] = useState<PendingUser | null>(null);

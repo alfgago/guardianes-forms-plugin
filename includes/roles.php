@@ -126,6 +126,13 @@ function gnf_user_can_access_panel( $user, $panel_slug ) {
 		return false;
 	}
 
+	if ( function_exists( 'gnf_maybe_restore_frontend_role' ) ) {
+		$restored = gnf_maybe_restore_frontend_role( $user, 'user_can_access_panel:' . $panel_slug );
+		if ( $restored instanceof WP_User ) {
+			$user = $restored;
+		}
+	}
+
 	$roles = (array) $user->roles;
 	$is_admin_panel_user = in_array( 'administrator', $roles, true )
 		|| user_can( $user, 'manage_options' )
@@ -165,6 +172,13 @@ function gnf_user_can_access_panel( $user, $panel_slug ) {
  * @return string
  */
 function gnf_get_primary_panel_slug( $user ) {
+	if ( function_exists( 'gnf_maybe_restore_frontend_role' ) ) {
+		$restored = gnf_maybe_restore_frontend_role( $user, 'get_primary_panel_slug' );
+		if ( $restored instanceof WP_User ) {
+			$user = $restored;
+		}
+	}
+
 	if ( gnf_user_can_access_panel( $user, 'panel-admin' ) ) {
 		return 'panel-admin';
 	}
@@ -211,33 +225,6 @@ function gnf_log_panel_access_context( $context, $user, $extra = array() ) {
 }
 
 /**
- * Redirige wp-login.php al panel de autenticación React.
- *
- * Evita que los usuarios vean el formulario nativo de WordPress
- * (y el error "Ha fallado la comprobación de la cookie").
- * Se excluyen acciones especiales: logout, postpass, resetpass, etc.
- */
-function gnf_redirect_wp_login() {
-	// No redirigir acciones especiales de wp-login.php.
-	$action = isset( $_REQUEST['action'] ) ? sanitize_key( $_REQUEST['action'] ) : '';
-	$skip   = array( 'logout', 'postpass', 'resetpass', 'rp', 'lostpassword', 'retrievepassword', 'confirmaction' );
-	if ( in_array( $action, $skip, true ) ) {
-		return;
-	}
-
-	// Si ya está logueado como admin, dejarlo pasar.
-	if ( is_user_logged_in() && gnf_user_can_access_panel( wp_get_current_user(), 'panel-admin' ) ) {
-		return;
-	}
-
-	// Redirigir a la página del panel docente (que muestra auth si no está logueado).
-	$auth_url = home_url( '/panel-docente/' );
-	wp_safe_redirect( $auth_url );
-	exit;
-}
-add_action( 'login_init', 'gnf_redirect_wp_login' );
-
-/**
  * Bloquear acceso al admin de WordPress para usuarios no-admin.
  * Docentes, supervisores y comité_bae no deben entrar al wp-admin.
  */
@@ -253,6 +240,12 @@ function gnf_block_admin_for_frontend_roles() {
 	}
 
 	$user  = wp_get_current_user();
+	if ( function_exists( 'gnf_maybe_restore_frontend_role' ) ) {
+		$restored = gnf_maybe_restore_frontend_role( $user, 'block_admin_for_frontend_roles' );
+		if ( $restored instanceof WP_User ) {
+			$user = $restored;
+		}
+	}
 	$roles = (array) $user->roles;
 	$blocked = array( 'docente', 'supervisor', 'comite_bae' );
 	foreach ( $blocked as $role ) {
@@ -295,13 +288,19 @@ function gnf_login_redirect( $redirect_to, $requested_redirect_to, $user ) {
 	$home_path = wp_parse_url( home_url(), PHP_URL_PATH ) ?: '';
 	$req_path  = wp_parse_url( $requested_redirect_to, PHP_URL_PATH ) ?: '';
 	$rel_path  = trim( str_replace( $home_path, '', $req_path ), '/' );
+	$primary_panel = gnf_get_primary_panel_slug( $user );
 
 	foreach ( array( 'panel-docente', 'panel-supervisor', 'panel-admin', 'panel-comite' ) as $panel_slug ) {
 		if ( 0 !== strpos( trailingslashit( '/' . $rel_path ), '/' . $panel_slug . '/' ) ) {
 			continue;
 		}
 
-		return gnf_user_can_access_panel( $user, $panel_slug )
+		$allowed_panel_redirects = array( $primary_panel );
+		if ( 'panel-supervisor' === $primary_panel ) {
+			$allowed_panel_redirects[] = 'panel-comite';
+		}
+
+		return in_array( $panel_slug, $allowed_panel_redirects, true )
 			? $requested_redirect_to
 			: ( function_exists( 'gnf_get_default_panel_url' ) ? gnf_get_default_panel_url( $user ) : home_url() );
 	}
@@ -352,8 +351,13 @@ function gnf_protect_frontend_panels() {
 		return;
 	}
 
-	// No redirigir si no hay usuario logueado (los paneles muestran el bloque de login).
+	// Sin sesión, solo los paneles frontend muestran auth propio.
 	if ( ! is_user_logged_in() ) {
+		if ( 'panel-admin' === $slug ) {
+			wp_safe_redirect( wp_login_url( home_url( '/panel-admin/' ) ) );
+			exit;
+		}
+
 		return;
 	}
 

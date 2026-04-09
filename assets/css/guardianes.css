@@ -2814,3 +2814,90 @@
 		display: none;
 	}
 }
+
+/* ── Per-Evidence Review Cards ────────────────────────────────── */
+.gnf-ev-review-list {
+	display: flex;
+	flex-direction: column;
+	gap: var(--gnf-space-3);
+	padding: var(--gnf-space-4) var(--gnf-space-5);
+}
+
+.gnf-ev-card {
+	border: 1px solid var(--gnf-gray-200);
+	border-radius: var(--gnf-radius-sm);
+	padding: var(--gnf-space-3) var(--gnf-space-4);
+	background: var(--gnf-white);
+	transition: opacity 0.2s;
+}
+
+.gnf-ev-card--rejected {
+	opacity: 0.6;
+	border-color: var(--gnf-coral);
+	background: rgba(239, 107, 74, 0.03);
+}
+
+.gnf-ev-card__header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--gnf-space-3);
+}
+
+.gnf-ev-card__file {
+	display: flex;
+	align-items: center;
+	gap: var(--gnf-space-3);
+	flex: 1;
+	min-width: 0;
+}
+
+.gnf-ev-card__thumb {
+	max-height: 48px;
+	max-width: 64px;
+	border-radius: 4px;
+	object-fit: cover;
+	flex-shrink: 0;
+}
+
+.gnf-ev-card__name {
+	font-weight: 500;
+	font-size: 0.85rem;
+	color: var(--gnf-ocean);
+	text-decoration: none;
+	word-break: break-all;
+}
+.gnf-ev-card__name:hover {
+	text-decoration: underline;
+}
+
+.gnf-ev-card__points {
+	display: inline-block;
+	font-size: 0.75rem;
+	color: var(--gnf-gray-500);
+	margin-left: var(--gnf-space-2);
+}
+
+.gnf-ev-card__comment {
+	padding: var(--gnf-space-2) 0;
+	border-top: 1px solid var(--gnf-gray-100);
+	margin-top: var(--gnf-space-2);
+}
+
+.gnf-ev-card__actions {
+	margin-top: var(--gnf-space-3);
+	padding-top: var(--gnf-space-3);
+	border-top: 1px solid var(--gnf-gray-100);
+}
+
+.gnf-ev-card__note {
+	width: 100%;
+	margin-bottom: var(--gnf-space-2);
+	font-size: 0.82rem;
+	padding: var(--gnf-space-2) var(--gnf-space-3);
+}
+
+.gnf-ev-card__buttons {
+	display: flex;
+	gap: var(--gnf-space-2);
+}

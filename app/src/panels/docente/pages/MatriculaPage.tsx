@@ -276,7 +276,7 @@ export function MatriculaPage() {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 'var(--gnf-space-4)' }}>
           <Input label="Nombre del centro educativo" value={form.centroNombre} onChange={(e) => handleField('centroNombre', e.target.value)} />
           <Input label="Código MEP" value={form.centroCodigoMep} onChange={(e) => handleField('centroCodigoMep', e.target.value)} />
-          <Input label="Correo institucional" type="email" value={form.centroCorreoInstitucional} onChange={(e) => handleField('centroCorreoInstitucional', e.target.value)} />
+          <Input label="Correo institucional" type="email" value={form.centroCorreoInstitucional} readOnly />
           <Input label="Teléfono institucional" value={form.centroTelefono} onChange={(e) => handleField('centroTelefono', e.target.value)} />
           <Select label="Dirección regional" value={String(form.centroRegion || '')} onChange={(e) => handleField('centroRegion', Number(e.target.value) || 0)} options={regionOptions} placeholder="Selecciona una región" />
           <Input label="Circuito" value={form.centroCircuito} onChange={(e) => handleField('centroCircuito', e.target.value)} />

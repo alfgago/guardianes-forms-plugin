@@ -137,7 +137,7 @@ function gnf_handle_impersonate_stop() {
 	);
 
 	// Redirigir al panel admin.
-	wp_safe_redirect( home_url( '/panel-admin/' ) );
+	wp_safe_redirect( admin_url() );
 	exit;
 }
 add_action( 'admin_post_gnf_impersonate_stop',        'gnf_handle_impersonate_stop' );

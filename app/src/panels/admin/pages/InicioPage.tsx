@@ -27,8 +27,8 @@ export function InicioPage() {
       {stats && (
         <StatsGrid columns={3}>
           <StatCard label="Centros activos" value={stats.centros} icon={<School size={24} />} color="#0369a1" bg="#e0f2fe" />
-          <StatCard label="Total usuarios" value={stats.totalUsers} icon={<Users size={24} />} color="var(--gnf-forest)" bg="#dcfce7" />
-          <StatCard label="Usuarios pendientes" value={stats.pendingUsers} icon={<Clock size={24} />} color="#d97706" bg="var(--gnf-sun-light)" />
+          <StatCard label="Centros educativos" value={stats.totalUsers} icon={<Users size={24} />} color="var(--gnf-forest)" bg="#dcfce7" />
+          <StatCard label="Docentes pendientes" value={stats.pendingUsers} icon={<Clock size={24} />} color="#d97706" bg="var(--gnf-sun-light)" />
           <StatCard label="Enviados" value={stats.enviados} icon={<BookOpen size={24} />} color="var(--gnf-ocean)" bg="#e0f2fe" />
           <StatCard label="Aprobados" value={stats.aprobados} icon={<CheckCircle2 size={24} />} color="#16a34a" bg="#dcfce7" />
           <StatCard label="En corrección" value={stats.correccion} icon={<AlertCircle size={24} />} color="#dc2626" bg="var(--gnf-coral-light)" />

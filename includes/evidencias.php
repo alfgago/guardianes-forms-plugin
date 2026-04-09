@@ -13,6 +13,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  */
 function gnf_collect_evidencias( $fields, $anio, $centro_id, $reto_id ) {
 	$evidencias  = array();
+	$field_points_map = gnf_get_reto_field_points( $reto_id, $anio );
 	$upload_dir  = wp_upload_dir();
 	$target_base = trailingslashit( $upload_dir['basedir'] ) . 'guardianes/' . $anio . '/' . $centro_id . '/' . $reto_id . '/';
 	$base_dir    = wp_normalize_path( $upload_dir['basedir'] );
@@ -129,31 +130,43 @@ function gnf_collect_evidencias( $fields, $anio, $centro_id, $reto_id ) {
 				$tipo = 'pdf';
 			}
 
+			// Lookup field points for this evidence.
+			$field_puntos = isset( $field_points_map[ (int) $field_id ] )
+				? absint( $field_points_map[ (int) $field_id ]['puntos'] )
+				: null;
+
 			$evidence = array(
-				'field_id'   => (int) $field_id,
-				'tipo'       => $tipo,
-				'ruta'       => str_replace( wp_normalize_path( $upload_dir['basedir'] ), $upload_dir['baseurl'], wp_normalize_path( $dest ) ),
-				'nombre'     => $unique,
-				'path_local' => $dest,
+				'field_id'           => (int) $field_id,
+				'tipo'               => $tipo,
+				'ruta'               => str_replace( wp_normalize_path( $upload_dir['basedir'] ), $upload_dir['baseurl'], wp_normalize_path( $dest ) ),
+				'nombre'             => $unique,
+				'path_local'         => $dest,
+				'puntos'             => $field_puntos,
+				'estado'             => $field_puntos !== null ? 'pendiente' : null,
+				'supervisor_comment' => null,
+				'reviewed_by'        => null,
+				'reviewed_at'        => null,
 			);
 
-			// Validación de fecha por EXIF (solo imágenes).
+			// EXIF date validation (images only) — auto-reject if year mismatch.
 			if ( 'imagen' === $tipo ) {
 				if ( ! function_exists( 'wp_read_image_metadata' ) ) {
 					require_once ABSPATH . 'wp-admin/includes/image.php';
 				}
-				$metadata = wp_read_image_metadata( $dest );
-				$year_ok  = false;
-				if ( ! empty( $metadata['created_timestamp'] ) ) {
+				$metadata      = wp_read_image_metadata( $dest );
+				$has_exif_date = ! empty( $metadata['created_timestamp'] );
+				if ( $has_exif_date ) {
 					$photo_year = (int) gmdate( 'Y', $metadata['created_timestamp'] );
-					if ( $photo_year === (int) $anio ) {
-						$year_ok = true;
+					if ( $photo_year !== (int) $anio ) {
+						$evidence['estado']             = 'rechazada';
+						$evidence['supervisor_comment']  = sprintf(
+							'Rechazada automáticamente: la fecha EXIF de la foto (%d) no corresponde al año activo (%d).',
+							$photo_year,
+							$anio
+						);
+						$evidence['reviewed_by']         = 0; // System.
+						$evidence['reviewed_at']         = current_time( 'mysql' );
 					}
-				}
-				if ( ! $year_ok ) {
-					$evidence['requires_year_validation'] = true;
-					$evidence['warning']                  = 'Fecha de foto no coincide con el año activo ' . $anio;
-					gnf_notify_invalid_photo_date( $centro_id, $dest );
 				}
 			}
 

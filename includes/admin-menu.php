@@ -78,17 +78,467 @@ function gnf_register_admin_menu()
 
 	add_submenu_page(
 		'gnf-admin',
+		__( 'Reparar Formularios', 'guardianes-formularios' ),
+		__( 'Reparar Formularios', 'guardianes-formularios' ),
+		$cap,
+		'gnf-tools',
+		'gnf_render_admin_tools'
+	);
+
+	// Página oculta (sin parent): accesible por enlace directo pero no aparece en el menú.
+	add_submenu_page(
+		null,
 		__('Editar Usuario', 'guardianes-formularios'),
-		__('Editar Usuario', 'guardianes-formularios'),
+		'',
 		$cap,
 		'gnf-usuario-editar',
 		'gnf_render_admin_user_edit'
 	);
-
-	// Ocultar submenú de edición de usuario (solo accesible por enlace directo).
-	remove_submenu_page('gnf-admin', 'gnf-usuario-editar');
 }
 add_action('admin_menu', 'gnf_register_admin_menu', 2);
+
+/**
+ * URL canonica de la pantalla de herramientas.
+ *
+ * @param array<string,mixed> $args Query args opcionales.
+ * @return string
+ */
+function gnf_get_tools_page_url( $args = array() ) {
+	$args = array_merge( array( 'page' => 'gnf-tools' ), $args );
+	return add_query_arg( $args, admin_url( 'admin.php' ) );
+}
+
+/**
+ * Renderiza notices de resultado para la pantalla de herramientas.
+ *
+ * @return void
+ */
+function gnf_render_tools_result_notices() {
+	$run     = absint( $_GET['gnf_fixed_run'] ?? 0 );
+	$updated = absint( $_GET['gnf_fixed_updated'] ?? 0 );
+	$skipped = absint( $_GET['gnf_fixed_skipped'] ?? 0 );
+	$failed  = absint( $_GET['gnf_fixed_failed'] ?? 0 );
+	$scanned = absint( $_GET['gnf_fixed_scanned'] ?? 0 );
+
+	$centro_fix_run       = absint( $_GET['gnf_center_fix_run'] ?? 0 );
+	$centro_fix_scanned   = absint( $_GET['gnf_center_fix_scanned'] ?? 0 );
+	$centro_fix_updated   = absint( $_GET['gnf_center_fix_updated'] ?? 0 );
+	$centro_fix_skipped   = absint( $_GET['gnf_center_fix_skipped'] ?? 0 );
+	$centro_fix_failed    = absint( $_GET['gnf_center_fix_failed'] ?? 0 );
+	$centro_fix_claimed   = absint( $_GET['gnf_center_fix_claimed'] ?? 0 );
+	$centro_fix_unmatched = absint( $_GET['gnf_center_fix_unmatched'] ?? 0 );
+
+	if ( $run ) :
+		?>
+		<div class="notice notice-success is-dismissible">
+			<p><?php echo esc_html( sprintf( 'Correccion ejecutada. Revisados: %d. Actualizados a docente: %d. Omitidos: %d. Fallidos: %d.', $scanned, $updated, $skipped, $failed ) ); ?></p>
+		</div>
+		<?php
+	endif;
+
+	if ( $centro_fix_run ) :
+		?>
+		<div class="notice notice-success is-dismissible">
+			<p><?php echo esc_html( sprintf( 'Asociacion masiva ejecutada. Revisados: %d. Actualizados: %d. Omitidos: %d. No encontrados: %d. En conflicto: %d. Fallidos: %d.', $centro_fix_scanned, $centro_fix_updated, $centro_fix_skipped, $centro_fix_unmatched, $centro_fix_claimed, $centro_fix_failed ) ); ?></p>
+		</div>
+		<?php
+	endif;
+
+	$result = get_transient( gnf_get_reimport_result_key() );
+	if ( $result ) {
+		delete_transient( gnf_get_reimport_result_key() );
+		$errors_html = '';
+		if ( ! empty( $result['errors'] ) ) {
+			$errors_html = '<ul style="margin:8px 0 0;padding-left:20px;">';
+			foreach ( array_slice( $result['errors'], 0, 5 ) as $err ) {
+				$errors_html .= '<li>' . esc_html( $err ) . '</li>';
+			}
+			if ( count( $result['errors'] ) > 5 ) {
+				$errors_html .= '<li>... y ' . ( count( $result['errors'] ) - 5 ) . ' errores mas.</li>';
+			}
+			$errors_html .= '</ul>';
+		}
+
+		$variant      = empty( $result['errors'] ) ? 'notice-success' : 'notice-warning';
+		$deleted_line = isset( $result['deleted'] ) ? sprintf( ' &nbsp;&middot;&nbsp; <strong>%d eliminados</strong>', (int) $result['deleted'] ) : '';
+
+		printf(
+			'<div class="notice %s is-dismissible"><p><strong>Importacion completada:</strong> %d nuevos &nbsp;&middot;&nbsp; %d actualizados &nbsp;&middot;&nbsp; %d omitidos &nbsp;&middot;&nbsp; %d duplicados%s %s</p></div>',
+			esc_attr( $variant ),
+			(int) $result['created'],
+			(int) $result['updated'],
+			(int) $result['skipped'],
+			(int) $result['duplicates'],
+			$deleted_line,
+			$errors_html
+		);
+	}
+
+	if ( isset( $_GET['gnf_reimport_error'] ) && 'csv_not_found' === sanitize_key( wp_unslash( $_GET['gnf_reimport_error'] ) ) ) {
+		echo '<div class="notice notice-error"><p>No se encontro <code>seeders/escuelas-mep.csv</code>.</p></div>';
+	}
+}
+
+/**
+ * Renderiza la tarjeta de reparaciones docentes.
+ *
+ * @return void
+ */
+function gnf_render_docente_repairs_tools_card() {
+	?>
+	<div style="max-width: 960px; background: #fff; border-radius: 12px; padding: 24px; box-shadow: 0 2px 12px rgba(0,0,0,0.06);">
+		<h2 style="margin-top:0;">Reparar docentes</h2>
+		<p style="margin:0 0 16px;color:#4b5563;">
+			Agrupa la correccion de roles y la reparacion de la asociacion docente-centro para cuentas que quedaron con metadata incompleta o legacy.
+		</p>
+		<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;">
+			<div style="border:1px solid #e5e7eb;border-radius:10px;padding:18px;">
+				<h3 style="margin:0 0 8px;font-size:16px;">Corregir roles</h3>
+				<p style="margin:0 0 14px;color:#555;">
+					Revisa usuarios <code>subscriber</code> registrados como docente y los convierte al rol correcto cuando la metadata del plugin lo confirma.
+				</p>
+				<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+					<?php wp_nonce_field( 'gnf_bulk_fix_subscriber_docentes', 'gnf_nonce' ); ?>
+					<input type="hidden" name="action" value="gnf_bulk_fix_subscriber_docentes" />
+					<input type="hidden" name="redirect_to" value="<?php echo esc_url( gnf_get_tools_page_url() ); ?>" />
+					<?php submit_button( __( 'Corregir roles', 'guardianes-formularios' ), 'secondary', 'submit', false ); ?>
+				</form>
+			</div>
+			<div style="border:1px solid #e5e7eb;border-radius:10px;padding:18px;">
+				<h3 style="margin:0 0 8px;font-size:16px;">Reparar docente-centro</h3>
+				<p style="margin:0 0 14px;color:#555;">
+					Hace match por codigo MEP o nombre de institucion legacy y sincroniza centro, region y correo institucional. Si detecta conflicto con otra cuenta, omite el caso.
+				</p>
+				<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+					<?php wp_nonce_field( 'gnf_bulk_fix_docente_centros', 'gnf_nonce' ); ?>
+					<input type="hidden" name="action" value="gnf_bulk_fix_docente_centros" />
+					<input type="hidden" name="redirect_to" value="<?php echo esc_url( gnf_get_tools_page_url() ); ?>" />
+					<?php submit_button( __( 'Reparar docente-centro', 'guardianes-formularios' ), 'primary', 'submit', false ); ?>
+				</form>
+			</div>
+		</div>
+	</div>
+	<?php
+}
+
+/**
+ * Renderiza la tarjeta de importacion de centros.
+ *
+ * @return void
+ */
+function gnf_render_centros_import_tools_card() {
+	gnf_require_centros_importer();
+
+	$job         = gnf_get_centros_import_job();
+	$job_running = ! empty( $job ) && is_array( $job ) && 'running' === ( $job['status'] ?? '' );
+	$progress    = gnf_get_centros_import_progress( $job );
+
+	$csv_path  = GNF_PATH . 'seeders/escuelas-mep.csv';
+	$csv_rows  = gnf_count_centros_csv_rows( $csv_path );
+	$csv_label = $csv_rows ? number_format_i18n( $csv_rows ) . ' filas en escuelas-mep.csv' : 'escuelas-mep.csv no encontrado';
+
+	$json_path  = GNF_PATH . 'seeders/centros_educativos_2024.json';
+	$json_rows  = file_exists( $json_path ) ? gnf_count_centros_json_entries( $json_path ) : 0;
+	$json_label = $json_rows ? ' + ' . number_format_i18n( $json_rows ) . ' en centros_educativos_2024.json' : '';
+	?>
+	<div style="max-width: 960px; margin-top: 24px; background: #fff; border-radius: 12px; padding: 24px; box-shadow: 0 2px 12px rgba(0,0,0,0.06);">
+		<h2 style="margin-top:0;">Importar Centros Educativos MEP</h2>
+		<p style="margin:0 0 12px;color:#555;">
+			Re-importa el catalogo desde <code>escuelas-mep.csv</code> y <code>centros_educativos_2024.json</code>. Los centros existentes se actualizan sin duplicar y el proceso corre por lotes para evitar timeouts.
+			(<?php echo esc_html( $csv_label . $json_label ); ?>)
+		</p>
+		<div style="display:flex;gap:12px;flex-wrap:wrap;">
+			<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" style="display:inline;">
+				<?php wp_nonce_field( 'gnf_reimport_centros', 'gnf_reimport_nonce' ); ?>
+				<input type="hidden" name="action" value="gnf_reimport_centros" />
+				<button type="submit" class="button button-primary" <?php disabled( $job_running ); ?> onclick="return confirm('Esto iniciara una importacion en lotes y mostrara el progreso en esta pantalla.');">
+					Importar centros nuevos
+				</button>
+			</form>
+			<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" style="display:inline;">
+				<?php wp_nonce_field( 'gnf_purge_reimport_centros', 'gnf_reimport_nonce' ); ?>
+				<input type="hidden" name="action" value="gnf_purge_reimport_centros" />
+				<button type="submit" class="button button-secondary" style="border-color:#b91c1c;color:#b91c1c;" <?php disabled( $job_running ); ?> onclick="return confirm('Esto eliminara todos los centros sin docente asignado y luego reimportara el catalogo en lotes. Esta accion no se puede deshacer.');">
+					Limpiar duplicados y reimportar
+				</button>
+			</form>
+		</div>
+		<?php if ( $job_running ) : ?>
+			<p style="margin:10px 0 0;color:#555;">Hay una importacion activa. Deja esta pantalla abierta para ver el progreso.</p>
+		<?php endif; ?>
+		<div
+			id="gnf-centros-import-progress"
+			class="notice notice-info"
+			data-active="<?php echo esc_attr( $job_running ? '1' : '0' ); ?>"
+			data-autostart="<?php echo esc_attr( $job_running ? '1' : '0' ); ?>"
+			style="<?php echo $job_running ? 'margin:16px 0 0;padding:16px 20px;' : 'display:none;margin:16px 0 0;padding:16px 20px;'; ?>">
+			<strong style="font-size:14px;">Progreso de importacion</strong>
+			<p class="gnf-centros-import-status" style="margin:8px 0 12px;color:#374151;">
+				<?php echo esc_html( $progress['status_label'] ); ?>
+			</p>
+			<div style="height:12px;background:#e5e7eb;border-radius:999px;overflow:hidden;">
+				<div class="gnf-centros-import-bar" style="height:12px;width:<?php echo esc_attr( (string) $progress['percent'] ); ?>%;background:linear-gradient(90deg,#2563eb,#0891b2);"></div>
+			</div>
+			<p class="gnf-centros-import-meta" style="margin:10px 0 14px;color:#555;">
+				<?php echo esc_html( number_format_i18n( (int) $progress['done_units'] ) . ' de ' . number_format_i18n( (int) $progress['total_units'] ) . ' filas procesadas (' . $progress['percent'] . '%)' ); ?>
+			</p>
+			<div style="display:flex;gap:18px;flex-wrap:wrap;">
+				<span><strong class="gnf-stat-created"><?php echo esc_html( (string) ( $job['stats']['created'] ?? 0 ) ); ?></strong> nuevos</span>
+				<span><strong class="gnf-stat-updated"><?php echo esc_html( (string) ( $job['stats']['updated'] ?? 0 ) ); ?></strong> actualizados</span>
+				<span><strong class="gnf-stat-skipped"><?php echo esc_html( (string) ( $job['stats']['skipped'] ?? 0 ) ); ?></strong> omitidos</span>
+				<span><strong class="gnf-stat-errors"><?php echo esc_html( (string) count( $job['stats']['errors'] ?? array() ) ); ?></strong> errores</span>
+				<span class="gnf-stat-deleted-wrap" style="<?php echo isset( $job['stats']['deleted'] ) ? '' : 'display:none;'; ?>">
+					<strong class="gnf-stat-deleted"><?php echo esc_html( (string) ( $job['stats']['deleted'] ?? 0 ) ); ?></strong> eliminados
+				</span>
+			</div>
+			<p class="gnf-centros-import-message" style="margin:12px 0 0;color:#1f2937;"></p>
+			<p class="gnf-centros-import-error" style="display:none;margin:12px 0 0;color:#b91c1c;font-weight:600;"></p>
+		</div>
+	</div>
+	<?php
+}
+
+/**
+ * Renderiza herramientas administrativas puntuales.
+ *
+ * @return void
+ */
+function gnf_render_admin_tools() {
+	$cap = gnf_menu_capability();
+	if ( ! current_user_can( $cap ) ) {
+		wp_die( esc_html__( 'No autorizado.', 'guardianes-formularios' ) );
+	}
+	?>
+	<div class="wrap">
+		<h1>Reparar Formularios</h1>
+		<p style="max-width:960px;color:#4b5563;">
+			Concentra reparaciones, imports, reset y reseeds operativos del plugin en una sola pantalla administrativa.
+		</p>
+		<?php gnf_render_tools_result_notices(); ?>
+		<?php gnf_render_docente_repairs_tools_card(); ?>
+		<?php gnf_render_centros_import_tools_card(); ?>
+		<div style="margin-top:24px;">
+			<?php if ( function_exists( 'gnf_render_reset_tools_card' ) ) { gnf_render_reset_tools_card(); } ?>
+		</div>
+	</div>
+	<?php
+	return;
+
+	$run     = absint( $_GET['gnf_fixed_run'] ?? 0 );
+	$updated = absint( $_GET['gnf_fixed_updated'] ?? 0 );
+	$skipped = absint( $_GET['gnf_fixed_skipped'] ?? 0 );
+	$failed  = absint( $_GET['gnf_fixed_failed'] ?? 0 );
+	$scanned = absint( $_GET['gnf_fixed_scanned'] ?? 0 );
+	$centro_fix_run       = absint( $_GET['gnf_center_fix_run'] ?? 0 );
+	$centro_fix_scanned   = absint( $_GET['gnf_center_fix_scanned'] ?? 0 );
+	$centro_fix_updated   = absint( $_GET['gnf_center_fix_updated'] ?? 0 );
+	$centro_fix_skipped   = absint( $_GET['gnf_center_fix_skipped'] ?? 0 );
+	$centro_fix_failed    = absint( $_GET['gnf_center_fix_failed'] ?? 0 );
+	$centro_fix_claimed   = absint( $_GET['gnf_center_fix_claimed'] ?? 0 );
+	$centro_fix_unmatched = absint( $_GET['gnf_center_fix_unmatched'] ?? 0 );
+	?>
+	<div class="wrap">
+		<h1><?php esc_html_e( 'Herramientas de recuperación', 'guardianes-formularios' ); ?></h1>
+
+		<?php if ( $run ) : ?>
+			<div class="notice notice-success is-dismissible">
+				<p>
+					<?php
+					echo esc_html(
+						sprintf(
+							'Corrección ejecutada. Revisados: %d. Actualizados a docente: %d. Omitidos: %d. Fallidos: %d.',
+							$scanned,
+							$updated,
+							$skipped,
+							$failed
+						)
+					);
+					?>
+				</p>
+			</div>
+		<?php endif; ?>
+
+		<?php if ( $centro_fix_run ) : ?>
+			<div class="notice notice-success is-dismissible">
+				<p>
+					<?php
+					echo esc_html(
+						sprintf(
+							'Asociacion masiva ejecutada. Revisados: %d. Actualizados: %d. Omitidos: %d. No encontrados: %d. En conflicto: %d. Fallidos: %d.',
+							$centro_fix_scanned,
+							$centro_fix_updated,
+							$centro_fix_skipped,
+							$centro_fix_unmatched,
+							$centro_fix_claimed,
+							$centro_fix_failed
+						)
+					);
+					?>
+				</p>
+			</div>
+		<?php endif; ?>
+
+		<div style="max-width: 760px; background: #fff; border-radius: 12px; padding: 24px; box-shadow: 0 2px 12px rgba(0,0,0,0.06);">
+			<h2 style="margin-top:0;"><?php esc_html_e( 'Corregir docentes creados como subscriber', 'guardianes-formularios' ); ?></h2>
+			<p>
+				<?php esc_html_e( 'Esta acción revisa usuarios con rol subscriber registrados desde el 1 de marzo de 2026 y convierte a docente solo los que tienen metadata de registro docente del plugin. No toca cuentas que ya sean docente, supervisor, comité o administrador.', 'guardianes-formularios' ); ?>
+			</p>
+			<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+				<?php wp_nonce_field( 'gnf_bulk_fix_subscriber_docentes', 'gnf_nonce' ); ?>
+				<input type="hidden" name="action" value="gnf_bulk_fix_subscriber_docentes" />
+				<input type="hidden" name="redirect_to" value="<?php echo esc_url( admin_url( 'admin.php?page=gnf-tools' ) ); ?>" />
+				<?php submit_button( __( 'Ejecutar corrección masiva', 'guardianes-formularios' ), 'primary', 'submit', false ); ?>
+			</form>
+		</div>
+
+		<div style="max-width: 760px; margin-top: 24px; background: #fff; border-radius: 12px; padding: 24px; box-shadow: 0 2px 12px rgba(0,0,0,0.06);">
+			<h2 style="margin-top:0;"><?php esc_html_e( 'Reparar asociacion docente-centro desde institucion legacy', 'guardianes-formularios' ); ?></h2>
+			<p>
+				<?php esc_html_e( 'Busca docentes sin centro asociado o con rol inconsistente, intenta hacer match por codigo MEP o nombre de institucion guardado en texto, y sincroniza rol, centro, direccion regional y correo institucional. Si el centro ya pertenece a otra cuenta docente, lo omite para evitar conflictos.', 'guardianes-formularios' ); ?>
+			</p>
+			<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+				<?php wp_nonce_field( 'gnf_bulk_fix_docente_centros', 'gnf_nonce' ); ?>
+				<input type="hidden" name="action" value="gnf_bulk_fix_docente_centros" />
+				<input type="hidden" name="redirect_to" value="<?php echo esc_url( admin_url( 'admin.php?page=gnf-tools' ) ); ?>" />
+				<?php submit_button( __( 'Ejecutar reparacion docente-centro', 'guardianes-formularios' ), 'secondary', 'submit', false ); ?>
+			</form>
+		</div>
+	</div>
+	<?php
+}
+
+/**
+ * Ejecuta la corrección masiva de subscribers dañados.
+ *
+ * @return void
+ */
+function gnf_handle_bulk_fix_subscriber_docentes() {
+	$cap = gnf_menu_capability();
+	if ( ! current_user_can( $cap ) ) {
+		wp_die( 'No autorizado' );
+	}
+
+	check_admin_referer( 'gnf_bulk_fix_subscriber_docentes', 'gnf_nonce' );
+
+	$result = function_exists( 'gnf_run_bulk_fix_subscriber_docentes' )
+		? gnf_run_bulk_fix_subscriber_docentes()
+		: array(
+			'scanned' => 0,
+			'updated' => 0,
+			'skipped' => 0,
+			'failed'  => 0,
+		);
+
+	$query_args = array(
+		'page'              => 'gnf-tools',
+		'gnf_fixed_run'     => 1,
+		'gnf_fixed_scanned' => (int) $result['scanned'],
+		'gnf_fixed_updated' => (int) $result['updated'],
+		'gnf_fixed_skipped' => (int) $result['skipped'],
+		'gnf_fixed_failed'  => (int) $result['failed'],
+	);
+
+	wp_safe_redirect(
+		add_query_arg(
+			$query_args,
+			admin_url( 'admin.php' )
+		)
+	);
+	exit;
+}
+add_action( 'admin_post_gnf_bulk_fix_subscriber_docentes', 'gnf_handle_bulk_fix_subscriber_docentes' );
+
+/**
+ * Ejecuta la reparacion masiva de relaciones docente -> centro.
+ *
+ * @return void
+ */
+function gnf_handle_bulk_fix_docente_centros() {
+	$cap = gnf_menu_capability();
+	if ( ! current_user_can( $cap ) ) {
+		wp_die( 'No autorizado' );
+	}
+
+	check_admin_referer( 'gnf_bulk_fix_docente_centros', 'gnf_nonce' );
+
+	$result = function_exists( 'gnf_run_bulk_fix_docente_centros' )
+		? gnf_run_bulk_fix_docente_centros()
+		: array(
+			'scanned'   => 0,
+			'updated'   => 0,
+			'skipped'   => 0,
+			'failed'    => 0,
+			'claimed'   => 0,
+			'unmatched' => 0,
+		);
+
+	wp_safe_redirect(
+		add_query_arg(
+			array(
+				'page'                     => 'gnf-tools',
+				'gnf_center_fix_run'       => 1,
+				'gnf_center_fix_scanned'   => (int) ( $result['scanned'] ?? 0 ),
+				'gnf_center_fix_updated'   => (int) ( $result['updated'] ?? 0 ),
+				'gnf_center_fix_skipped'   => (int) ( $result['skipped'] ?? 0 ),
+				'gnf_center_fix_failed'    => (int) ( $result['failed'] ?? 0 ),
+				'gnf_center_fix_claimed'   => (int) ( $result['claimed'] ?? 0 ),
+				'gnf_center_fix_unmatched' => (int) ( $result['unmatched'] ?? 0 ),
+			),
+			admin_url( 'admin.php' )
+		)
+	);
+	exit;
+}
+add_action( 'admin_post_gnf_bulk_fix_docente_centros', 'gnf_handle_bulk_fix_docente_centros' );
+
+/**
+ * Muestra en Ajustes > General el aviso y botón para corregir roles subscriber/docente.
+ *
+ * @return void
+ */
+function gnf_render_bulk_fix_docentes_notice() {
+	return;
+
+	$run     = absint( $_GET['gnf_fixed_run'] ?? 0 );
+	$updated = absint( $_GET['gnf_fixed_updated'] ?? 0 );
+	$skipped = absint( $_GET['gnf_fixed_skipped'] ?? 0 );
+	$failed  = absint( $_GET['gnf_fixed_failed'] ?? 0 );
+	$scanned = absint( $_GET['gnf_fixed_scanned'] ?? 0 );
+	?>
+	<?php if ( $run ) : ?>
+		<div class="notice notice-success is-dismissible">
+			<p>
+				<?php
+				echo esc_html(
+					sprintf(
+						'Corrección ejecutada. Revisados: %d. Actualizados a docente: %d. Omitidos: %d. Fallidos: %d.',
+						$scanned,
+						$updated,
+						$skipped,
+						$failed
+					)
+				);
+				?>
+			</p>
+		</div>
+	<?php endif; ?>
+
+	<div class="notice notice-warning" style="padding:16px 20px;">
+		<strong style="font-size:14px;">Corregir docentes creados como subscriber</strong>
+		<p style="margin:6px 0 12px;color:#555;">
+			Revisa usuarios <code>subscriber</code> registrados desde el 1 de marzo de 2026 y convierte a <code>docente</code> solo los que tienen metadata de registro docente del plugin.
+			No toca cuentas que ya sean docente, supervisor, comité o administrador.
+		</p>
+		<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" style="display:inline;">
+			<?php wp_nonce_field( 'gnf_bulk_fix_subscriber_docentes', 'gnf_nonce' ); ?>
+			<input type="hidden" name="action" value="gnf_bulk_fix_subscriber_docentes" />
+			<input type="hidden" name="redirect_to" value="<?php echo esc_url( admin_url( 'options-general.php' ) ); ?>" />
+			<?php submit_button( __( 'Corregir roles de usuarios', 'guardianes-formularios' ), 'secondary', 'submit', false ); ?>
+		</form>
+	</div>
+	<?php
+}
+add_action( 'admin_notices', 'gnf_render_bulk_fix_docentes_notice' );
 
 /**
  * Returns the transient key used to store the final centro import result.
@@ -431,7 +881,7 @@ function gnf_ajax_process_centros_import_batch() {
 				'message'     => $fatal_batch ? 'La importacion termino con errores.' : 'Importacion completada.',
 				'progress'    => $progress,
 				'stats'       => $job['stats'],
-				'redirectUrl' => admin_url( 'options-general.php' ),
+				'redirectUrl' => gnf_get_tools_page_url(),
 			)
 		);
 	}
@@ -456,15 +906,7 @@ add_action( 'wp_ajax_gnf_process_centros_import_batch', 'gnf_ajax_process_centro
  * @return void
  */
 function gnf_render_centros_import_notice() {
-	global $pagenow;
-
-	if ( 'options-general.php' !== $pagenow ) {
-		return;
-	}
-
-	if ( ! current_user_can( 'manage_options' ) ) {
-		return;
-	}
+	return;
 
 	gnf_require_centros_importer();
 
@@ -586,11 +1028,11 @@ function gnf_handle_reimport_centros() {
 
 	$job = gnf_create_centros_import_job( 'reimport' );
 	if ( is_wp_error( $job ) ) {
-		wp_safe_redirect( add_query_arg( 'gnf_reimport_error', 'csv_not_found', admin_url( 'options-general.php' ) ) );
+		wp_safe_redirect( gnf_get_tools_page_url( array( 'gnf_reimport_error' => 'csv_not_found' ) ) );
 		exit;
 	}
 
-	wp_safe_redirect( add_query_arg( 'gnf_centros_import', 'reimport', admin_url( 'options-general.php' ) ) );
+	wp_safe_redirect( gnf_get_tools_page_url( array( 'gnf_centros_import' => 'reimport' ) ) );
 	exit;
 }
 add_action( 'admin_post_gnf_reimport_centros', 'gnf_handle_reimport_centros' );
@@ -609,11 +1051,11 @@ function gnf_handle_purge_and_reimport_centros() {
 
 	$job = gnf_create_centros_import_job( 'purge_reimport' );
 	if ( is_wp_error( $job ) ) {
-		wp_safe_redirect( add_query_arg( 'gnf_reimport_error', 'csv_not_found', admin_url( 'options-general.php' ) ) );
+		wp_safe_redirect( gnf_get_tools_page_url( array( 'gnf_reimport_error' => 'csv_not_found' ) ) );
 		exit;
 	}
 
-	wp_safe_redirect( add_query_arg( 'gnf_centros_import', 'purge_reimport', admin_url( 'options-general.php' ) ) );
+	wp_safe_redirect( gnf_get_tools_page_url( array( 'gnf_centros_import' => 'purge_reimport' ) ) );
 	exit;
 }
 add_action( 'admin_post_gnf_purge_reimport_centros', 'gnf_handle_purge_and_reimport_centros' );
@@ -662,13 +1104,6 @@ function gnf_render_admin_dashboard()
 			$anio
 		),
 		OBJECT_K
-	);
-	$flagged = (int) $wpdb->get_var(
-		$wpdb->prepare(
-			"SELECT COUNT(*) FROM {$table_entries} WHERE anio = %d AND evidencias LIKE %s",
-			$anio,
-			'%\"requires_year_validation\"%'
-		)
 	);
 	$aprobados = isset($stats['aprobado']) ? (int) $stats['aprobado']->total : 0;
 	$enviados  = isset($stats['enviado']) ? (int) $stats['enviado']->total : 0;
@@ -1061,7 +1496,7 @@ function gnf_render_admin_dashboard()
 					<th><?php echo esc_html(__('Acciones', 'guardianes-formularios')); ?></th>
 				</tr>
 				<?php if ($pend_docs) : foreach ($pend_docs as $doc) :
-						$centro = (int) get_user_meta($doc->ID, 'centro_solicitado', true);
+						$centro = (int) gnf_get_centro_for_docente( $doc->ID );
 				?>
 						<tr>
 							<td><?php echo esc_html($doc->display_name); ?></td>

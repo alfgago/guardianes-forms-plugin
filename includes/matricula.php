@@ -115,7 +115,7 @@ function gnf_get_matricula_prefill_data( $user_id, $centro_id, $anio ) {
 		'centro_id_existente'           => $centro_id,
 		'centro_nombre'                 => $centro_id ? get_the_title( $centro_id ) : '',
 		'centro_codigo_mep'             => $centro_id ? (string) get_post_meta( $centro_id, 'codigo_mep', true ) : '',
-		'centro_correo_institucional'   => $centro_id ? (string) get_post_meta( $centro_id, 'correo_institucional', true ) : '',
+		'centro_correo_institucional'   => $user ? (string) $user->user_email : '',
 		'centro_telefono'               => $centro_id ? (string) get_post_meta( $centro_id, 'telefono', true ) : '',
 		'centro_nivel_educativo'        => (string) $centro_nivel_educativo,
 		'centro_dependencia'            => (string) $centro_dependencia,
@@ -192,6 +192,12 @@ function gnf_get_matricula_prefill_data( $user_id, $centro_id, $anio ) {
 				break;
 			}
 		}
+	}
+
+	if ( $user && is_email( $user->user_email ) ) {
+		$prefill['centro_correo_institucional'] = (string) $user->user_email;
+		$prefill['docente_email']               = (string) $user->user_email;
+		$prefill['docente_email_confirm']       = (string) $user->user_email;
 	}
 
 	$prefill['centro_nivel_educativo'] = gnf_normalize_centro_choice( 'nivel_educativo', $prefill['centro_nivel_educativo'] );
@@ -441,7 +447,7 @@ function gnf_render_matricula_form( $args = array() ) {
 							</div>
 							<div class="gnf-mf-field">
 								<label class="gnf-mf-label">Correo institucional <span class="req">*</span></label>
-								<input type="email" name="centro_correo_institucional" class="gnf-mf-input" value="<?php echo esc_attr( $prefill['centro_correo_institucional'] ); ?>" placeholder="centro@dominio.ed.cr" />
+								<input type="email" name="centro_correo_institucional" class="gnf-mf-input" value="<?php echo esc_attr( $prefill['centro_correo_institucional'] ); ?>" placeholder="centro@dominio.ed.cr" readonly />
 							</div>
 							<div class="gnf-mf-field">
 								<label class="gnf-mf-label">Teléfono del Centro <span class="req">*</span></label>
@@ -1202,4 +1208,3 @@ function gnf_handle_submit_matricula() {
 	exit;
 }
 add_action( 'admin_post_gnf_submit_matricula', 'gnf_handle_submit_matricula' );
-

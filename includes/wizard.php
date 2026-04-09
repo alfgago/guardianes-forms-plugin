@@ -376,7 +376,11 @@ function gnf_ajax_quitar_reto_matricula() {
 		$wpdb->delete( $table, array( 'id' => $entry->id ), array( '%d' ) );
 	}
 
-	wp_send_json_success( array( 'message' => 'Reto quitado de la matrícula' ) );
+	wp_send_json_success( array(
+		'message'     => 'Reto quitado de la matrícula',
+		'total_retos' => count( $retos ),
+		'retos_ids'   => array_values( $retos ),
+	) );
 }
 add_action( 'wp_ajax_gnf_quitar_reto_matricula', 'gnf_ajax_quitar_reto_matricula' );
 

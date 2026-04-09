@@ -326,10 +326,10 @@ function gnf_register_rest_routes() {
 
 	register_rest_route(
 		$ns,
-		'/supervisor/entries/(?P<id>\d+)',
+		'/supervisor/evidence/(?P<entry_id>\d+)/(?P<evidence_index>\d+)',
 		array(
 			'methods'             => 'POST',
-			'callback'            => 'gnf_rest_supervisor_update_entry',
+			'callback'            => 'gnf_rest_supervisor_review_evidence',
 			'permission_callback' => 'gnf_rest_is_supervisor',
 		)
 	);
@@ -528,7 +528,7 @@ function gnf_rest_get_default_redirect( $user ) {
 	}
 
 	if ( gnf_user_has_role( $user, 'administrator' ) ) {
-		return home_url( '/panel-admin/' );
+		return admin_url();
 	}
 	if ( gnf_user_has_role( $user, 'comite_bae' ) ) {
 		return home_url( '/panel-supervisor/' );
@@ -1020,8 +1020,11 @@ function gnf_rest_auth_register_docente( WP_REST_Request $request ) {
 		return $user_id;
 	}
 
-	$user = new WP_User( $user_id );
-	$user->set_role( 'docente' );
+	if ( ! function_exists( 'gnf_set_user_role_strict' ) || ! gnf_set_user_role_strict( $user_id, 'docente', 'rest_auth_register_docente' ) ) {
+		require_once ABSPATH . 'wp-admin/includes/user.php';
+		wp_delete_user( $user_id );
+		return new WP_Error( 'role_assignment_failed', 'No se pudo asignar el rol de docente.', array( 'status' => 500 ) );
+	}
 	wp_update_user( array( 'ID' => $user_id, 'display_name' => $nombre ) );
 
 	update_user_meta( $user_id, 'gnf_docente_status', 'activo' );
@@ -1039,14 +1042,12 @@ function gnf_rest_auth_register_docente( WP_REST_Request $request ) {
 	}
 
 	if ( $centro_id ) {
-		update_user_meta( $user_id, 'centro_solicitado', $centro_id );
-		update_user_meta( $user_id, 'centro_educativo_id', $centro_id );
 		if ( gnf_is_centro_claimed_by_other_docente( $centro_id, $user_id ) ) {
 			require_once ABSPATH . 'wp-admin/includes/user.php';
 			wp_delete_user( $user_id );
 			return gnf_rest_get_centro_claimed_error( $centro_id );
 		}
-		gnf_attach_docente_to_centro( $user_id, $centro_id );
+		gnf_sync_docente_centro_assignment( $user_id, $centro_id, array( 'sync_correo_institucional' => true ) );
 	}
 
 	if ( function_exists( 'gnf_approve_docente' ) ) {
@@ -1116,8 +1117,11 @@ function gnf_rest_auth_register_supervisor( WP_REST_Request $request ) {
 		return $user_id;
 	}
 
-	$user = new WP_User( $user_id );
-	$user->set_role( $role_to_set );
+	if ( ! function_exists( 'gnf_set_user_role_strict' ) || ! gnf_set_user_role_strict( $user_id, $role_to_set, 'rest_auth_register_supervisor' ) ) {
+		require_once ABSPATH . 'wp-admin/includes/user.php';
+		wp_delete_user( $user_id );
+		return new WP_Error( 'role_assignment_failed', 'No se pudo asignar el rol solicitado.', array( 'status' => 500 ) );
+	}
 	wp_update_user( array( 'ID' => $user_id, 'display_name' => $nombre ) );
 
 	update_user_meta( $user_id, 'gnf_supervisor_status', 'activo' );
@@ -1848,6 +1852,7 @@ function gnf_rest_docente_matricula_save( WP_REST_Request $request ) {
 	$anio      = (int) ( $request->get_param( 'year' ) ?: gnf_get_active_year() );
 	$fields    = $request->get_param( 'fields' );
 	$centro_id = gnf_get_centro_for_docente( $user_id );
+	$user      = get_userdata( $user_id );
 
 	if ( ! is_array( $fields ) ) {
 		return new WP_Error( 'invalid_payload', 'No se recibieron datos validos de matricula.', array( 'status' => 400 ) );
@@ -1915,6 +1920,12 @@ function gnf_rest_docente_matricula_save( WP_REST_Request $request ) {
 	);
 	$normalized['centro-modalidad'] = $normalized['centro-nivel-educativo'];
 	$normalized['centro-horario']   = $normalized['centro-jornada'];
+	$normalized['centro-existe']     = sanitize_text_field( (string) ( $fields['centroExiste'] ?? ( $centro_id ? 'SÃ­' : 'No' ) ) );
+	$normalized['centro-id-existente'] = absint( $fields['centroIdExistente'] ?? $centro_id );
+
+	if ( $user instanceof WP_User && is_email( $user->user_email ) ) {
+		$normalized['centro-correo-institucional'] = $user->user_email;
+	}
 
 	gnf_handle_matricula_submission(
 		$normalized,
@@ -1925,6 +1936,8 @@ function gnf_rest_docente_matricula_save( WP_REST_Request $request ) {
 			'source' => 'rest_matricula',
 		)
 	);
+
+	$centro_id = gnf_get_centro_for_docente( $user_id );
 
 	gnf_log_audit_event(
 		'docente_matricula_save',
@@ -2708,10 +2721,24 @@ function gnf_rest_supervisor_centro_detail( WP_REST_Request $request ) {
 	);
 }
 
-function gnf_rest_supervisor_update_entry( WP_REST_Request $request ) {
-	$entry_id = (int) $request->get_param( 'id' );
-	$action   = sanitize_text_field( $request->get_param( 'action' ) );
-	$notes    = sanitize_textarea_field( $request->get_param( 'notes' ) ?? '' );
+/**
+ * Supervisor reviews an individual evidence (approve or reject).
+ *
+ * POST /gnf/v1/supervisor/evidence/{entry_id}/{evidence_index}
+ * Body: { "action": "aprobar"|"rechazar", "comment": "string" }
+ */
+function gnf_rest_supervisor_review_evidence( WP_REST_Request $request ) {
+	$entry_id = (int) $request->get_param( 'entry_id' );
+	$ev_index = (int) $request->get_param( 'evidence_index' );
+	$action   = sanitize_text_field( $request->get_param( 'action' ) ?? '' );
+	$comment  = sanitize_textarea_field( $request->get_param( 'comment' ) ?? '' );
+
+	if ( ! in_array( $action, array( 'aprobar', 'rechazar' ), true ) ) {
+		return new WP_Error( 'invalid_action', 'Acción inválida. Use "aprobar" o "rechazar".', array( 'status' => 400 ) );
+	}
+	if ( 'rechazar' === $action && empty( $comment ) ) {
+		return new WP_Error( 'missing_comment', 'El comentario es requerido al rechazar.', array( 'status' => 400 ) );
+	}
 
 	global $wpdb;
 	$table = $wpdb->prefix . 'gn_reto_entries';
@@ -2720,78 +2747,98 @@ function gnf_rest_supervisor_update_entry( WP_REST_Request $request ) {
 	if ( ! $entry ) {
 		return new WP_Error( 'not_found', 'Entrada no encontrada.', array( 'status' => 404 ) );
 	}
-
-	if ( 'enviado' !== $entry->estado ) {
-		return new WP_Error( 'invalid_state', 'Solo se pueden revisar entradas enviadas.', array( 'status' => 400 ) );
-	}
-
-	// Verify supervisor has access to this centro.
 	if ( ! gnf_user_can_access_centro( get_current_user_id(), $entry->centro_id ) && ! current_user_can( 'manage_options' ) ) {
 		return new WP_Error( 'forbidden', 'Sin acceso a este centro.', array( 'status' => 403 ) );
 	}
 
-	// Block approval if evidence has year-validation alerts.
-	if ( 'aprobar' === $action && ! empty( $entry->evidencias ) ) {
-		$evidencias = json_decode( $entry->evidencias, true );
-		foreach ( (array) $evidencias as $ev ) {
-			if ( ! empty( $ev['requires_year_validation'] ) ) {
-				return new WP_Error( 'year_validation', 'No puedes aprobar: existe evidencia marcada para validación de año.', array( 'status' => 400 ) );
-			}
-		}
+	$evidencias = json_decode( $entry->evidencias ?? '[]', true );
+	if ( ! is_array( $evidencias ) || ! isset( $evidencias[ $ev_index ] ) ) {
+		return new WP_Error( 'invalid_index', 'Índice de evidencia inválido.', array( 'status' => 400 ) );
 	}
 
-	if ( 'aprobar' === $action ) {
-		$wpdb->update(
-			$table,
-			array( 'estado' => 'aprobado', 'updated_at' => current_time( 'mysql' ) ),
-			array( 'id' => $entry_id )
-		);
+	$ev = $evidencias[ $ev_index ];
 
-		if ( function_exists( 'gnf_refresh_reto_entry_score' ) ) {
-			$updated_entry = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$table} WHERE id = %d", $entry_id ) );
-			gnf_refresh_reto_entry_score( $updated_entry );
-		} else {
-			gnf_recalcular_puntaje_centro( $entry->centro_id, (int) $entry->anio );
-		}
-
-		// Notify docente.
-		if ( function_exists( 'gnf_insert_notification' ) ) {
-			$reto = get_post( $entry->reto_id );
-			gnf_insert_notification(
-				$entry->user_id,
-				'aprobado',
-				sprintf( 'Tu reto "%s" ha sido aprobado.', $reto ? $reto->post_title : '' ),
-				'reto_entry',
-				$entry_id
-			);
-		}
-	} elseif ( 'correccion' === $action ) {
-		if ( function_exists( 'gnf_request_correction' ) ) {
-			gnf_request_correction( $entry_id, $notes ?: 'Se solicitó corrección', get_current_user_id() );
-		}
+	if ( null === ( $ev['puntos'] ?? null ) ) {
+		return new WP_Error( 'informational', 'Esta evidencia es informativa y no puede ser revisada.', array( 'status' => 400 ) );
+	}
+	if ( ! empty( $ev['replaced'] ) ) {
+		return new WP_Error( 'replaced', 'Esta evidencia fue reemplazada.', array( 'status' => 400 ) );
 	}
 
-	gnf_clear_supervisor_cache();
-	gnf_log_audit_event(
-		'aprobar' === $action ? 'supervisor_approve_entry' : 'supervisor_request_correction',
+	$now     = current_time( 'mysql' );
+	$user_id = get_current_user_id();
+
+	$evidencias[ $ev_index ]['estado']             = 'aprobar' === $action ? 'aprobada' : 'rechazada';
+	$evidencias[ $ev_index ]['supervisor_comment']  = $comment ?: null;
+	$evidencias[ $ev_index ]['reviewed_by']         = $user_id;
+	$evidencias[ $ev_index ]['reviewed_at']         = $now;
+
+	$wpdb->update(
+		$table,
 		array(
-			'actor_user_id' => get_current_user_id(),
-			'centro_id'     => (int) $entry->centro_id,
-			'reto_id'       => (int) $entry->reto_id,
-			'anio'          => (int) $entry->anio,
-			'panel'         => 'supervisor',
-			'message'       => 'aprobar' === $action ? 'Supervisor aprobo un reto.' : 'Supervisor solicito correccion.',
-			'meta'          => array(
-				'entry_id' => $entry_id,
-				'notes'    => $notes,
+			'evidencias' => wp_json_encode( $evidencias, JSON_UNESCAPED_UNICODE ),
+			'updated_at' => $now,
+		),
+		array( 'id' => $entry_id ),
+		array( '%s', '%s' ),
+		array( '%d' )
+	);
+
+	$updated_entry = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$table} WHERE id = %d", $entry_id ) );
+	gnf_refresh_reto_entry_score( $updated_entry );
+	gnf_clear_supervisor_cache();
+
+	$reto = get_post( $entry->reto_id );
+	$reto_title = $reto ? $reto->post_title : '';
+	$ev_nombre  = $ev['nombre'] ?? 'archivo';
+	if ( 'aprobar' === $action ) {
+		gnf_insert_notification(
+			$entry->user_id,
+			'evidencia_aprobada',
+			sprintf( 'Tu evidencia "%s" del reto "%s" fue aprobada.', $ev_nombre, $reto_title ),
+			'reto_entry',
+			$entry_id
+		);
+	} else {
+		gnf_insert_notification(
+			$entry->user_id,
+			'evidencia_rechazada',
+			sprintf( 'Tu evidencia "%s" del reto "%s" fue rechazada: %s', $ev_nombre, $reto_title, $comment ),
+			'reto_entry',
+			$entry_id
+		);
+	}
+
+	gnf_log_audit_event(
+		'aprobar' === $action ? 'supervisor_approve_evidence' : 'supervisor_reject_evidence',
+		array(
+			'actor_user_id'  => $user_id,
+			'centro_id'      => (int) $entry->centro_id,
+			'reto_id'        => (int) $entry->reto_id,
+			'anio'           => (int) $entry->anio,
+			'panel'          => 'supervisor',
+			'message'        => 'aprobar' === $action ? 'Supervisor aprobó evidencia.' : 'Supervisor rechazó evidencia.',
+			'meta'           => array(
+				'entry_id'       => $entry_id,
+				'evidence_index' => $ev_index,
+				'evidence_name'  => $ev_nombre,
+				'comment'        => $comment,
 			),
 		)
 	);
+
 	if ( function_exists( 'gnf_clear_admin_stats_cache' ) ) {
 		gnf_clear_admin_stats_cache( (int) $entry->anio );
 	}
 
-	return array( 'success' => true );
+	$computed = gnf_get_reto_entry_computed_status( $updated_entry );
+
+	return array(
+		'success'       => true,
+		'evidence'      => $evidencias[ $ev_index ],
+		'entry_puntaje' => (int) $updated_entry->puntaje,
+		'entry_status'  => $computed,
+	);
 }
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -2918,12 +2965,9 @@ function gnf_rest_admin_update_user( WP_REST_Request $request ) {
 		}
 
 		if ( $new_centro_id ) {
-			update_user_meta( $user_id, 'centro_solicitado', $new_centro_id );
-			update_user_meta( $user_id, 'centro_educativo_id', $new_centro_id );
-			gnf_attach_docente_to_centro( $user_id, $new_centro_id );
+			gnf_sync_docente_centro_assignment( $user_id, $new_centro_id, array( 'sync_correo_institucional' => true ) );
 		} else {
-			delete_user_meta( $user_id, 'centro_solicitado' );
-			delete_user_meta( $user_id, 'centro_educativo_id' );
+			gnf_clear_docente_centro_assignment( $user_id, $prev_centro_id );
 		}
 	} elseif ( in_array( $role, array( 'supervisor', 'comite_bae' ), true ) ) {
 		$status = sanitize_key( (string) $request->get_param( 'status' ) );
@@ -2983,8 +3027,8 @@ function gnf_rest_admin_stats( WP_REST_Request $request ) {
 		'correccion'   => (int) ( $stats['retos_correccion'] ?? 0 ),
 		'enviados'     => (int) ( $stats['retos_enviados'] ?? 0 ),
 		'enProgreso'   => (int) ( $stats['retos_en_progreso'] ?? 0 ),
-		'totalUsers'   => (int) ( $stats['total_users'] ?? 0 ),
-		'pendingUsers' => (int) ( $stats['pending_users'] ?? 0 ),
+		'totalUsers'   => (int) ( $stats['total_docentes'] ?? 0 ),
+		'pendingUsers' => (int) ( $stats['pending_docentes'] ?? 0 ),
 	);
 }
 
@@ -3014,9 +3058,9 @@ function gnf_rest_admin_approve_user( WP_REST_Request $request ) {
 			update_user_meta( $user_id, 'gnf_docente_status', 'activo' );
 		}
 
-		$centro_id = absint( get_user_meta( $user_id, 'centro_solicitado', true ) );
+		$centro_id = gnf_get_centro_for_docente( $user_id );
 		if ( $centro_id ) {
-			gnf_attach_docente_to_centro( $user_id, $centro_id );
+			gnf_sync_docente_centro_assignment( $user_id, $centro_id, array( 'sync_correo_institucional' => true ) );
 			if ( 'pending' === get_post_status( $centro_id ) ) {
 				wp_update_post(
 					array(
@@ -3072,9 +3116,7 @@ function gnf_rest_admin_reject_user( WP_REST_Request $request ) {
 	delete_user_meta( $user_id, 'gnf_supervisor_estado' );
 
 	if ( $centro_id ) {
-		gnf_detach_docente_from_centro( $user_id, $centro_id );
-		delete_user_meta( $user_id, 'centro_solicitado' );
-		delete_user_meta( $user_id, 'centro_educativo_id' );
+		gnf_clear_docente_centro_assignment( $user_id, $centro_id );
 	}
 
 	// Optionally delete the user.

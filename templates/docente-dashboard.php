@@ -580,7 +580,7 @@ $active_tab_title = $tab_titles[$active_docente_tab] ?? 'Dashboard';
 									</div>
 									<div class="gnf-form-group">
 										<label class="gnf-label">Correo institucional</label>
-										<input type="email" name="centro_correo_institucional" class="gnf-input" value="<?php echo esc_attr($centro_correo_institucional); ?>" required />
+										<input type="email" name="centro_correo_institucional" class="gnf-input" value="<?php echo esc_attr($centro_correo_institucional); ?>" required readonly />
 									</div>
 									<div class="gnf-form-group">
 										<label class="gnf-label">Telefono</label>

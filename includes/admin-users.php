@@ -77,7 +77,7 @@ function gnf_render_admin_users()
 	$centros_pendientes  = array();
 
 	foreach ($docente_user_ids as $docente_user_id) {
-		$centro_id = absint(get_user_meta($docente_user_id, 'centro_solicitado', true));
+		$centro_id = absint( gnf_get_centro_for_docente( $docente_user_id ) );
 		$key = $centro_id ? 'centro_' . $centro_id : 'user_' . $docente_user_id;
 		$centros_registrados[$key] = true;
 
@@ -545,7 +545,7 @@ function gnf_render_admin_users()
 							// Obtener centro asociado para docentes.
 							$centro_info = '';
 							if ($user_role === 'docente') {
-								$centro_id = get_user_meta($user->ID, 'centro_solicitado', true);
+								$centro_id = gnf_get_centro_for_docente( $user->ID );
 								if ($centro_id) {
 									$centro_info = get_the_title($centro_id);
 								}
@@ -687,14 +687,9 @@ function gnf_process_user_actions()
 
 			// Para docentes, aprobar también el centro si es necesario.
 			if ($user_role === 'docente') {
-				$centro_id = get_user_meta($user_id, 'centro_solicitado', true);
+				$centro_id = gnf_get_centro_for_docente( $user_id );
 				if ($centro_id) {
-					// Asociar docente al centro.
-					$docentes = (array) get_field('docentes_asociados', $centro_id);
-					if (!in_array($user_id, $docentes)) {
-						$docentes[] = $user_id;
-						update_field('docentes_asociados', $docentes, $centro_id);
-					}
+					gnf_sync_docente_centro_assignment( $user_id, $centro_id, array( 'sync_correo_institucional' => true ) );
 				}
 			}
 
@@ -719,6 +714,10 @@ function gnf_process_user_actions()
  */
 function gnf_render_admin_user_edit()
 {
+	if ( ! current_user_can( gnf_menu_capability() ) ) {
+		wp_die( esc_html__( 'No tienes permisos para acceder a esta página.', 'guardianes-formularios' ), 403 );
+	}
+
 	$user_id = isset($_GET['user_id']) ? absint($_GET['user_id']) : 0;
 
 	if (!$user_id) {
@@ -739,6 +738,8 @@ function gnf_render_admin_user_edit()
 
 		update_user_meta($user_id, $status_key, $new_status);
 		update_user_meta($user_id, 'region', $new_region);
+		update_user_meta($user_id, 'gnf_region_id', $new_region);
+		update_user_meta($user_id, 'gnf_region', $new_region);
 
 		// Actualizar display name si se proporciona.
 		if (!empty($_POST['display_name'])) {
@@ -749,15 +750,16 @@ function gnf_render_admin_user_edit()
 		}
 
 		// Actualizar centro asociado para docentes.
-		if ($user_role === 'docente' && !empty($_POST['centro_asociado'])) {
-			$centro_id = absint($_POST['centro_asociado']);
-			update_user_meta($user_id, 'centro_solicitado', $centro_id);
+		if ($user_role === 'docente') {
+			$prev_centro_id = gnf_get_centro_for_docente( $user_id );
+			$centro_id      = absint($_POST['centro_asociado'] ?? 0);
+			if ( ! $centro_id ) {
+				gnf_clear_docente_centro_assignment( $user_id, $prev_centro_id );
+			}
 
 			// Añadir a docentes asociados del centro.
-			$docentes = (array) get_field('docentes_asociados', $centro_id);
-			if (!in_array($user_id, $docentes)) {
-				$docentes[] = $user_id;
-				update_field('docentes_asociados', $docentes, $centro_id);
+			if ( $centro_id ) {
+				gnf_sync_docente_centro_assignment( $user_id, $centro_id, array( 'sync_correo_institucional' => true ) );
 			}
 		}
 
@@ -770,8 +772,8 @@ function gnf_render_admin_user_edit()
 	$user_role   = in_array('supervisor', $user->roles) ? 'supervisor' : 'docente';
 	$status_key  = $user_role === 'supervisor' ? 'gnf_supervisor_status' : 'gnf_docente_status';
 	$user_status = get_user_meta($user_id, $status_key, true) ?: 'activo';
-	$user_region = get_user_meta($user_id, 'region', true);
-	$centro_id   = get_user_meta($user_id, 'centro_solicitado', true);
+	$user_region = gnf_get_user_region( $user_id );
+	$centro_id   = gnf_get_centro_for_docente( $user_id );
 
 	$regions = get_terms(array('taxonomy' => 'gn_region', 'hide_empty' => false));
 	$centros = get_posts(array('post_type' => 'centro_educativo', 'posts_per_page' => -1, 'post_status' => 'any'));

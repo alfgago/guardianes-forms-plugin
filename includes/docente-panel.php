@@ -269,7 +269,7 @@ function gnf_get_default_panel_url( $user ) {
 	$active_year = function_exists( 'gnf_get_active_year' ) ? gnf_get_active_year() : (int) gmdate( 'Y' );
 
 	if ( function_exists( 'gnf_user_can_access_panel' ) && gnf_user_can_access_panel( $user, 'panel-admin' ) ) {
-		return home_url( '/panel-admin/' );
+		return admin_url();
 	}
 	if ( function_exists( 'gnf_user_can_access_panel' ) && gnf_user_can_access_panel( $user, 'panel-supervisor' ) ) {
 		return home_url( '/panel-supervisor/' );
@@ -335,7 +335,8 @@ function gnf_handle_auth_login()
 		exit;
 	}
 
-	$default_url = gnf_get_default_panel_url( $user );
+	$default_url   = gnf_get_default_panel_url( $user );
+	$primary_panel = function_exists( 'gnf_get_primary_panel_slug' ) ? gnf_get_primary_panel_slug( $user ) : '';
 
 	if ( $redirect ) {
 		$home_path = parse_url( home_url(), PHP_URL_PATH ) ?: '';
@@ -345,11 +346,17 @@ function gnf_handle_auth_login()
 		foreach ( array( 'panel-admin', 'panel-supervisor', 'panel-docente', 'panel-comite' ) as $panel_slug ) {
 			$panel_path = '/' . $panel_slug . '/';
 			if ( 0 === strpos( trailingslashit( $rel_path ), $panel_path ) ) {
-				if ( ! function_exists( 'gnf_user_can_access_panel' ) || gnf_user_can_access_panel( $user, $panel_slug ) ) {
+				$allowed_panel_redirects = array( $primary_panel );
+				if ( 'panel-supervisor' === $primary_panel ) {
+					$allowed_panel_redirects[] = 'panel-comite';
+				}
+
+				if ( in_array( $panel_slug, $allowed_panel_redirects, true ) ) {
 					wp_safe_redirect( $redirect );
 					exit;
 				}
 				// Panel no permitido → ir al propio.
+				// Panel no principal para este usuario -> ir a su destino por defecto.
 				wp_safe_redirect( $default_url );
 				exit;
 			}
@@ -400,6 +407,11 @@ function gnf_handle_docente_register()
 		exit;
 	}
 
+	if ( gnf_is_centro_claimed_by_other_docente( $centro_id ) ) {
+		wp_safe_redirect(add_query_arg('gnf_err', rawurlencode('Este centro educativo ya tiene una cuenta registrada.'), $redirect));
+		exit;
+	}
+
 	if (email_exists($email)) {
 		wp_safe_redirect(add_query_arg('gnf_err', 'El correo ya existe', $redirect));
 		exit;
@@ -411,20 +423,30 @@ function gnf_handle_docente_register()
 		exit;
 	}
 
+	if ( ! function_exists( 'gnf_set_user_role_strict' ) || ! gnf_set_user_role_strict( $user_id, 'docente', 'legacy_docente_register' ) ) {
+		require_once ABSPATH . 'wp-admin/includes/user.php';
+		wp_delete_user( $user_id );
+		wp_safe_redirect(add_query_arg('gnf_err', rawurlencode('No se pudo asignar el rol de docente. Intenta de nuevo o contacta soporte.'), $redirect));
+		exit;
+	}
+
 	wp_update_user(
 		array(
 			'ID'           => $user_id,
 			'display_name' => $name,
-			'role'         => 'docente',
 		)
 	);
 
 	update_user_meta($user_id, 'gnf_identificacion', $ident);
 	update_user_meta($user_id, 'gnf_telefono', $tel);
 	update_user_meta($user_id, 'gnf_cargo', $cargo);
-	update_user_meta($user_id, 'gnf_docente_status', 'pendiente');
-
-	update_user_meta($user_id, 'centro_solicitado', $centro_id);
+	gnf_sync_docente_centro_assignment( $user_id, $centro_id, array( 'sync_correo_institucional' => true ) );
+	if ( function_exists( 'gnf_approve_docente' ) ) {
+		gnf_approve_docente( $user_id );
+	} else {
+		update_user_meta( $user_id, 'gnf_docente_status', 'activo' );
+		update_user_meta( $user_id, 'gnf_docente_estado', 'activo' );
+	}
 	gnf_notify_admins('docente_solicita_acceso', 'Nuevo docente solicita unirse al centro ' . get_the_title($centro_id), 'centro', $centro_id);
 	$docentes_activos = (array) get_field('docentes_asociados', $centro_id);
 	foreach ($docentes_activos as $doc) {
@@ -489,12 +511,21 @@ function gnf_handle_supervisor_register()
 	}
 
 	// Asignar rol según solicitud.
-	$user = new WP_User($user_id);
 	if ('comite_bae' === $rol_solicitado) {
-		$user->set_role('comite_bae');
+		if ( ! function_exists( 'gnf_set_user_role_strict' ) || ! gnf_set_user_role_strict( $user_id, 'comite_bae', 'legacy_supervisor_register' ) ) {
+			require_once ABSPATH . 'wp-admin/includes/user.php';
+			wp_delete_user( $user_id );
+			wp_safe_redirect(add_query_arg('gnf_err', rawurlencode('No se pudo asignar el rol solicitado. Intenta de nuevo o contacta soporte.'), $redirect));
+			exit;
+		}
 		$status_key = 'gnf_supervisor_status'; // Usamos el mismo meta para simplicidad.
 	} else {
-		$user->set_role('supervisor');
+		if ( ! function_exists( 'gnf_set_user_role_strict' ) || ! gnf_set_user_role_strict( $user_id, 'supervisor', 'legacy_supervisor_register' ) ) {
+			require_once ABSPATH . 'wp-admin/includes/user.php';
+			wp_delete_user( $user_id );
+			wp_safe_redirect(add_query_arg('gnf_err', rawurlencode('No se pudo asignar el rol solicitado. Intenta de nuevo o contacta soporte.'), $redirect));
+			exit;
+		}
 		$status_key = 'gnf_supervisor_status';
 	}
 
@@ -673,7 +704,10 @@ function gnf_handle_update_centro()
 	$region     = absint($_POST['centro_region'] ?? 0);
 	$circuito   = sanitize_text_field(wp_unslash($_POST['centro_circuito'] ?? ''));
 	$telefono   = sanitize_text_field(wp_unslash($_POST['centro_telefono'] ?? ''));
-	$correo     = sanitize_email(wp_unslash($_POST['centro_correo_institucional'] ?? ''));
+	$current_user = wp_get_current_user();
+	$correo       = $current_user instanceof WP_User && is_email( $current_user->user_email )
+		? $current_user->user_email
+		: sanitize_email(wp_unslash($_POST['centro_correo_institucional'] ?? ''));
 
 	$nivel      = gnf_normalize_centro_choice('nivel_educativo', sanitize_text_field(wp_unslash($_POST['centro_nivel_educativo'] ?? '')));
 	$dependencia = gnf_normalize_centro_choice('dependencia', sanitize_text_field(wp_unslash($_POST['centro_dependencia'] ?? '')));
@@ -781,6 +815,7 @@ function gnf_handle_update_centro()
 	update_post_meta($centro_id, 'coordinador_pbae_cargo', $coordinador_cargo);
 	update_post_meta($centro_id, 'coordinador_pbae_nombre', $coordinador_nombre);
 	update_post_meta($centro_id, 'coordinador_pbae_celular', $coordinador_celular);
+	gnf_sync_docente_centro_assignment( $user_id, $centro_id, array( 'sync_correo_institucional' => true ) );
 
 	if ($region) {
 		update_post_meta($centro_id, 'region', $region);

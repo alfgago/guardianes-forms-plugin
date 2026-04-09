@@ -222,8 +222,11 @@ $icons = array(
 							if ($entry && ! empty($entry->evidencias)) {
 								$evs = json_decode($entry->evidencias, true);
 								foreach ((array) $evs as $ev) {
-									if (! empty($ev['requires_year_validation'])) {
-										$warnings[] = 'Foto requiere validación de año';
+									if ( ! empty( $ev['replaced'] ) ) {
+										continue;
+									}
+									if ( 'rechazada' === ( $ev['estado'] ?? '' ) ) {
+										$warnings[] = $ev['supervisor_comment'] ?? 'Evidencia rechazada';
 									}
 								}
 							}

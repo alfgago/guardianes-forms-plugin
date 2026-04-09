@@ -904,6 +904,11 @@ function gnf_get_user_region($user_id)
 		}
 	}
 
+	$centro_id = gnf_get_centro_for_docente( $user_id );
+	if ( $centro_id ) {
+		return gnf_get_centro_region_id( $centro_id );
+	}
+
 	return 0;
 }
 
@@ -930,8 +935,15 @@ function gnf_user_can_access_centro($user_id, $centro_id)
 	}
 
 	if (gnf_user_has_role($user, 'docente')) {
-		$docentes = (array) get_field('docentes_asociados', $centro_id);
-		return in_array($user_id, $docentes, true);
+		$docentes = function_exists( 'get_field' )
+			? (array) get_field( 'docentes_asociados', $centro_id )
+			: (array) get_post_meta( $centro_id, 'docentes_asociados', true );
+		$docentes = array_map( 'absint', $docentes );
+		if ( in_array( $user_id, $docentes, true ) ) {
+			return true;
+		}
+
+		return (int) gnf_get_centro_for_docente( $user_id ) === (int) $centro_id;
 	}
 
 	if (gnf_user_has_role($user, 'supervisor')) {
@@ -939,6 +951,99 @@ function gnf_user_can_access_centro($user_id, $centro_id)
 	}
 
 	return false;
+}
+
+/**
+ * Obtiene la direccion regional asociada a un centro.
+ *
+ * @param int $centro_id ID del centro.
+ * @return int
+ */
+function gnf_get_centro_region_id( $centro_id ) {
+	$centro_id = absint( $centro_id );
+	if ( ! $centro_id || 'centro_educativo' !== get_post_type( $centro_id ) ) {
+		return 0;
+	}
+
+	$region = absint( get_post_meta( $centro_id, 'region', true ) );
+	if ( $region ) {
+		return $region;
+	}
+
+	$terms = wp_get_post_terms( $centro_id, 'gn_region', array( 'fields' => 'ids' ) );
+	return ! empty( $terms ) ? absint( $terms[0] ) : 0;
+}
+
+/**
+ * Sincroniza la relacion canonica docente -> centro y sus metadatos derivados.
+ *
+ * @param int   $user_id ID del docente.
+ * @param int   $centro_id ID del centro.
+ * @param array $args Opciones de sincronizacion.
+ * @return bool
+ */
+function gnf_sync_docente_centro_assignment( $user_id, $centro_id, $args = array() ) {
+	$user_id   = absint( $user_id );
+	$centro_id = absint( $centro_id );
+	$args      = wp_parse_args(
+		$args,
+		array(
+			'sync_region'               => true,
+			'sync_correo_institucional' => false,
+		)
+	);
+
+	if ( ! $user_id || ! $centro_id || 'centro_educativo' !== get_post_type( $centro_id ) ) {
+		return false;
+	}
+
+	update_user_meta( $user_id, 'centro_solicitado', $centro_id );
+	update_user_meta( $user_id, 'centro_educativo_id', $centro_id );
+	update_user_meta( $user_id, 'gnf_centro_id', $centro_id );
+
+	gnf_attach_docente_to_centro( $user_id, $centro_id );
+
+	if ( ! empty( $args['sync_region'] ) ) {
+		$region_id = gnf_get_centro_region_id( $centro_id );
+		if ( $region_id ) {
+			update_user_meta( $user_id, 'region', $region_id );
+			update_user_meta( $user_id, 'gnf_region_id', $region_id );
+			update_user_meta( $user_id, 'gnf_region', $region_id );
+		}
+	}
+
+	if ( ! empty( $args['sync_correo_institucional'] ) ) {
+		$user = get_userdata( $user_id );
+		if ( $user instanceof WP_User && is_email( $user->user_email ) ) {
+			update_post_meta( $centro_id, 'correo_institucional', $user->user_email );
+		}
+	}
+
+	return true;
+}
+
+/**
+ * Limpia la asociacion canonica docente -> centro.
+ *
+ * @param int $user_id ID del docente.
+ * @param int $centro_id ID del centro previo.
+ * @return void
+ */
+function gnf_clear_docente_centro_assignment( $user_id, $centro_id = 0 ) {
+	$user_id   = absint( $user_id );
+	$centro_id = absint( $centro_id );
+
+	if ( ! $user_id ) {
+		return;
+	}
+
+	if ( $centro_id && 'centro_educativo' === get_post_type( $centro_id ) ) {
+		gnf_detach_docente_from_centro( $user_id, $centro_id );
+	}
+
+	delete_user_meta( $user_id, 'centro_solicitado' );
+	delete_user_meta( $user_id, 'centro_educativo_id' );
+	delete_user_meta( $user_id, 'gnf_centro_id' );
 }
 
 /**
@@ -1739,13 +1844,24 @@ function gnf_get_reto_field_points($reto_id, $anio = null)
  */
 function gnf_get_centro_for_docente($user_id)
 {
+	$user_id = absint( $user_id );
+	if ( ! $user_id ) {
+		return 0;
+	}
+
 	$args = array(
 		'post_type'      => 'centro_educativo',
 		'posts_per_page' => 1,
 		'meta_query'     => array(
+			'relation' => 'OR',
 			array(
 				'key'     => 'docentes_asociados',
 				'value'   => ':"' . intval($user_id) . '";',
+				'compare' => 'LIKE',
+			),
+			array(
+				'key'     => 'docentes_asociados',
+				'value'   => 'i:' . intval( $user_id ) . ';',
 				'compare' => 'LIKE',
 			),
 		),
@@ -1753,13 +1869,45 @@ function gnf_get_centro_for_docente($user_id)
 	);
 	$query = new WP_Query($args);
 	if ($query->have_posts()) {
-		return (int) $query->posts[0];
+		$centro_id = (int) $query->posts[0];
+		gnf_sync_docente_centro_assignment( $user_id, $centro_id, array( 'sync_correo_institucional' => false ) );
+		return $centro_id;
 	}
 
 	$meta_candidates = array( 'centro_educativo_id', 'centro_solicitado', 'gnf_centro_id' );
 	foreach ( $meta_candidates as $meta_key ) {
 		$centro_id = absint( get_user_meta( $user_id, $meta_key, true ) );
 		if ( $centro_id && 'centro_educativo' === get_post_type( $centro_id ) ) {
+			gnf_sync_docente_centro_assignment( $user_id, $centro_id, array( 'sync_correo_institucional' => false ) );
+			return $centro_id;
+		}
+	}
+
+	global $wpdb;
+
+	$rows = $wpdb->get_results(
+		$wpdb->prepare(
+			"SELECT pm.post_id, pm.meta_value
+			 FROM {$wpdb->postmeta} pm
+			 INNER JOIN {$wpdb->posts} p ON p.ID = pm.post_id
+			 WHERE pm.meta_key = %s
+			   AND p.post_type = %s
+			   AND p.post_status NOT IN ('auto-draft', 'trash')",
+			'docentes_asociados',
+			'centro_educativo'
+		)
+	);
+
+	foreach ( (array) $rows as $row ) {
+		$docentes = maybe_unserialize( $row->meta_value );
+		if ( ! is_array( $docentes ) ) {
+			$docentes = '' !== trim( (string) $row->meta_value ) ? array( $row->meta_value ) : array();
+		}
+
+		$docentes = array_values( array_filter( array_map( 'absint', (array) $docentes ) ) );
+		if ( in_array( $user_id, $docentes, true ) ) {
+			$centro_id = (int) $row->post_id;
+			gnf_sync_docente_centro_assignment( $user_id, $centro_id, array( 'sync_correo_institucional' => false ) );
 			return $centro_id;
 		}
 	}
@@ -1911,7 +2059,6 @@ function gnf_get_claiming_docente_ids_for_centro( $centro_id, $exclude_user_id =
 		$users = get_users(
 			array(
 				'fields'     => 'ids',
-				'role'       => 'docente',
 				'number'     => -1,
 				'meta_key'   => $meta_key,
 				'meta_value' => $centro_id,
@@ -1939,7 +2086,15 @@ function gnf_get_claiming_docente_ids_for_centro( $centro_id, $exclude_user_id =
 				}
 
 				$user = get_userdata( $user_id );
-				return $user instanceof WP_User && in_array( 'docente', (array) $user->roles, true );
+				if ( ! $user instanceof WP_User ) {
+					return false;
+				}
+
+				if ( in_array( 'docente', (array) $user->roles, true ) ) {
+					return true;
+				}
+
+				return function_exists( 'gnf_infer_frontend_role_from_meta' ) && 'docente' === gnf_infer_frontend_role_from_meta( $user_id );
 			}
 		)
 	);
@@ -2058,13 +2213,550 @@ function gnf_filter_centro_ids_by_registration( $centro_ids, $registration = 're
 }
 
 /**
+ * Asigna un rol de forma estricta y verifica que quede persistido.
+ *
+ * @param int    $user_id ID del usuario.
+ * @param string $role    Rol a asignar.
+ * @param string $context Contexto para logging.
+ * @return bool
+ */
+function gnf_set_user_role_strict( $user_id, $role, $context = '' ) {
+	$user_id = absint( $user_id );
+	$role    = sanitize_key( (string) $role );
+
+	if ( ! $user_id || '' === $role || ! get_role( $role ) ) {
+		return false;
+	}
+
+	$user = get_userdata( $user_id );
+	if ( ! $user instanceof WP_User ) {
+		return false;
+	}
+
+	if ( is_multisite() && ! is_user_member_of_blog( $user_id, get_current_blog_id() ) ) {
+		$added = add_user_to_blog( get_current_blog_id(), $user_id, $role );
+		if ( is_wp_error( $added ) ) {
+			error_log( '[GNF role] ' . wp_json_encode( array(
+				'context' => (string) $context,
+				'user_id' => $user_id,
+				'role'    => $role,
+				'error'   => $added->get_error_message(),
+			) ) );
+			return false;
+		}
+	}
+
+	$user = new WP_User( $user_id );
+	$user->set_role( $role );
+	clean_user_cache( $user_id );
+	$fresh = get_userdata( $user_id );
+	$ok    = $fresh instanceof WP_User && in_array( $role, (array) $fresh->roles, true );
+
+	if ( ! $ok ) {
+		error_log( '[GNF role] ' . wp_json_encode( array(
+			'context' => (string) $context,
+			'user_id' => $user_id,
+			'role'    => $role,
+			'roles'   => $fresh instanceof WP_User ? array_values( (array) $fresh->roles ) : array(),
+		) ) );
+	}
+
+	return $ok;
+}
+
+/**
+ * Infiere el rol frontend correcto a partir de metadatos.
+ *
+ * @param int $user_id ID del usuario.
+ * @return string
+ */
+function gnf_infer_frontend_role_from_meta( $user_id ) {
+	$user_id        = absint( $user_id );
+	$requested_role = sanitize_key( (string) get_user_meta( $user_id, 'gnf_rol_solicitado', true ) );
+	$region_id      = absint( get_user_meta( $user_id, 'region', true ) );
+	$centro_id      = absint( get_user_meta( $user_id, 'centro_solicitado', true ) );
+
+	if ( ! $centro_id ) {
+		$centro_id = absint( get_user_meta( $user_id, 'centro_educativo_id', true ) );
+	}
+	if ( ! $centro_id ) {
+		$centro_id = absint( get_user_meta( $user_id, 'gnf_centro_id', true ) );
+	}
+
+	if ( 'comite_bae' === $requested_role ) {
+		return 'comite_bae';
+	}
+
+	if (
+		'supervisor' === $requested_role
+		|| $region_id
+		|| metadata_exists( 'user', $user_id, 'gnf_supervisor_status' )
+		|| metadata_exists( 'user', $user_id, 'gnf_supervisor_estado' )
+	) {
+		return 'supervisor';
+	}
+
+	if (
+		$centro_id
+		|| metadata_exists( 'user', $user_id, 'gnf_docente_status' )
+		|| metadata_exists( 'user', $user_id, 'gnf_docente_estado' )
+	) {
+		return 'docente';
+	}
+
+	return '';
+}
+
+/**
+ * Repara usuarios que quedaron como subscriber aunque su metadata indica otro rol.
+ *
+ * @param WP_User|int $user_or_id Usuario o ID.
+ * @param string      $context    Contexto para logging.
+ * @return WP_User|null
+ */
+function gnf_maybe_restore_frontend_role( $user_or_id, $context = '' ) {
+	$user = $user_or_id instanceof WP_User ? $user_or_id : get_userdata( absint( $user_or_id ) );
+	if ( ! $user instanceof WP_User ) {
+		return null;
+	}
+
+	$roles = array_values( (array) $user->roles );
+	if ( array_intersect( $roles, array( 'docente', 'supervisor', 'comite_bae', 'administrator' ) ) ) {
+		return $user;
+	}
+
+	if ( ! in_array( 'subscriber', $roles, true ) ) {
+		return $user;
+	}
+
+	$inferred_role = gnf_infer_frontend_role_from_meta( $user->ID );
+	if ( '' === $inferred_role ) {
+		return $user;
+	}
+
+	if ( gnf_set_user_role_strict( $user->ID, $inferred_role, 'restore_frontend_role:' . $context ) ) {
+		wp_set_current_user( $user->ID );
+		$restored = get_userdata( $user->ID );
+		error_log( '[GNF role] ' . wp_json_encode( array(
+			'context'       => (string) $context,
+			'user_id'       => (int) $user->ID,
+			'from_roles'    => $roles,
+			'inferred_role' => $inferred_role,
+		) ) );
+		return $restored instanceof WP_User ? $restored : $user;
+	}
+
+	return $user;
+}
+
+/**
+ * Corrige en lote usuarios subscriber que realmente eran docentes.
+ *
+ * @param array $args Argumentos.
+ * @return array<string,int>
+ */
+function gnf_run_bulk_fix_subscriber_docentes( $args = array() ) {
+	$args = wp_parse_args(
+		$args,
+		array(
+			'after' => '',
+		)
+	);
+
+	$query_args = array(
+		'role'   => 'subscriber',
+		'fields' => 'all',
+		'number' => -1,
+	);
+
+	if ( '' !== $args['after'] ) {
+		$query_args['date_query'] = array(
+			array(
+				'after'     => (string) $args['after'],
+				'inclusive' => true,
+				'column'    => 'user_registered',
+			),
+		);
+	}
+
+	$users = get_users( $query_args );
+
+	$result = array(
+		'scanned' => 0,
+		'updated' => 0,
+		'skipped' => 0,
+		'failed'  => 0,
+	);
+
+	foreach ( (array) $users as $user ) {
+		if ( ! $user instanceof WP_User ) {
+			continue;
+		}
+
+		++$result['scanned'];
+		$roles = array_values( (array) $user->roles );
+		if ( array_intersect( $roles, array( 'docente', 'supervisor', 'comite_bae', 'administrator' ) ) ) {
+			++$result['skipped'];
+			continue;
+		}
+
+		$inferred = gnf_infer_frontend_role_from_meta( $user->ID );
+		if ( '' === $inferred ) {
+			++$result['skipped'];
+			continue;
+		}
+
+		if ( gnf_set_user_role_strict( $user->ID, $inferred, 'bulk_fix_subscriber_docentes' ) ) {
+			++$result['updated'];
+			continue;
+		}
+
+		++$result['failed'];
+	}
+
+	return $result;
+}
+
+/**
+ * Normaliza texto libre para matching de centros.
+ *
+ * @param string $value Valor original.
+ * @return string
+ */
+function gnf_normalize_centro_match_text( $value ) {
+	$value = remove_accents( (string) $value );
+	$value = strtolower( $value );
+	$value = preg_replace( '/[^a-z0-9]+/', ' ', $value );
+	$value = preg_replace( '/\s+/', ' ', (string) $value );
+	return trim( (string) $value );
+}
+
+/**
+ * Determina si un valor puede representar una institucion en texto.
+ *
+ * @param mixed $value Valor a evaluar.
+ * @return bool
+ */
+function gnf_is_viable_docente_institucion_value( $value ) {
+	if ( ! is_scalar( $value ) ) {
+		return false;
+	}
+
+	$value = trim( (string) $value );
+	if ( '' === $value || is_email( $value ) || preg_match( '/^\d+$/', $value ) ) {
+		return false;
+	}
+
+	return strlen( gnf_normalize_centro_match_text( $value ) ) >= 4;
+}
+
+/**
+ * Obtiene el nombre legacy de institucion almacenado en el usuario.
+ *
+ * @param int $user_id ID del usuario.
+ * @return string
+ */
+function gnf_get_docente_institucion_text( $user_id ) {
+	$user_id        = absint( $user_id );
+	$preferred_keys = array(
+		'institucion',
+		'institución',
+		'institucion_educativa',
+		'centro_educativo',
+		'centro_educativo_nombre',
+		'centro_nombre',
+		'nombre_centro_educativo',
+		'nombre_del_centro',
+		'school_name',
+		'institution',
+	);
+
+	foreach ( $preferred_keys as $key ) {
+		$value = get_user_meta( $user_id, $key, true );
+		if ( gnf_is_viable_docente_institucion_value( $value ) ) {
+			return trim( (string) $value );
+		}
+	}
+
+	$all_meta = get_user_meta( $user_id );
+	foreach ( (array) $all_meta as $meta_key => $values ) {
+		$normalized_key = gnf_normalize_centro_match_text( $meta_key );
+		$is_candidate   = false !== strpos( $normalized_key, 'institucion' )
+			|| false !== strpos( $normalized_key, 'institution' )
+			|| false !== strpos( $normalized_key, 'school' )
+			|| ( false !== strpos( $normalized_key, 'centro' ) && false !== strpos( $normalized_key, 'nombre' ) );
+
+		if ( ! $is_candidate ) {
+			continue;
+		}
+
+		$value = is_array( $values ) ? maybe_unserialize( $values[0] ?? '' ) : maybe_unserialize( $values );
+		if ( is_array( $value ) ) {
+			$value = $value[0] ?? '';
+		}
+
+		if ( gnf_is_viable_docente_institucion_value( $value ) ) {
+			return trim( (string) $value );
+		}
+	}
+
+	return '';
+}
+
+/**
+ * Obtiene codigo MEP legacy almacenado en el usuario, si existe.
+ *
+ * @param int $user_id ID del usuario.
+ * @return string
+ */
+function gnf_get_docente_institucion_codigo( $user_id ) {
+	$user_id = absint( $user_id );
+	$keys    = array(
+		'centro_codigo_mep',
+		'centro_educativo_codigo_mep',
+		'institucion_codigo_mep',
+		'institution_code',
+	);
+
+	foreach ( $keys as $key ) {
+		$value = trim( (string) get_user_meta( $user_id, $key, true ) );
+		if ( '' !== $value ) {
+			return $value;
+		}
+	}
+
+	return '';
+}
+
+/**
+ * Elige un centro candidato usando region como desempate cuando existe.
+ *
+ * @param int[] $candidate_ids IDs candidatos.
+ * @param int   $region_id Direccion regional deseada.
+ * @return int
+ */
+function gnf_pick_best_centro_candidate( $candidate_ids, $region_id = 0 ) {
+	$candidate_ids = array_values( array_filter( array_map( 'absint', (array) $candidate_ids ) ) );
+	if ( 1 === count( $candidate_ids ) ) {
+		return (int) $candidate_ids[0];
+	}
+
+	$region_id = absint( $region_id );
+	if ( $region_id ) {
+		$region_matches = array_values(
+			array_filter(
+				$candidate_ids,
+				static function ( $centro_id ) use ( $region_id ) {
+					return $region_id === gnf_get_centro_region_id( $centro_id );
+				}
+			)
+		);
+
+		if ( 1 === count( $region_matches ) ) {
+			return (int) $region_matches[0];
+		}
+	}
+
+	return 0;
+}
+
+/**
+ * Corrige docentes con institucion legacy en texto y repara su centro asociado.
+ *
+ * @param array $args Argumentos.
+ * @return array<string,int>
+ */
+function gnf_run_bulk_fix_docente_centros( $args = array() ) {
+	$args = wp_parse_args(
+		$args,
+		array(
+			'after' => '',
+		)
+	);
+
+	$query_args = array(
+		'fields' => 'all',
+		'number' => -1,
+	);
+
+	if ( '' !== $args['after'] ) {
+		$query_args['date_query'] = array(
+			array(
+				'after'     => (string) $args['after'],
+				'inclusive' => true,
+				'column'    => 'user_registered',
+			),
+		);
+	}
+
+	$users = get_users( $query_args );
+	$centros = get_posts(
+		array(
+			'post_type'      => 'centro_educativo',
+			'post_status'    => array( 'publish', 'pending', 'draft' ),
+			'posts_per_page' => -1,
+			'fields'         => 'ids',
+		)
+	);
+
+	$centros_by_name = array();
+	$centros_by_code = array();
+	foreach ( (array) $centros as $centro_id ) {
+		$centro_id = absint( $centro_id );
+		if ( ! $centro_id ) {
+			continue;
+		}
+
+		$normalized_name = gnf_normalize_centro_match_text( get_the_title( $centro_id ) );
+		if ( '' !== $normalized_name ) {
+			$centros_by_name[ $normalized_name ][] = $centro_id;
+		}
+
+		$codigo = trim( (string) get_post_meta( $centro_id, 'codigo_mep', true ) );
+		if ( '' !== $codigo ) {
+			$centros_by_code[ $codigo ][] = $centro_id;
+		}
+	}
+
+	$result = array(
+		'scanned'        => 0,
+		'updated'        => 0,
+		'skipped'        => 0,
+		'failed'         => 0,
+		'matched_by_name'=> 0,
+		'matched_by_code'=> 0,
+		'claimed'        => 0,
+		'unmatched'      => 0,
+	);
+
+	foreach ( (array) $users as $user ) {
+		if ( ! $user instanceof WP_User ) {
+			continue;
+		}
+
+		$roles         = array_values( (array) $user->roles );
+		$primary_roles = array_intersect( $roles, array( 'administrator', 'supervisor', 'comite_bae' ) );
+		if ( ! empty( $primary_roles ) ) {
+			continue;
+		}
+
+		$current_centro = gnf_get_centro_for_docente( $user->ID );
+		$inferred_role  = gnf_infer_frontend_role_from_meta( $user->ID );
+		$institucion    = gnf_get_docente_institucion_text( $user->ID );
+		$codigo_mep     = gnf_get_docente_institucion_codigo( $user->ID );
+		$region_id      = gnf_get_user_region( $user->ID );
+		$should_scan    = $current_centro
+			|| 'docente' === $inferred_role
+			|| in_array( 'docente', $roles, true )
+			|| '' !== $institucion
+			|| '' !== $codigo_mep;
+
+		if ( ! $should_scan ) {
+			continue;
+		}
+
+		++$result['scanned'];
+		$changed = false;
+
+		if ( ! in_array( 'docente', $roles, true ) ) {
+			if ( 'docente' === $inferred_role || in_array( 'subscriber', $roles, true ) || '' !== $institucion || '' !== $codigo_mep ) {
+				if ( gnf_set_user_role_strict( $user->ID, 'docente', 'bulk_fix_docente_centros' ) ) {
+					$changed = true;
+				} else {
+					++$result['failed'];
+					continue;
+				}
+			}
+		}
+
+		if ( $current_centro ) {
+			$current_user_centro = absint( get_user_meta( $user->ID, 'centro_solicitado', true ) );
+			$current_user_centro_alt = absint( get_user_meta( $user->ID, 'centro_educativo_id', true ) );
+			$current_user_centro_legacy = absint( get_user_meta( $user->ID, 'gnf_centro_id', true ) );
+			$current_region = absint( get_user_meta( $user->ID, 'region', true ) );
+			$current_correo = (string) get_post_meta( $current_centro, 'correo_institucional', true );
+
+			if (
+				$current_user_centro !== $current_centro
+				|| $current_user_centro_alt !== $current_centro
+				|| $current_user_centro_legacy !== $current_centro
+				|| ( $region_id && $current_region !== $region_id )
+				|| $current_correo !== $user->user_email
+			) {
+				gnf_sync_docente_centro_assignment( $user->ID, $current_centro, array( 'sync_correo_institucional' => true ) );
+				$changed = true;
+			}
+
+			if ( $changed ) {
+				++$result['updated'];
+			} else {
+				++$result['skipped'];
+			}
+			continue;
+		}
+
+		$matched_centro = 0;
+		$matched_by     = '';
+		if ( '' !== $codigo_mep && ! empty( $centros_by_code[ $codigo_mep ] ) ) {
+			$matched_centro = gnf_pick_best_centro_candidate( $centros_by_code[ $codigo_mep ], $region_id );
+			if ( $matched_centro ) {
+				$matched_by = 'code';
+			}
+		}
+
+		$normalized_name = gnf_normalize_centro_match_text( $institucion );
+		if ( ! $matched_centro && '' !== $normalized_name && ! empty( $centros_by_name[ $normalized_name ] ) ) {
+			$matched_centro = gnf_pick_best_centro_candidate( $centros_by_name[ $normalized_name ], $region_id );
+			if ( $matched_centro ) {
+				$matched_by = 'name';
+			}
+		}
+
+		if ( ! $matched_centro && '' !== $institucion ) {
+			$similar = function_exists( 'gnf_find_similar_centro' ) ? gnf_find_similar_centro( $institucion, $codigo_mep, $region_id ) : array();
+			$matched_centro = gnf_pick_best_centro_candidate( $similar, $region_id );
+			if ( $matched_centro ) {
+				$matched_by = '' !== $codigo_mep ? 'code' : 'name';
+			}
+		}
+
+		if ( ! $matched_centro ) {
+			++$result['unmatched'];
+			++$result['skipped'];
+			continue;
+		}
+
+		if ( gnf_is_centro_claimed_by_other_docente( $matched_centro, $user->ID ) ) {
+			++$result['claimed'];
+			++$result['skipped'];
+			continue;
+		}
+
+		$ok = gnf_sync_docente_centro_assignment( $user->ID, $matched_centro, array( 'sync_correo_institucional' => true ) );
+		if ( ! $ok ) {
+			++$result['failed'];
+			continue;
+		}
+
+		if ( 'code' === $matched_by ) {
+			++$result['matched_by_code'];
+		} else {
+			++$result['matched_by_name'];
+		}
+		++$result['updated'];
+	}
+
+	return $result;
+}
+
+/**
  * Marca docente como aprobado.
  */
 function gnf_approve_docente($user_id)
 {
-	$user = new WP_User($user_id);
-	$user->set_role('docente');
+	gnf_set_user_role_strict( $user_id, 'docente', 'approve_docente' );
 	update_user_meta($user_id, 'gnf_docente_status', 'activo');
+	update_user_meta($user_id, 'gnf_docente_estado', 'activo');
 	gnf_insert_notification($user_id, 'docente_aprobado', 'Tu cuenta fue aprobada.', 'docente', $user_id);
 }
 
@@ -2075,9 +2767,83 @@ function gnf_approve_docente($user_id)
  * @return void
  */
 function gnf_approve_supervisor( $user_id ) {
+	$requested_role = sanitize_key( (string) get_user_meta( $user_id, 'gnf_rol_solicitado', true ) );
+	$role_to_set    = 'comite_bae' === $requested_role ? 'comite_bae' : 'supervisor';
+	gnf_set_user_role_strict( $user_id, $role_to_set, 'approve_supervisor' );
 	update_user_meta( $user_id, 'gnf_supervisor_status', 'activo' );
+	update_user_meta( $user_id, 'gnf_supervisor_estado', 'activo' );
 	gnf_insert_notification( $user_id, 'cuenta_aprobada', 'Tu cuenta ha sido aprobada. Ya puedes acceder al sistema.', 'usuario', $user_id );
 }
+
+/**
+ * Activa docentes legacy que quedaron pendientes aunque el proyecto usa auto-aprobacion.
+ *
+ * @return array<string,int>
+ */
+function gnf_run_docente_autoapprove_migration() {
+	$result = array(
+		'scanned' => 0,
+		'updated' => 0,
+	);
+
+	$user_ids = get_users(
+		array(
+			'fields' => 'ids',
+			'number' => -1,
+		)
+	);
+
+	foreach ( (array) $user_ids as $user_id ) {
+		$user_id       = absint( $user_id );
+		$user          = get_userdata( $user_id );
+		$inferred_role = $user_id ? gnf_infer_frontend_role_from_meta( $user_id ) : '';
+
+		if ( ! $user instanceof WP_User ) {
+			continue;
+		}
+
+		if ( ! in_array( 'docente', (array) $user->roles, true ) && 'docente' !== $inferred_role ) {
+			continue;
+		}
+
+		++$result['scanned'];
+
+		if ( ! in_array( 'docente', (array) $user->roles, true ) ) {
+			gnf_set_user_role_strict( $user_id, 'docente', 'docente_autoapprove_migration' );
+		}
+
+		$current_status = (string) get_user_meta( $user_id, 'gnf_docente_status', true );
+		$legacy_status  = (string) get_user_meta( $user_id, 'gnf_docente_estado', true );
+
+		if ( 'activo' !== $current_status || 'activo' !== $legacy_status ) {
+			update_user_meta( $user_id, 'gnf_docente_status', 'activo' );
+			update_user_meta( $user_id, 'gnf_docente_estado', 'activo' );
+			++$result['updated'];
+		}
+	}
+
+	if ( $result['updated'] > 0 && function_exists( 'gnf_clear_admin_stats_cache' ) ) {
+		gnf_clear_admin_stats_cache();
+	}
+
+	return $result;
+}
+
+/**
+ * Ejecuta una sola vez la migracion de auto-aprobacion docente.
+ *
+ * @return void
+ */
+function gnf_maybe_run_docente_autoapprove_migration() {
+	$version = get_option( 'gnf_docente_autoapprove_migration_version', '' );
+	if ( '2026-04-docente-autoapprove' === $version ) {
+		return;
+	}
+
+	gnf_run_docente_autoapprove_migration();
+	update_option( 'gnf_docente_autoapprove_migration_version', '2026-04-docente-autoapprove', false );
+}
+add_action( 'init', 'gnf_maybe_run_docente_autoapprove_migration', 26 );
 
 /**
  * Copia un meta legacy a su clave canonica si la canonica aun no existe.
@@ -2988,6 +3754,81 @@ function gnf_get_supervisores_by_region($region_id)
 }
 
 /**
+ * Computes the display status of a reto entry based on its individual evidence states.
+ *
+ * @param object|array $entry Entry row or array with 'evidencias' JSON field.
+ * @return array { 'status' => string, 'badge' => string, 'label' => string,
+ *                 'aprobadas' => int, 'rechazadas' => int, 'pendientes' => int, 'total' => int }
+ */
+function gnf_get_reto_entry_computed_status( $entry ) {
+	$evidencias_raw = is_object( $entry ) ? ( $entry->evidencias ?? '[]' ) : ( $entry['evidencias'] ?? '[]' );
+	$evidencias     = json_decode( $evidencias_raw, true );
+
+	if ( ! is_array( $evidencias ) ) {
+		$evidencias = array();
+	}
+
+	$aprobadas  = 0;
+	$rechazadas = 0;
+	$pendientes = 0;
+	$total      = 0;
+
+	foreach ( $evidencias as $ev ) {
+		if ( ! empty( $ev['replaced'] ) ) {
+			continue;
+		}
+		if ( null === ( $ev['puntos'] ?? null ) ) {
+			continue;
+		}
+		$total++;
+		$estado = $ev['estado'] ?? 'pendiente';
+		if ( 'aprobada' === $estado ) {
+			$aprobadas++;
+		} elseif ( 'rechazada' === $estado ) {
+			$rechazadas++;
+		} else {
+			$pendientes++;
+		}
+	}
+
+	if ( 0 === $total ) {
+		return array(
+			'status'     => 'sin_evidencias',
+			'badge'      => 'default',
+			'label'      => 'Sin evidencias',
+			'aprobadas'  => 0,
+			'rechazadas' => 0,
+			'pendientes' => 0,
+			'total'      => 0,
+		);
+	}
+
+	if ( $aprobadas === $total ) {
+		$status = 'completo';
+		$badge  = 'forest';
+		$label  = 'Completo';
+	} elseif ( $rechazadas > 0 ) {
+		$status = 'requiere_atencion';
+		$badge  = 'coral';
+		$label  = 'Requiere atención';
+	} else {
+		$status = 'en_progreso';
+		$badge  = 'sun';
+		$label  = 'En progreso';
+	}
+
+	return array(
+		'status'     => $status,
+		'badge'      => $badge,
+		'label'      => $label,
+		'aprobadas'  => $aprobadas,
+		'rechazadas' => $rechazadas,
+		'pendientes' => $pendientes,
+		'total'      => $total,
+	);
+}
+
+/**
  * Obtiene notificaciones para un supervisor (enviados a revisiÃ³n, aprobados, etc.).
  *
  * @param int $user_id ID del supervisor.
@@ -3007,10 +3848,12 @@ function gnf_get_supervisor_notificaciones( $user_id, $limit = 50 ) {
 
 	$result = array();
 	foreach ( (array) $items as $item ) {
-		$link = '';
+		$link          = '';
+		$evidence_data = null;
+
 		if ( 'reto_entry' === $item->relacion_tipo && $item->relacion_id ) {
 			$entry = $wpdb->get_row( $wpdb->prepare(
-				"SELECT centro_id, anio FROM {$wpdb->prefix}gn_reto_entries WHERE id = %d",
+				"SELECT centro_id, reto_id, anio, evidencias FROM {$wpdb->prefix}gn_reto_entries WHERE id = %d",
 				$item->relacion_id
 			) );
 			if ( $entry ) {
@@ -3018,6 +3861,35 @@ function gnf_get_supervisor_notificaciones( $user_id, $limit = 50 ) {
 					'centro_id' => $entry->centro_id,
 					'gnf_year'  => $entry->anio,
 				), home_url( '/panel-supervisor/' ) );
+
+				if ( in_array( $item->tipo, array( 'evidencia_subida', 'evidencia_resubida' ), true ) ) {
+					$evs = json_decode( $entry->evidencias ?? '[]', true );
+					$evidence_data = array(
+						'entry_id'    => (int) $item->relacion_id,
+						'centro_name' => get_the_title( $entry->centro_id ),
+						'reto_name'   => get_the_title( $entry->reto_id ),
+						'evidencias'  => array(),
+					);
+					foreach ( (array) $evs as $idx => $ev ) {
+						if ( ! empty( $ev['replaced'] ) ) {
+							continue;
+						}
+						$ev_nombre = $ev['nombre'] ?? '';
+						if ( $ev_nombre && false !== strpos( $item->mensaje, $ev_nombre ) ) {
+							$evidence_data['evidencias'][] = array(
+								'index'              => $idx,
+								'nombre'             => $ev_nombre,
+								'tipo'               => $ev['tipo'] ?? 'archivo',
+								'ruta'               => $ev['ruta'] ?? '',
+								'puntos'             => $ev['puntos'] ?? null,
+								'estado'             => $ev['estado'] ?? null,
+								'supervisor_comment' => $ev['supervisor_comment'] ?? null,
+								'reviewed_by'        => $ev['reviewed_by'] ?? null,
+								'reviewed_at'        => $ev['reviewed_at'] ?? null,
+							);
+						}
+					}
+				}
 			}
 		} elseif ( 'centro' === $item->relacion_tipo && $item->relacion_id ) {
 			$link = add_query_arg( array(
@@ -3027,14 +3899,15 @@ function gnf_get_supervisor_notificaciones( $user_id, $limit = 50 ) {
 		}
 
 		$result[] = array(
-			'id'            => $item->id,
-			'tipo'          => $item->tipo,
-			'mensaje'       => $item->mensaje,
-			'relacion_tipo' => $item->relacion_tipo,
-			'relacion_id'   => $item->relacion_id,
-			'leido'         => (bool) $item->leido,
-			'created_at'    => $item->created_at,
-			'link'          => $link,
+			'id'             => $item->id,
+			'tipo'           => $item->tipo,
+			'mensaje'        => $item->mensaje,
+			'relacion_tipo'  => $item->relacion_tipo,
+			'relacion_id'    => $item->relacion_id,
+			'leido'          => (bool) $item->leido,
+			'created_at'     => $item->created_at,
+			'link'           => $link,
+			'evidence_data'  => $evidence_data,
 		);
 	}
 	return $result;
@@ -3063,7 +3936,7 @@ function gnf_build_notification_context( $item, $user_id ) {
 		'circuito'     => '',
 		'year'         => 0,
 		'entryStatus'  => '',
-		'requiresYearValidation' => false,
+		'hasRejectedEvidence' => false,
 	);
 
 	if ( empty( $item->relacion_tipo ) || empty( $item->relacion_id ) ) {
@@ -3094,8 +3967,11 @@ function gnf_build_notification_context( $item, $user_id ) {
 		$evidencias = ! empty( $entry->evidencias ) ? json_decode( $entry->evidencias, true ) : array();
 
 		foreach ( (array) $evidencias as $evidencia ) {
-			if ( ! empty( $evidencia['requires_year_validation'] ) ) {
-				$context['requiresYearValidation'] = true;
+			if ( ! empty( $evidencia['replaced'] ) ) {
+				continue;
+			}
+			if ( 'rechazada' === ( $evidencia['estado'] ?? '' ) ) {
+				$context['hasRejectedEvidence'] = true;
 				break;
 			}
 		}

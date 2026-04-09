@@ -23,12 +23,13 @@ $total_retos_correccion = 0;
 
 foreach ($entries_by_centro as $centro_entries) {
 	foreach ($centro_entries as $entry) {
-		if ('enviado' === $entry->estado) {
-			$total_retos_enviados++;
-		} elseif ('aprobado' === $entry->estado) {
+		$computed = gnf_get_reto_entry_computed_status( $entry );
+		if ( 'completo' === $computed['status'] ) {
 			$total_retos_aprobados++;
-		} elseif ('correccion' === $entry->estado) {
+		} elseif ( 'requiere_atencion' === $computed['status'] ) {
 			$total_retos_correccion++;
+		} elseif ( 'en_progreso' === $computed['status'] ) {
+			$total_retos_enviados++;
 		}
 	}
 }
@@ -234,12 +235,13 @@ $icons = array(
 									$enviados         = 0;
 									$correccion       = 0;
 									foreach ($entries as $entry) {
-										if ('aprobado' === $entry->estado) {
+										$computed = gnf_get_reto_entry_computed_status( $entry );
+										if ( 'completo' === $computed['status'] ) {
 											$completos++;
-										} elseif ('enviado' === $entry->estado) {
-											$enviados++;
-										} elseif ('correccion' === $entry->estado) {
+										} elseif ( 'requiere_atencion' === $computed['status'] ) {
 											$correccion++;
+										} elseif ( 'en_progreso' === $computed['status'] ) {
+											$enviados++;
 										}
 									}
 									$tiene_pendientes = $enviados > 0;
@@ -267,8 +269,10 @@ $icons = array(
 											<small class="gnf-muted">de <?php echo esc_html($total_matriculados); ?></small>
 										</td>
 										<td>
-											<?php if ($enviados > 0) : ?>
-												<span class="gnf-badge gnf-badge--sun"><?php echo esc_html($enviados); ?> por revisar</span>
+											<?php if ($correccion > 0) : ?>
+												<span class="gnf-badge gnf-badge--coral"><?php echo esc_html($correccion); ?> requiere atención</span>
+											<?php elseif ($enviados > 0) : ?>
+												<span class="gnf-badge gnf-badge--sun"><?php echo esc_html($enviados); ?> en progreso</span>
 											<?php elseif ($completos === $total_matriculados && $total_matriculados > 0) : ?>
 												<span class="gnf-badge gnf-badge--forest">Completo</span>
 											<?php else : ?>

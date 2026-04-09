@@ -73,6 +73,85 @@ function gnf_handle_export_csv() {
 add_action( 'admin_post_gnf_export_csv', 'gnf_handle_export_csv' );
 
 /**
+ * Exporta CSV con listado de centros matriculados (una fila por centro).
+ *
+ * Columnas: Centro, Código MEP, Dirección Regional, Retos seleccionados, Año.
+ *
+ * @param int|null $region_id Filtrar por región (term_id). Null = todas.
+ * @param int|null $anio      Año. Default: año activo.
+ */
+function gnf_export_centros_csv( $region_id = null, $anio = null ) {
+	if ( ! current_user_can( 'manage_options' ) && ! gnf_user_has_role( wp_get_current_user(), 'supervisor' ) ) {
+		wp_die( 'Sin permisos' );
+	}
+
+	$anio = gnf_normalize_year( $anio );
+
+	// Obtener IDs de centros con matrícula en este año.
+	$centros_ids = gnf_get_centros_with_matricula( $anio );
+	if ( empty( $centros_ids ) ) {
+		$centros_ids = array( 0 );
+	}
+
+	$args = array(
+		'post_type'      => 'centro_educativo',
+		'posts_per_page' => -1,
+		'post__in'       => $centros_ids,
+		'orderby'        => 'title',
+		'order'          => 'ASC',
+	);
+	if ( $region_id ) {
+		$args['tax_query'] = array(
+			array(
+				'taxonomy' => 'gn_region',
+				'field'    => 'term_id',
+				'terms'    => (int) $region_id,
+			),
+		);
+	}
+
+	$centros = get_posts( $args );
+
+	$filename = 'centros-matriculados-' . ( $region_id ? 'region-' . $region_id . '-' : '' ) . $anio . '.csv';
+	header( 'Content-Type: text/csv; charset=utf-8' );
+	header( 'Content-Disposition: attachment; filename=' . $filename );
+
+	$output = fopen( 'php://output', 'w' );
+	fprintf( $output, chr( 0xEF ) . chr( 0xBB ) . chr( 0xBF ) ); // BOM UTF-8.
+	fputcsv( $output, array( 'Centro Educativo', 'Código MEP', 'Dirección Regional', 'Retos Seleccionados', 'Año' ) );
+
+	foreach ( $centros as $centro ) {
+		$codigo     = get_post_meta( $centro->ID, 'codigo_mep', true );
+		$region_meta = get_post_meta( $centro->ID, 'region', true );
+		$region_term = $region_meta ? get_term( (int) $region_meta, 'gn_region' ) : null;
+		$region_name = ( $region_term && ! is_wp_error( $region_term ) ) ? $region_term->name : '';
+		$retos_ids  = gnf_get_centro_retos_seleccionados( $centro->ID, $anio );
+		$num_retos  = count( $retos_ids );
+
+		fputcsv( $output, array(
+			$centro->post_title,
+			$codigo ?: '',
+			$region_name,
+			$num_retos,
+			$anio,
+		) );
+	}
+
+	fclose( $output );
+	exit;
+}
+
+/**
+ * Endpoint admin_post para exportar centros matriculados.
+ */
+function gnf_handle_export_centros_csv() {
+	$region = isset( $_GET['region'] ) ? absint( $_GET['region'] ) : null;
+	$anio   = isset( $_GET['year'] ) ? absint( $_GET['year'] ) : gnf_get_context_year( gnf_get_active_year() );
+	gnf_export_centros_csv( $region, $anio );
+}
+add_action( 'admin_post_gnf_export_centros_csv', 'gnf_handle_export_centros_csv' );
+
+/**
  * Helper para PDF resumen del docente (placeholder).
  *
  * Se podria integrar una libreria PDF; por ahora se listan PDFs por reto almacenados en evidencias.

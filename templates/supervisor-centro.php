@@ -39,9 +39,10 @@ $enviados    = 0;
 $correccion  = 0;
 foreach ($entries as $entry) {
 	$total_retos++;
-	if ('aprobado' === $entry->estado) $aprobados++;
-	elseif ('enviado' === $entry->estado) $enviados++;
-	elseif ('correccion' === $entry->estado) $correccion++;
+	$cs = gnf_get_reto_entry_computed_status( $entry );
+	if ( 'completo' === $cs['status'] ) $aprobados++;
+	elseif ( 'requiere_atencion' === $cs['status'] ) $correccion++;
+	elseif ( 'en_progreso' === $cs['status'] ) $enviados++;
 }
 
 $retos_matriculados_ids = gnf_get_centro_retos_seleccionados($centro_id, $anio);
@@ -205,22 +206,12 @@ $icons = array(
 							$puntaje_max = gnf_get_reto_max_points($reto_id, $anio);
 							$reto_icon_sv = gnf_get_reto_icon_url($reto_id);
 							$reto_color_sv = gnf_get_reto_color($reto_id);
-							$notes   = $entry ? $entry->supervisor_notes : '';
-							$warnings = array();
-							if ($entry && ! empty($entry->evidencias)) {
-								$evs = json_decode($entry->evidencias, true);
-								foreach ((array) $evs as $ev) {
-									if (! empty($ev['requires_year_validation'])) {
-										$warnings[] = 'Foto requiere validación de año';
-									}
-								}
-							}
-							$badge_class = 'aprobado' === $estado ? 'forest' :
-								('enviado' === $estado ? 'sun' :
-								('correccion' === $estado ? 'coral' : 'default'));
-							$is_actionable = $entry && in_array($estado, array('enviado', 'correccion'), true);
+							$computed = $entry ? gnf_get_reto_entry_computed_status( $entry ) : null;
+							$badge_class = $computed ? $computed['badge'] : 'default';
+							$badge_label = $computed ? $computed['label'] : 'Sin evidencias';
+							$has_highlight = $computed && in_array( $computed['status'], array( 'en_progreso', 'requiere_atencion' ), true );
 							?>
-							<details class="gnf-reto-accordion__item <?php echo 'enviado' === $estado ? 'gnf-reto-accordion__item--highlight' : ''; ?>"<?php echo $is_actionable ? ' open' : ''; ?>>
+							<details class="gnf-reto-accordion__item <?php echo $has_highlight ? 'gnf-reto-accordion__item--highlight' : ''; ?>">
 								<summary class="gnf-reto-accordion__summary">
 									<?php if ( $reto_icon_sv ) : ?>
 										<span class="gnf-reto-accordion__icon" style="background:<?php echo esc_attr( $reto_color_sv ); ?>1a;">
@@ -230,86 +221,87 @@ $icons = array(
 									<span class="gnf-reto-accordion__title"><?php the_title(); ?></span>
 									<span class="gnf-reto-accordion__meta">
 										<span class="gnf-reto-accordion__points"><?php echo esc_html($puntaje); ?> / <?php echo esc_html($puntaje_max); ?></span>
-										<span class="gnf-badge gnf-badge--<?php echo $badge_class; ?>">
-											<?php echo esc_html(ucwords(str_replace('_', ' ', $estado))); ?>
+										<span class="gnf-badge gnf-badge--<?php echo esc_attr( $badge_class ); ?>">
+											<?php echo esc_html( $badge_label ); ?>
 										</span>
+										<?php if ( $computed && $computed['total'] > 0 ) : ?>
+											<span class="gnf-muted" style="font-size: 0.8rem; margin-left: 4px;">
+												<?php echo esc_html( $computed['aprobadas'] . '/' . $computed['total'] ); ?>
+											</span>
+										<?php endif; ?>
 									</span>
 								</summary>
 								<div class="gnf-reto-accordion__body">
-									<div class="gnf-reto-accordion__body-grid">
-										<!-- Evidencias -->
-										<div>
-											<div class="gnf-reto-accordion__field-label">Evidencias</div>
-											<?php
-											if ($entry && ! empty($entry->evidencias)) {
-												$evidencias = json_decode($entry->evidencias, true);
-												if (! empty($evidencias)) {
-													echo '<div class="gnf-evidencias-list">';
-													foreach ($evidencias as $ev) {
-														$url = ! empty($ev['path_local'])
-															? add_query_arg(
-																array(
-																	'action'    => 'gnf_descargar_evidencia',
-																	'nonce'     => wp_create_nonce('gnf_nonce'),
-																	'file'      => base64_encode($ev['path_local']),
-																	'centro_id' => $centro_id,
-																),
-																admin_url('admin-ajax.php')
-															)
-															: ($ev['ruta'] ?? '');
-														echo '<a class="gnf-btn gnf-btn--sm gnf-btn--ghost" target="_blank" href="' . esc_url($url) . '">' . esc_html($ev['nombre'] ?? 'Archivo') . '</a> ';
-														if (! empty($ev['warning'])) {
-															echo '<small class="gnf-muted">' . esc_html($ev['warning']) . '</small>';
-														}
-													}
-													echo '</div>';
+									<?php if ( $entry && ! empty( $entry->evidencias ) ) : ?>
+										<?php $evidencias = json_decode( $entry->evidencias, true ); ?>
+										<div class="gnf-ev-review-list">
+											<?php foreach ( (array) $evidencias as $ev_index => $ev ) : ?>
+												<?php
+												if ( ! empty( $ev['replaced'] ) ) { continue; }
+												$ev_puntos   = $ev['puntos'] ?? null;
+												$ev_estado   = $ev['estado'] ?? null;
+												$ev_nombre   = $ev['nombre'] ?? 'Archivo';
+												$ev_tipo     = $ev['tipo'] ?? 'archivo';
+												$ev_comment  = $ev['supervisor_comment'] ?? '';
+												$has_puntos  = null !== $ev_puntos;
+												$url = ! empty( $ev['path_local'] )
+													? add_query_arg( array(
+														'action'    => 'gnf_descargar_evidencia',
+														'nonce'     => wp_create_nonce( 'gnf_nonce' ),
+														'file'      => base64_encode( $ev['path_local'] ),
+														'centro_id' => $centro_id,
+													), admin_url( 'admin-ajax.php' ) )
+													: ( $ev['ruta'] ?? '' );
+												$ev_badge = 'default'; $ev_label = 'Informativa';
+												if ( $has_puntos ) {
+													if ( 'aprobada' === $ev_estado ) { $ev_badge = 'forest'; $ev_label = 'Aprobada'; }
+													elseif ( 'rechazada' === $ev_estado ) { $ev_badge = 'coral'; $ev_label = 'Rechazada'; }
+													else { $ev_badge = 'sun'; $ev_label = 'Pendiente'; }
 												}
-											} else {
-												echo '<span class="gnf-muted">Sin evidencias</span>';
-											}
-											?>
-											<?php if ($warnings) : ?>
-												<div style="margin-top: 8px;">
-													<?php foreach ($warnings as $w) : ?>
-														<span class="gnf-badge gnf-badge--coral" style="font-size: 0.7rem;"><?php echo esc_html($w); ?></span>
-													<?php endforeach; ?>
-												</div>
-											<?php endif; ?>
-										</div>
-
-										<!-- Notas -->
-										<div>
-											<div class="gnf-reto-accordion__field-label">Notas del supervisor</div>
-											<?php if ($notes) : ?>
-												<div class="gnf-correction-note">
-													<div class="gnf-correction-note__label">Observación</div>
-													<?php echo esc_html($notes); ?>
-												</div>
-											<?php else : ?>
-												<span class="gnf-muted">Sin notas</span>
-											<?php endif; ?>
-										</div>
-
-										<!-- Acciones -->
-										<div class="gnf-reto-accordion__actions">
-											<?php if ($is_actionable) : ?>
-												<form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" class="gnf-sv-review-form" style="display: flex; flex-direction: column; gap: 10px;">
-													<?php wp_nonce_field('gnf_supervisor_action', 'gnf_nonce'); ?>
-													<input type="hidden" name="action" value="gnf_supervisor_update" />
-													<input type="hidden" name="entry_id" value="<?php echo esc_attr($entry->id); ?>" />
-													<textarea name="nota" rows="2" placeholder="Escribe una observación para el docente..." style="width: 100%; padding: 10px; border: 1px solid var(--gnf-gray-200); border-radius: var(--gnf-radius-sm); font-size: 0.85rem; font-family: var(--gnf-font-body); resize: vertical;"><?php echo esc_textarea($notes); ?></textarea>
-													<div style="display: flex; gap: 8px;">
-														<button class="gnf-btn gnf-btn--sm" name="estado" value="aprobado"><?php echo $icons['check']; ?> Aprobar</button>
-														<button class="gnf-btn gnf-btn--sm gnf-btn--danger gnf-sv-correccion-btn" name="estado" value="correccion"><?php echo $icons['alert']; ?> Pedir Corrección</button>
+												?>
+												<div class="gnf-ev-card <?php echo 'rechazada' === $ev_estado ? 'gnf-ev-card--rejected' : ''; ?>"
+													data-entry-id="<?php echo esc_attr( $entry->id ); ?>"
+													data-ev-index="<?php echo esc_attr( $ev_index ); ?>">
+													<div class="gnf-ev-card__header">
+														<div class="gnf-ev-card__file">
+															<?php if ( 'imagen' === $ev_tipo && ! empty( $ev['ruta'] ) ) : ?>
+																<a href="<?php echo esc_url( $ev['ruta'] ); ?>" target="_blank">
+																	<img src="<?php echo esc_url( $ev['ruta'] ); ?>" alt="<?php echo esc_attr( $ev_nombre ); ?>" class="gnf-ev-card__thumb" />
+																</a>
+															<?php endif; ?>
+															<div>
+																<a class="gnf-ev-card__name" href="<?php echo esc_url( $url ); ?>" target="_blank"><?php echo esc_html( $ev_nombre ); ?></a>
+																<?php if ( $has_puntos ) : ?>
+																	<span class="gnf-ev-card__points"><?php echo esc_html( $ev_puntos ); ?> pts</span>
+																<?php endif; ?>
+															</div>
+														</div>
+														<span class="gnf-badge gnf-badge--<?php echo esc_attr( $ev_badge ); ?>"><?php echo esc_html( $ev_label ); ?></span>
 													</div>
-												</form>
-											<?php elseif ($entry && 'aprobado' === $estado) : ?>
-												<span class="gnf-badge gnf-badge--forest"><?php echo $icons['check']; ?> Aprobado</span>
-											<?php else : ?>
-												<span class="gnf-muted">Sin envío</span>
-											<?php endif; ?>
+													<?php if ( $ev_comment ) : ?>
+														<div class="gnf-ev-card__comment">
+															<small class="gnf-muted"><?php echo esc_html( $ev_comment ); ?></small>
+														</div>
+													<?php endif; ?>
+													<?php if ( $has_puntos ) : ?>
+														<div class="gnf-ev-card__actions">
+															<textarea class="gnf-ev-card__note gnf-input" rows="1" placeholder="Comentario (requerido al rechazar)..."><?php echo esc_textarea( $ev_comment ); ?></textarea>
+															<div class="gnf-ev-card__buttons">
+																<button type="button" class="gnf-btn gnf-btn--sm gnf-ev-aprobar"<?php echo 'aprobada' === $ev_estado ? ' disabled' : ''; ?>>
+																	<?php echo $icons['check']; ?> Aprobar
+																</button>
+																<button type="button" class="gnf-btn gnf-btn--sm gnf-btn--danger gnf-ev-rechazar"<?php echo 'rechazada' === $ev_estado ? ' disabled' : ''; ?>>
+																	<?php echo $icons['alert']; ?> Rechazar
+																</button>
+															</div>
+														</div>
+													<?php endif; ?>
+												</div>
+											<?php endforeach; ?>
 										</div>
-									</div>
+									<?php else : ?>
+										<span class="gnf-muted" style="padding: 16px; display: block;">Sin evidencias</span>
+									<?php endif; ?>
 								</div>
 							</details>
 						<?php endwhile; ?>
@@ -319,17 +311,87 @@ $icons = array(
 
 			<script>
 			document.addEventListener('DOMContentLoaded', function() {
-				document.querySelectorAll('.gnf-sv-correccion-btn').forEach(function(btn) {
-					btn.addEventListener('click', function(e) {
-						var form = this.closest('.gnf-sv-review-form');
-						var nota = form.querySelector('textarea[name="nota"]');
-						if (! nota.value.trim()) {
-							e.preventDefault();
-							nota.style.borderColor = 'var(--gnf-coral)';
-							nota.setAttribute('placeholder', 'Debes indicar el motivo de la corrección...');
-							nota.focus();
+				var restUrl = '<?php echo esc_js( rest_url( 'gnf/v1/supervisor/evidence/' ) ); ?>';
+				var restNonce = '<?php echo esc_js( wp_create_nonce( 'wp_rest' ) ); ?>';
+
+				function reviewEvidence(card, action) {
+					var entryId = card.getAttribute('data-entry-id');
+					var evIndex = card.getAttribute('data-ev-index');
+					var noteEl  = card.querySelector('.gnf-ev-card__note');
+					var comment = noteEl ? noteEl.value.trim() : '';
+
+					if ('rechazar' === action && !comment) {
+						noteEl.style.borderColor = 'var(--gnf-coral)';
+						noteEl.focus();
+						return;
+					}
+
+					var confirmMsg = 'aprobar' === action
+						? '¿Confirmar aprobación de esta evidencia?'
+						: '¿Confirmar rechazo de esta evidencia?';
+					if (!confirm(confirmMsg)) return;
+
+					var btns = card.querySelectorAll('button');
+					btns.forEach(function(b) { b.disabled = true; });
+
+					fetch(restUrl + entryId + '/' + evIndex, {
+						method: 'POST',
+						headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': restNonce },
+						body: JSON.stringify({ action: action, comment: comment }),
+					})
+					.then(function(r) { return r.json(); })
+					.then(function(resp) {
+						if (resp && resp.success) {
+							var badge = card.querySelector('.gnf-badge');
+							if (badge) {
+								badge.className = 'gnf-badge gnf-badge--' + ('aprobar' === action ? 'forest' : 'coral');
+								badge.textContent = 'aprobar' === action ? 'Aprobada' : 'Rechazada';
+							}
+							if ('rechazar' === action) card.classList.add('gnf-ev-card--rejected');
+							else card.classList.remove('gnf-ev-card--rejected');
+
+							var commentEl = card.querySelector('.gnf-ev-card__comment');
+							if (comment && !commentEl) {
+								commentEl = document.createElement('div');
+								commentEl.className = 'gnf-ev-card__comment';
+								card.querySelector('.gnf-ev-card__header').after(commentEl);
+							}
+							if (commentEl) commentEl.innerHTML = '<small class="gnf-muted">' + comment.replace(/</g, '&lt;') + '</small>';
+
+							var accordion = card.closest('.gnf-reto-accordion__item');
+							if (accordion && resp.entry_puntaje !== undefined) {
+								var pointsEl = accordion.querySelector('.gnf-reto-accordion__points');
+								if (pointsEl) pointsEl.textContent = resp.entry_puntaje + ' / ' + pointsEl.textContent.split('/')[1].trim();
+							}
+							if (accordion && resp.entry_status) {
+								var summaryBadge = accordion.querySelector('summary .gnf-badge');
+								if (summaryBadge) {
+									summaryBadge.className = 'gnf-badge gnf-badge--' + resp.entry_status.badge;
+									summaryBadge.textContent = resp.entry_status.label;
+								}
+								var countEl = accordion.querySelector('summary .gnf-muted');
+								if (countEl) countEl.textContent = resp.entry_status.aprobadas + '/' + resp.entry_status.total;
+							}
+							btns.forEach(function(b) {
+								if (b.classList.contains('gnf-ev-aprobar')) b.disabled = ('aprobar' === action);
+								else if (b.classList.contains('gnf-ev-rechazar')) b.disabled = ('rechazar' === action);
+							});
+						} else {
+							alert((resp && resp.message) ? resp.message : 'Error al procesar.');
+							btns.forEach(function(b) { b.disabled = false; });
 						}
+					})
+					.catch(function() {
+						alert('Error de conexión.');
+						btns.forEach(function(b) { b.disabled = false; });
 					});
+				}
+
+				document.querySelectorAll('.gnf-ev-aprobar').forEach(function(btn) {
+					btn.addEventListener('click', function() { reviewEvidence(this.closest('.gnf-ev-card'), 'aprobar'); });
+				});
+				document.querySelectorAll('.gnf-ev-rechazar').forEach(function(btn) {
+					btn.addEventListener('click', function() { reviewEvidence(this.closest('.gnf-ev-card'), 'rechazar'); });
 				});
 			});
 			</script>

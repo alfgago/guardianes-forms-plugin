@@ -40,11 +40,11 @@ function gnf_calcular_puntaje_por_campos( $entry_row ) {
 	$data_raw       = json_decode( $entry_row->data ?? '{}', true );
 	$fields_summary = $data_raw['__fields__'] ?? array();
 
-	// Leer evidencias para cruzar file uploads por field_id.
+	// Index evidencias by field_id, excluding rejected and replaced ones.
 	$evidencias_raw = json_decode( $entry_row->evidencias ?? '[]', true );
 	$files_by_field = array();
 	foreach ( (array) $evidencias_raw as $ev ) {
-		if ( ! empty( $ev['field_id'] ) ) {
+		if ( ! empty( $ev['field_id'] ) && empty( $ev['replaced'] ) && 'rechazada' !== ( $ev['estado'] ?? '' ) ) {
 			$files_by_field[ (int) $ev['field_id'] ] = true;
 		}
 	}
@@ -191,12 +191,12 @@ function gnf_recalcular_puntaje_centro( $centro_id, $anio = null ) {
 	$table = $wpdb->prefix . 'gn_reto_entries';
 	$anio  = function_exists( 'gnf_normalize_year' ) ? gnf_normalize_year( $anio ) : (int) ( $anio ?: gnf_get_active_year() );
 
+	// Sum puntaje across all entries (not just 'aprobado' — points accumulate per-evidence).
 	$total = (int) $wpdb->get_var(
 		$wpdb->prepare(
-			"SELECT SUM(puntaje) FROM {$table} WHERE centro_id = %d AND anio = %d AND estado = %s",
+			"SELECT SUM(puntaje) FROM {$table} WHERE centro_id = %d AND anio = %d",
 			$centro_id,
-			$anio,
-			'aprobado'
+			$anio
 		)
 	);
 
