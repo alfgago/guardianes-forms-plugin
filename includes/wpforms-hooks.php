@@ -169,6 +169,18 @@ function gnf_handle_matricula_submission( $normalized_fields, $entry_id, $form_d
 		$coordinador_nombre = sanitize_text_field( (string) ( $normalized_fields['docente-nombre'] ?? '' ) );
 	}
 
+	// Salvaguarda: si el usuario actual ya tiene un centro asociado, nunca crear uno nuevo
+	// desde la matrícula; usar el centro existente. Solo administradores pueden crear centros
+	// (vía wp-admin o el endpoint REST de admin). Esto evita duplicados causados por estados
+	// inconsistentes del frontend o flags 'centro-existe' corruptos.
+	$assigned_centro_id = $user_id && function_exists( 'gnf_get_centro_for_docente' )
+		? (int) gnf_get_centro_for_docente( $user_id )
+		: 0;
+	if ( $assigned_centro_id ) {
+		$normalized_fields['centro-existe']       = 'Sí';
+		$normalized_fields['centro-id-existente'] = $assigned_centro_id;
+	}
+
 	$centro_existe = ( $normalized_fields['centro-existe'] ?? '' ) === 'Sí';
 	$centro_id     = 0;
 
@@ -398,10 +410,15 @@ function gnf_notify_admins_new_matricula( $centro_id, $user_id ) {
  * Encuentra un centro educativo por código MEP.
  */
 function gnf_find_centro_by_codigo( $codigo ) {
+	$codigo = trim( (string) $codigo );
+	if ( '' === $codigo ) {
+		return 0;
+	}
 	$query = new WP_Query(
 		array(
 			'post_type'      => 'centro_educativo',
 			'posts_per_page' => 1,
+			'post_status'    => array( 'publish', 'pending', 'draft' ),
 			'meta_query'     => array(
 				array(
 					'key'   => 'codigo_mep',

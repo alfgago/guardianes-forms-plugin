@@ -39,9 +39,14 @@ export function SupervisorRegisterForm() {
     <form onSubmit={(e) => { e.preventDefault(); mutation.mutate(); }}>
       <h2 style={{ marginBottom: 'var(--gnf-space-6)', textAlign: 'center' }}>Registro DRE / Supervisores</h2>
 
+      <Alert variant="info" title="Autorizacion manual requerida">
+        La cuenta de {rolSolicitado === 'comite_bae' ? 'comite BAE' : 'supervisor'} quedara pendiente hasta que un
+        administrador la autorice manualmente. Cuando eso ocurra, podras ingresar a revisar centros y retos.
+      </Alert>
+
       {mutation.isSuccess && (
         <Alert variant="success" title="Registro exitoso">
-          Tu cuenta ha sido creada y ya puedes ingresar al panel correspondiente.
+          Tu cuenta ha sido creada. Quedara en espera de autorizacion administrativa antes de habilitar el acceso de revision.
         </Alert>
       )}
 

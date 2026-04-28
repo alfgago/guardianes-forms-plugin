@@ -2,6 +2,10 @@ export type NotificationType =
   | 'correccion'
   | 'aprobado'
   | 'invalid_photo_date'
+  | 'evidencia_subida'
+  | 'evidencia_resubida'
+  | 'evidencia_aprobada'
+  | 'evidencia_rechazada'
   | 'matricula'
   | 'general'
   | 'participacion_enviada'
@@ -17,6 +21,24 @@ export type NotificationType =
 export interface NotificationActionTarget {
   page: string;
   params?: Record<string, string>;
+}
+
+export interface NotificationEvidenceItem {
+  evidenceIndex: number;
+  fieldId?: number;
+  questionLabel: string;
+  fileName?: string;
+  previewUrl?: string;
+  tipo?: string;
+  isImage?: boolean;
+  estado?: 'pendiente' | 'aprobada' | 'rechazada' | string;
+  puntos?: number | null;
+  supervisorComment?: string | null;
+  reviewedBy?: number | null;
+  reviewedAt?: string | null;
+  photoDate?: string | null;
+  requiresYearValidation?: boolean;
+  canReview?: boolean;
 }
 
 export interface Notification {
@@ -40,5 +62,7 @@ export interface Notification {
   circuito?: string;
   year?: number;
   entryStatus?: string;
+  hasRejectedEvidence?: boolean;
+  evidenceItems?: NotificationEvidenceItem[];
   requiresYearValidation?: boolean;
 }

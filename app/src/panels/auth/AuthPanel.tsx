@@ -3,7 +3,6 @@ import { Tabs } from '@/components/ui/Tabs';
 import { Card } from '@/components/ui/Card';
 import { LoginForm } from './LoginForm';
 import { DocenteRegisterForm } from './DocenteRegisterForm';
-import { SupervisorRegisterForm } from './SupervisorRegisterForm';
 import { ForgotPasswordForm } from './ForgotPasswordForm';
 import { ResetPasswordForm } from './ResetPasswordForm';
 import { useInitData } from '@/hooks/useInitData';
@@ -13,8 +12,7 @@ const HOME_URL = 'https://movimientoguardianes.org/bae2026/';
 
 const allTabs = [
   { id: 'login', label: 'Ingresar' },
-  { id: 'register-docente', label: 'Registrar centro educativo' },
-  { id: 'register-supervisor', label: 'Registrarse (DRE - Supervisores)' },
+  { id: 'register-docente', label: 'Crear Cuenta' },
 ];
 
 export function AuthPanel() {
@@ -63,11 +61,7 @@ export function AuthPanel() {
   }, [redirectTo]);
 
   const tabs = useMemo(() => {
-    if (redirectTo === 'docente') {
-      return allTabs.filter((tab) => tab.id !== 'register-supervisor');
-    }
-
-    if (redirectTo === 'supervisor' || redirectTo === 'comite') {
+    if (redirectTo === 'supervisor' || redirectTo === 'comite' || redirectTo === 'admin') {
       return allTabs.filter((tab) => tab.id !== 'register-docente');
     }
 
@@ -99,15 +93,11 @@ export function AuthPanel() {
       return <ForgotPasswordForm onBack={handleBackToLogin} />;
     }
 
-    if (activeTab === 'login') {
-      return <LoginForm onForgotPassword={() => setForgotMode(true)} />;
-    }
-
     if (activeTab === 'register-docente') {
       return <DocenteRegisterForm />;
     }
 
-    return <SupervisorRegisterForm />;
+    return <LoginForm onForgotPassword={() => setForgotMode(true)} />;
   }
 
   return (

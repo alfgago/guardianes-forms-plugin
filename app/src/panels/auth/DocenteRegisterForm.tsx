@@ -80,11 +80,11 @@ export function DocenteRegisterForm() {
 
   return (
     <form onSubmit={(e) => { e.preventDefault(); mutation.mutate(); }}>
-      <h2 style={{ marginBottom: 'var(--gnf-space-6)', textAlign: 'center' }}>Registrar centro educativo</h2>
+      <h2 style={{ marginBottom: 'var(--gnf-space-6)', textAlign: 'center' }}>Crear Cuenta</h2>
 
       {mutation.isSuccess && (
         <Alert variant="success" title="Registro exitoso">
-          La cuenta quedo creada y ya puedes continuar con la matricula del centro educativo.
+          La cuenta quedo creada. Ahora puedes continuar con la matricula y los eco retos de tu centro educativo.
         </Alert>
       )}
 
@@ -117,7 +117,7 @@ export function DocenteRegisterForm() {
             onSelect={(c) => setSelectedCentro(c)}
           />
           <p style={{ fontSize: '0.8125rem', color: 'var(--gnf-muted)', marginTop: 'var(--gnf-space-2)' }}>
-            Solo puede existir una cuenta por centro educativo. Si un centro ya esta en uso, se mostrara con su correo institucional.
+            Si tu centro ya aparece en la lista, seleccionalo. Solo crea uno nuevo si todavia no existe en el sistema.
           </p>
           {selectedCentro?.claimed && (
             <Alert variant="error" title="Centro educativo ya en uso">
@@ -193,7 +193,7 @@ export function DocenteRegisterForm() {
         icon={<UserPlus size={16} />}
         style={{ width: '100%', marginTop: 'var(--gnf-space-6)' }}
       >
-        Registrar centro educativo
+        Crear Cuenta
       </Button>
     </form>
   );

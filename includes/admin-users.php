@@ -8,6 +8,131 @@ if (! defined('ABSPATH')) {
 	exit;
 }
 
+function gnf_admin_users_get_effective_role( $user ) {
+	$user = $user instanceof WP_User ? $user : get_userdata( (int) $user );
+	if ( ! ( $user instanceof WP_User ) ) {
+		return '';
+	}
+
+	if ( in_array( 'comite_bae', (array) $user->roles, true ) ) {
+		return 'comite_bae';
+	}
+
+	if ( in_array( 'supervisor', (array) $user->roles, true ) ) {
+		return 'supervisor';
+	}
+
+	if ( in_array( 'docente', (array) $user->roles, true ) ) {
+		return 'docente';
+	}
+
+	return '';
+}
+
+function gnf_admin_users_get_effective_status( $user, $role = '' ) {
+	$user = $user instanceof WP_User ? $user : get_userdata( (int) $user );
+	if ( ! ( $user instanceof WP_User ) ) {
+		return '';
+	}
+
+	$role = $role ?: gnf_admin_users_get_effective_role( $user );
+	if ( 'supervisor' === $role || 'comite_bae' === $role ) {
+		return gnf_get_supervisor_estado( $user->ID );
+	}
+
+	if ( 'docente' === $role ) {
+		return gnf_get_docente_estado( $user->ID );
+	}
+
+	return '';
+}
+
+function gnf_admin_users_get_effective_region( $user, $role = '' ) {
+	$user = $user instanceof WP_User ? $user : get_userdata( (int) $user );
+	if ( ! ( $user instanceof WP_User ) ) {
+		return 0;
+	}
+
+	$role = $role ?: gnf_admin_users_get_effective_role( $user );
+	if ( 'supervisor' === $role || 'comite_bae' === $role ) {
+		return (int) gnf_get_user_region( $user->ID );
+	}
+
+	if ( 'docente' !== $role ) {
+		return 0;
+	}
+
+	$centro_id = (int) gnf_get_centro_for_docente( $user->ID );
+	if ( ! $centro_id ) {
+		return 0;
+	}
+
+	$region_id = (int) get_post_meta( $centro_id, 'region', true );
+	if ( $region_id ) {
+		return $region_id;
+	}
+
+	$terms = wp_get_post_terms( $centro_id, 'gn_region', array( 'fields' => 'ids' ) );
+	return ! empty( $terms[0] ) ? (int) $terms[0] : 0;
+}
+
+/**
+ * Devuelve todas las regiones asignadas al usuario para uso en el listado.
+ * Comite BAE puede tener varias; supervisor/docente devuelven una sola en array.
+ *
+ * @param WP_User|int $user Usuario.
+ * @param string      $role Rol efectivo opcional.
+ * @return int[]
+ */
+function gnf_admin_users_get_effective_region_ids( $user, $role = '' ) {
+	$user = $user instanceof WP_User ? $user : get_userdata( (int) $user );
+	if ( ! ( $user instanceof WP_User ) ) {
+		return array();
+	}
+
+	$role = $role ?: gnf_admin_users_get_effective_role( $user );
+
+	if ( 'comite_bae' === $role ) {
+		return array_values( array_filter( array_map( 'absint', gnf_get_user_regions( $user->ID ) ) ) );
+	}
+
+	$single = gnf_admin_users_get_effective_region( $user, $role );
+	return $single ? array( (int) $single ) : array();
+}
+
+function gnf_admin_users_should_include( $user, $role_filter = '', $status_filter = '', $region_filter = 0 ) {
+	$user = $user instanceof WP_User ? $user : get_userdata( (int) $user );
+	if ( ! ( $user instanceof WP_User ) ) {
+		return false;
+	}
+
+	$role = gnf_admin_users_get_effective_role( $user );
+	if ( '' === $role ) {
+		return false;
+	}
+
+	if ( $role_filter && $role_filter !== $role ) {
+		return false;
+	}
+
+	if ( 'docente' === $role && ! gnf_get_centro_for_docente( $user->ID ) ) {
+		return false;
+	}
+
+	if ( $status_filter && gnf_admin_users_get_effective_status( $user, $role ) !== $status_filter ) {
+		return false;
+	}
+
+	if ( $region_filter ) {
+		$region_ids = gnf_admin_users_get_effective_region_ids( $user, $role );
+		if ( ! in_array( (int) $region_filter, $region_ids, true ) ) {
+			return false;
+		}
+	}
+
+	return true;
+}
+
 /**
  * Renderiza la página de gestión de usuarios.
  */
@@ -29,35 +154,15 @@ function gnf_render_admin_users()
 
 	// Construir query de usuarios.
 	$args = array(
-		'role__in' => array('docente', 'supervisor'),
-		'number'   => $per_page,
-		'offset'   => $offset,
+		'role__in' => array('docente', 'supervisor', 'comite_bae'),
 		'orderby'  => 'registered',
 		'order'    => 'DESC',
 	);
 
 	// Filtro de rol específico.
-	if ($role_filter && in_array($role_filter, array('docente', 'supervisor'), true)) {
+	if ($role_filter && in_array($role_filter, array('docente', 'supervisor', 'comite_bae'), true)) {
 		$args['role'] = $role_filter;
 		unset($args['role__in']);
-	}
-
-	// Filtro de estado.
-	if ($status_filter) {
-		$args['meta_query'][] = array(
-			'key'     => 'gnf_docente_status',
-			'value'   => $status_filter,
-			'compare' => '=',
-		);
-	}
-
-	// Filtro de región.
-	if ($region_filter) {
-		$args['meta_query'][] = array(
-			'key'     => 'region',
-			'value'   => $region_filter,
-			'compare' => '=',
-		);
 	}
 
 	// Búsqueda.
@@ -66,10 +171,18 @@ function gnf_render_admin_users()
 		$args['search_columns'] = array('user_login', 'user_email', 'display_name');
 	}
 
-	$users_query = new WP_User_Query($args);
-	$users       = $users_query->get_results();
-	$total_users = $users_query->get_total();
+	$all_users = get_users($args);
+	$all_users = array_values(
+		array_filter(
+			$all_users,
+			static function ($user) use ($role_filter, $status_filter, $region_filter) {
+				return gnf_admin_users_should_include($user, $role_filter, $status_filter, (int) $region_filter);
+			}
+		)
+	);
+	$total_users = count($all_users);
 	$total_pages = ceil($total_users / $per_page);
+	$users       = array_slice($all_users, $offset, $per_page);
 
 	// Estadísticas rápidas.
 	$docente_user_ids = get_users(array('role' => 'docente', 'fields' => 'ID'));
@@ -78,10 +191,14 @@ function gnf_render_admin_users()
 
 	foreach ($docente_user_ids as $docente_user_id) {
 		$centro_id = absint( gnf_get_centro_for_docente( $docente_user_id ) );
-		$key = $centro_id ? 'centro_' . $centro_id : 'user_' . $docente_user_id;
+		if ( ! $centro_id ) {
+			continue;
+		}
+
+		$key = 'centro_' . $centro_id;
 		$centros_registrados[$key] = true;
 
-		$docente_status = get_user_meta($docente_user_id, 'gnf_docente_status', true) ?: 'activo';
+		$docente_status = gnf_get_docente_estado($docente_user_id);
 		if ('pendiente' === $docente_status) {
 			$centros_pendientes[$key] = true;
 		}
@@ -89,9 +206,16 @@ function gnf_render_admin_users()
 
 	$total_centros_registrados = count($centros_registrados);
 	$total_supervisors = count(get_users(array('role' => 'supervisor', 'fields' => 'ID')));
+	$total_comite      = count(get_users(array('role' => 'comite_bae', 'fields' => 'ID')));
 	$pending_centros  = count($centros_pendientes);
 	$pending_supervisors = count(get_users(array(
 		'role'       => 'supervisor',
+		'meta_key'   => 'gnf_supervisor_status',
+		'meta_value' => 'pendiente',
+		'fields'     => 'ID',
+	)));
+	$pending_comite = count(get_users(array(
+		'role'       => 'comite_bae',
 		'meta_key'   => 'gnf_supervisor_status',
 		'meta_value' => 'pendiente',
 		'fields'     => 'ID',
@@ -160,6 +284,10 @@ function gnf_render_admin_users()
 
 			.gnf-stat-card--supervisor {
 				border-top: 4px solid #8b5cf6;
+			}
+
+			.gnf-stat-card--comite {
+				border-top: 4px solid #0d9488;
 			}
 
 			.gnf-stat-card--pending {
@@ -309,6 +437,11 @@ function gnf_render_admin_users()
 			.gnf-badge--supervisor {
 				background: #ede9fe;
 				color: #7c3aed;
+			}
+
+			.gnf-badge--comite_bae {
+				background: #ccfbf1;
+				color: #0f766e;
 			}
 
 			.gnf-badge--activo {
@@ -468,6 +601,10 @@ function gnf_render_admin_users()
 				<strong><?php echo esc_html($total_supervisors); ?></strong>
 				<span>Supervisores</span>
 			</div>
+			<div class="gnf-stat-card gnf-stat-card--comite">
+				<strong><?php echo esc_html($total_comite); ?></strong>
+				<span>Comité BAE-DRE</span>
+			</div>
 			<div class="gnf-stat-card gnf-stat-card--pending">
 				<strong><?php echo esc_html($pending_centros); ?></strong>
 				<span>Centros Pendientes</span>
@@ -475,6 +612,10 @@ function gnf_render_admin_users()
 			<div class="gnf-stat-card gnf-stat-card--pending">
 				<strong><?php echo esc_html($pending_supervisors); ?></strong>
 				<span>Supervisores Pendientes</span>
+			</div>
+			<div class="gnf-stat-card gnf-stat-card--pending">
+				<strong><?php echo esc_html($pending_comite); ?></strong>
+				<span>Comité Pendientes</span>
 			</div>
 		</div>
 
@@ -485,6 +626,7 @@ function gnf_render_admin_users()
 				<option value="">Todos los roles</option>
 				<option value="docente" <?php selected($role_filter, 'docente'); ?>>Centros educativos</option>
 				<option value="supervisor" <?php selected($role_filter, 'supervisor'); ?>>Supervisores</option>
+				<option value="comite_bae" <?php selected($role_filter, 'comite_bae'); ?>>Comité BAE-DRE</option>
 			</select>
 
 			<select name="status">
@@ -532,15 +674,17 @@ function gnf_render_admin_users()
 					</thead>
 					<tbody>
 						<?php foreach ($users as $user) :
-							$user_role   = in_array('supervisor', $user->roles) ? 'supervisor' : 'docente';
-							$status_key  = $user_role === 'supervisor' ? 'gnf_supervisor_status' : 'gnf_docente_status';
-							$user_status = get_user_meta($user->ID, $status_key, true) ?: 'activo';
-							$user_region = get_user_meta($user->ID, 'region', true);
-							$region_name = '';
-							if ($user_region) {
-								$term = get_term($user_region, 'gn_region');
-								$region_name = $term && !is_wp_error($term) ? $term->name : '';
+							$user_role   = gnf_admin_users_get_effective_role($user);
+							$user_status = gnf_admin_users_get_effective_status($user, $user_role);
+							$user_region_ids = gnf_admin_users_get_effective_region_ids($user, $user_role);
+							$region_names = array();
+							foreach ($user_region_ids as $rid) {
+								$term = get_term($rid, 'gn_region');
+								if ($term && !is_wp_error($term)) {
+									$region_names[] = $term->name;
+								}
 							}
+							$region_name = $region_names ? implode(', ', $region_names) : '';
 
 							// Obtener centro asociado para docentes.
 							$centro_info = '';
@@ -550,6 +694,13 @@ function gnf_render_admin_users()
 									$centro_info = get_the_title($centro_id);
 								}
 							}
+
+							$role_labels = array(
+								'docente'    => 'Docente',
+								'supervisor' => 'Supervisor',
+								'comite_bae' => 'Comité BAE-DRE',
+							);
+							$role_label = $role_labels[$user_role] ?? ucfirst($user_role);
 						?>
 							<tr>
 								<td>
@@ -563,7 +714,7 @@ function gnf_render_admin_users()
 								</td>
 								<td>
 									<span class="gnf-badge gnf-badge--<?php echo esc_attr($user_role); ?>">
-										<?php echo esc_html(ucfirst($user_role)); ?>
+										<?php echo esc_html($role_label); ?>
 									</span>
 								</td>
 								<td>
@@ -678,7 +829,9 @@ function gnf_process_user_actions()
 		return;
 	}
 
-	$status_key = $user_role === 'supervisor' ? 'gnf_supervisor_status' : 'gnf_docente_status';
+	$status_key = in_array($user_role, array('supervisor', 'comite_bae'), true)
+		? 'gnf_supervisor_status'
+		: 'gnf_docente_status';
 
 	switch ($action) {
 		case 'aprobar':
@@ -732,14 +885,26 @@ function gnf_render_admin_user_edit()
 	// Procesar guardado.
 	if (isset($_POST['gnf_save_user']) && wp_verify_nonce($_POST['gnf_user_edit_nonce'], 'gnf_user_edit')) {
 		$new_status = sanitize_text_field($_POST['user_status']);
-		$new_region = absint($_POST['user_region']);
-		$user_role  = in_array('supervisor', $user->roles) ? 'supervisor' : 'docente';
-		$status_key = $user_role === 'supervisor' ? 'gnf_supervisor_status' : 'gnf_docente_status';
+		$user_role  = gnf_admin_users_get_effective_role($user) ?: 'docente';
+		$status_key = in_array($user_role, array('supervisor', 'comite_bae'), true)
+			? 'gnf_supervisor_status'
+			: 'gnf_docente_status';
 
 		update_user_meta($user_id, $status_key, $new_status);
-		update_user_meta($user_id, 'region', $new_region);
-		update_user_meta($user_id, 'gnf_region_id', $new_region);
-		update_user_meta($user_id, 'gnf_region', $new_region);
+
+		if ('comite_bae' === $user_role) {
+			$region_ids = array_values(array_filter(array_map('absint', (array) ($_POST['user_regions'] ?? array()))));
+			gnf_set_user_regions($user_id, $region_ids);
+		} else {
+			$new_region = absint($_POST['user_region'] ?? 0);
+			if (function_exists('gnf_set_user_regions')) {
+				gnf_set_user_regions($user_id, $new_region ? array($new_region) : array());
+			} else {
+				update_user_meta($user_id, 'region', $new_region);
+				update_user_meta($user_id, 'gnf_region_id', $new_region);
+				update_user_meta($user_id, 'gnf_region', $new_region);
+			}
+		}
 
 		// Actualizar display name si se proporciona.
 		if (!empty($_POST['display_name'])) {
@@ -769,11 +934,21 @@ function gnf_render_admin_user_edit()
 		echo '<div class="notice notice-success is-dismissible"><p>Usuario actualizado correctamente.</p></div>';
 	}
 
-	$user_role   = in_array('supervisor', $user->roles) ? 'supervisor' : 'docente';
-	$status_key  = $user_role === 'supervisor' ? 'gnf_supervisor_status' : 'gnf_docente_status';
+	$user_role   = gnf_admin_users_get_effective_role($user) ?: 'docente';
+	$status_key  = in_array($user_role, array('supervisor', 'comite_bae'), true)
+		? 'gnf_supervisor_status'
+		: 'gnf_docente_status';
 	$user_status = get_user_meta($user_id, $status_key, true) ?: 'activo';
 	$user_region = gnf_get_user_region( $user_id );
+	$user_region_ids = gnf_admin_users_get_effective_region_ids($user, $user_role);
 	$centro_id   = gnf_get_centro_for_docente( $user_id );
+
+	$role_labels = array(
+		'docente'    => 'Docente',
+		'supervisor' => 'Supervisor',
+		'comite_bae' => 'Comité BAE-DRE',
+	);
+	$role_label = $role_labels[$user_role] ?? ucfirst($user_role);
 
 	$regions = get_terms(array('taxonomy' => 'gn_region', 'hide_empty' => false));
 	$centros = get_posts(array('post_type' => 'centro_educativo', 'posts_per_page' => -1, 'post_status' => 'any'));
@@ -795,7 +970,7 @@ function gnf_render_admin_user_edit()
 						<h2 style="margin: 0;"><?php echo esc_html($user->display_name); ?></h2>
 						<p style="margin: 4px 0 0; color: #64748b;"><?php echo esc_html($user->user_email); ?></p>
 						<span class="gnf-badge gnf-badge--<?php echo esc_attr($user_role); ?>" style="margin-top: 8px;">
-							<?php echo esc_html(ucfirst($user_role)); ?>
+							<?php echo esc_html($role_label); ?>
 						</span>
 					</div>
 				</div>
@@ -817,6 +992,22 @@ function gnf_render_admin_user_edit()
 						</select>
 					</div>
 
+					<?php if ('comite_bae' === $user_role) : ?>
+					<div class="gnf-form-group">
+						<label>Direcciones Regionales asignadas</label>
+						<div style="display:grid;gap:8px;max-height:240px;overflow-y:auto;padding:12px;border:1px solid #e5e7eb;border-radius:8px;background:#f8fafc;">
+							<?php if (!is_wp_error($regions) && !empty($regions)) : ?>
+								<?php foreach ($regions as $region) : ?>
+									<label style="display:flex;align-items:center;gap:8px;font-weight:400;">
+										<input type="checkbox" name="user_regions[]" value="<?php echo esc_attr($region->term_id); ?>" <?php checked(in_array((int) $region->term_id, $user_region_ids, true)); ?> />
+										<?php echo esc_html($region->name); ?>
+									</label>
+								<?php endforeach; ?>
+							<?php endif; ?>
+						</div>
+						<p style="margin:6px 0 0;font-size:12px;color:#64748b;">El Comité BAE puede revisar varias DRE. Marca todas las que correspondan.</p>
+					</div>
+					<?php else : ?>
 					<div class="gnf-form-group">
 						<label for="user_region">Dirección Regional</label>
 						<select id="user_region" name="user_region">
@@ -830,6 +1021,7 @@ function gnf_render_admin_user_edit()
 							<?php endif; ?>
 						</select>
 					</div>
+					<?php endif; ?>
 
 					<?php if ($user_role === 'docente') : ?>
 						<div class="gnf-form-group">

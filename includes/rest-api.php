@@ -514,7 +514,17 @@ function gnf_rest_is_docente() {
 
 function gnf_rest_is_supervisor() {
 	$user = wp_get_current_user();
-	return is_user_logged_in() && ( function_exists( 'gnf_user_can_access_panel' ) ? gnf_user_can_access_panel( $user, 'panel-supervisor' ) : ( gnf_user_has_role( $user, 'supervisor' ) || gnf_user_has_role( $user, 'comite_bae' ) || current_user_can( 'manage_options' ) ) );
+	if ( ! is_user_logged_in() ) {
+		return false;
+	}
+
+	if ( function_exists( 'gnf_user_can_access_panel' ) && gnf_user_can_access_panel( $user, 'panel-admin' ) ) {
+		return true;
+	}
+
+	return function_exists( 'gnf_is_supervisor_account_active' )
+		? gnf_is_supervisor_account_active( $user )
+		: ( ( gnf_user_has_role( $user, 'supervisor' ) || gnf_user_has_role( $user, 'comite_bae' ) ) && 'activo' === gnf_get_supervisor_estado( $user->ID ) );
 }
 
 function gnf_rest_is_admin() {
@@ -523,7 +533,17 @@ function gnf_rest_is_admin() {
 
 function gnf_rest_is_comite() {
 	$user = wp_get_current_user();
-	return is_user_logged_in() && ( function_exists( 'gnf_user_can_access_panel' ) ? gnf_user_can_access_panel( $user, 'panel-comite' ) : ( gnf_user_has_role( $user, 'comite_bae' ) || current_user_can( 'manage_options' ) ) );
+	if ( ! is_user_logged_in() ) {
+		return false;
+	}
+
+	if ( function_exists( 'gnf_user_can_access_panel' ) && gnf_user_can_access_panel( $user, 'panel-admin' ) ) {
+		return true;
+	}
+
+	return function_exists( 'gnf_is_supervisor_account_active' )
+		? gnf_is_supervisor_account_active( $user )
+		: ( gnf_user_has_role( $user, 'comite_bae' ) && 'activo' === gnf_get_supervisor_estado( $user->ID ) );
 }
 
 /**
@@ -701,15 +721,45 @@ function gnf_rest_build_centro_with_stats( $centro_id, $anio, $counts = array(),
 	$annual = gnf_rest_build_centro_annual( $centro_id, $anio );
 	$stats  = $counts[ $centro_id ] ?? array();
 
+	// Count evidence states across all entries for this centro.
+	global $wpdb;
+	$ev_table = $wpdb->prefix . 'gn_reto_entries';
+	$ev_rows  = $wpdb->get_col( $wpdb->prepare(
+		"SELECT evidencias FROM {$ev_table} WHERE centro_id = %d AND anio = %d AND evidencias IS NOT NULL AND evidencias != ''",
+		$centro_id,
+		$anio
+	) );
+	$ev_pendientes = 0;
+	$ev_aprobadas  = 0;
+	$ev_rechazadas = 0;
+	$ev_total      = 0;
+	foreach ( $ev_rows as $ev_json ) {
+		$evs = json_decode( $ev_json, true );
+		foreach ( (array) $evs as $ev ) {
+			if ( ! empty( $ev['replaced'] ) ) continue;
+			$puntos = $ev['puntos'] ?? null;
+			if ( null === $puntos ) continue;
+			$ev_total++;
+			$est = $ev['estado'] ?? 'pendiente';
+			if ( 'aprobada' === $est ) $ev_aprobadas++;
+			elseif ( 'rechazada' === $est ) $ev_rechazadas++;
+			else $ev_pendientes++;
+		}
+	}
+
 	return array_merge(
 		$base,
 		array(
-			'annual'     => $annual,
-			'retosCount' => count( (array) $annual['retosSeleccionados'] ),
-			'aprobados'  => (int) ( $stats['aprobados'] ?? 0 ),
-			'enviados'   => (int) ( $stats['enviados'] ?? 0 ),
-			'correccion' => (int) ( $stats['correccion'] ?? 0 ),
-			'enProgreso' => (int) ( $stats['enProgreso'] ?? 0 ),
+			'annual'         => $annual,
+			'retosCount'     => count( (array) $annual['retosSeleccionados'] ),
+			'aprobados'      => (int) ( $stats['aprobados'] ?? 0 ),
+			'enviados'       => (int) ( $stats['enviados'] ?? 0 ),
+			'correccion'     => (int) ( $stats['correccion'] ?? 0 ),
+			'enProgreso'     => (int) ( $stats['enProgreso'] ?? 0 ),
+			'evPendientes'   => $ev_pendientes,
+			'evAprobadas'    => $ev_aprobadas,
+			'evRechazadas'   => $ev_rechazadas,
+			'evTotal'        => $ev_total,
 		),
 		$extra
 	);
@@ -941,6 +991,39 @@ function gnf_rest_create_pending_centro_from_request( WP_REST_Request $request )
 // Auth endpoints
 // ═══════════════════════════════════════════════════════════════════════
 
+/**
+ * Serializa el usuario autenticado para el frontend React.
+ *
+ * @param WP_User $user Usuario autenticado.
+ * @return array<string,mixed>
+ */
+function gnf_rest_build_auth_user( $user ) {
+	$data = array(
+		'id'    => $user->ID,
+		'name'  => $user->display_name,
+		'email' => $user->user_email,
+		'roles' => array_values( $user->roles ),
+	);
+
+	if ( gnf_user_has_role( $user, 'docente' ) ) {
+		$data['centroId'] = gnf_get_centro_for_docente( $user->ID );
+		$data['estado']   = gnf_get_docente_estado( $user->ID );
+	} elseif ( gnf_user_has_role( $user, 'supervisor' ) || gnf_user_has_role( $user, 'comite_bae' ) ) {
+		$region_ids = function_exists( 'gnf_get_user_regions' )
+			? array_values( array_map( 'intval', gnf_get_user_regions( $user->ID ) ) )
+			: array_values( array_filter( array( (int) gnf_get_user_region( $user->ID ) ) ) );
+
+		$data['regionId']    = ! empty( $region_ids ) ? (int) $region_ids[0] : 0;
+		$data['regionIds']   = $region_ids;
+		$data['regionNames'] = function_exists( 'gnf_get_user_region_names' )
+			? array_values( array_map( 'strval', gnf_get_user_region_names( $user->ID ) ) )
+			: array();
+		$data['estado']      = gnf_get_supervisor_estado( $user->ID );
+	}
+
+	return $data;
+}
+
 function gnf_rest_auth_login( WP_REST_Request $request ) {
 	$username = sanitize_text_field( $request->get_param( 'username' ) );
 	$password = $request->get_param( 'password' );
@@ -991,12 +1074,7 @@ function gnf_rest_auth_login( WP_REST_Request $request ) {
 	);
 
 	return array(
-		'user'        => array(
-			'id'    => $user->ID,
-			'name'  => $user->display_name,
-			'email' => $user->user_email,
-			'roles' => array_values( $user->roles ),
-		),
+		'user'        => gnf_rest_build_auth_user( $user ),
 		'redirectUrl' => gnf_rest_get_default_redirect( $user ),
 	);
 }
@@ -1096,12 +1174,7 @@ function gnf_rest_auth_register_docente( WP_REST_Request $request ) {
 	}
 
 	return array(
-		'user'        => array(
-			'id'    => $user_id,
-			'name'  => $nombre,
-			'email' => $email,
-			'roles' => array( 'docente' ),
-		),
+		'user'        => gnf_rest_build_auth_user( get_userdata( $user_id ) ),
 		'redirectUrl' => gnf_rest_get_default_redirect( get_userdata( $user_id ) ),
 	);
 }
@@ -1134,8 +1207,13 @@ function gnf_rest_auth_register_supervisor( WP_REST_Request $request ) {
 	}
 	wp_update_user( array( 'ID' => $user_id, 'display_name' => $nombre ) );
 
-	update_user_meta( $user_id, 'gnf_supervisor_status', 'activo' );
-	update_user_meta( $user_id, 'region', $region );
+	update_user_meta( $user_id, 'gnf_supervisor_status', 'pendiente' );
+	update_user_meta( $user_id, 'gnf_supervisor_estado', 'pendiente' );
+	if ( function_exists( 'gnf_set_user_regions' ) ) {
+		gnf_set_user_regions( $user_id, array( $region ) );
+	} else {
+		update_user_meta( $user_id, 'region', $region );
+	}
 	update_user_meta( $user_id, 'gnf_rol_solicitado', $role_to_set );
 
 	if ( $request->get_param( 'cargo' ) ) {
@@ -1152,11 +1230,20 @@ function gnf_rest_auth_register_supervisor( WP_REST_Request $request ) {
 	}
 
 	if ( function_exists( 'gnf_notify_admins' ) ) {
-		gnf_notify_admins( 'registro', sprintf( 'Nuevo %s registrado: %s (%s)', 'comite_bae' === $role_to_set ? 'miembro de comite' : 'supervisor', $nombre, $email ), 'user', $user_id );
+		gnf_notify_admins(
+			'registro',
+			sprintf(
+				'Nueva solicitud de %s pendiente de autorizacion manual: %s (%s)',
+				'comite_bae' === $role_to_set ? 'comite BAE' : 'supervisor',
+				$nombre,
+				$email
+			),
+			'user',
+			$user_id
+		);
 	}
-
-	if ( function_exists( 'gnf_approve_supervisor' ) ) {
-		gnf_approve_supervisor( $user_id );
+	if ( function_exists( 'gnf_email_admins_manual_authorization_required' ) ) {
+		gnf_email_admins_manual_authorization_required( $user_id );
 	}
 
 	wp_set_current_user( $user_id );
@@ -1178,34 +1265,14 @@ function gnf_rest_auth_register_supervisor( WP_REST_Request $request ) {
 	}
 
 	return array(
-		'user' => array(
-			'id'    => $user_id,
-			'name'  => $nombre,
-			'email' => $email,
-			'roles' => array( $role_to_set ),
-		),
+		'user' => gnf_rest_build_auth_user( get_userdata( $user_id ) ),
 		'redirectUrl' => gnf_rest_get_default_redirect( get_userdata( $user_id ) ),
 	);
 }
 
 function gnf_rest_auth_me() {
 	$user = wp_get_current_user();
-	$data = array(
-		'id'    => $user->ID,
-		'name'  => $user->display_name,
-		'email' => $user->user_email,
-		'roles' => array_values( $user->roles ),
-	);
-
-	if ( gnf_user_has_role( $user, 'docente' ) ) {
-		$data['centroId'] = gnf_get_centro_for_docente( $user->ID );
-		$data['estado']   = gnf_get_docente_estado( $user->ID );
-	} elseif ( gnf_user_has_role( $user, 'supervisor' ) || gnf_user_has_role( $user, 'comite_bae' ) ) {
-		$data['regionId'] = gnf_get_user_region( $user->ID );
-		$data['estado']   = gnf_get_supervisor_estado( $user->ID );
-	}
-
-	return $data;
+	return gnf_rest_build_auth_user( $user );
 }
 
 function gnf_rest_auth_logout() {
@@ -1603,6 +1670,8 @@ function gnf_rest_notifications_list() {
 				'circuito'             => (string) ( $context['circuito'] ?? '' ),
 				'year'                 => (int) ( $context['year'] ?? 0 ),
 				'entryStatus'          => (string) ( $context['entryStatus'] ?? '' ),
+				'hasRejectedEvidence'  => ! empty( $context['hasRejectedEvidence'] ),
+				'evidenceItems'        => array_values( (array) ( $context['evidenceItems'] ?? array() ) ),
 				'requiresYearValidation' => ! empty( $context['requiresYearValidation'] ),
 			);
 		},
@@ -1790,6 +1859,7 @@ function gnf_rest_docente_matricula( WP_REST_Request $request ) {
 	}
 
 	$choice_sets = gnf_get_centro_profile_choice_sets();
+	$field_defs  = function_exists( 'gnf_get_matricula_field_definitions' ) ? gnf_get_matricula_field_definitions() : array();
 	$regions     = get_terms(
 		array(
 			'taxonomy'   => 'gn_region',
@@ -1838,10 +1908,12 @@ function gnf_rest_docente_matricula( WP_REST_Request $request ) {
 			'representanteTelefono'        => (string) ( $prefill['docente_telefono'] ?? '' ),
 			'representanteEmail'           => (string) ( $prefill['docente_email'] ?? '' ),
 			'representanteEmailConfirm'    => (string) ( $prefill['docente_email_confirm'] ?? '' ),
+			'docenteConfirmaciones'        => array_values( array_map( 'strval', (array) ( $prefill['docente_confirmaciones'] ?? array() ) ) ),
 			'comiteEstudiantes'            => (int) ( $prefill['bae_comite_estudiantes'] ?? $comite_est ),
 			'inscripcionAnterior'          => (string) ( $prefill['bae_inscripcion_anterior'] ?? 'No' ),
 			'metaEstrellas'                => (string) ( $prefill['bae_meta_estrellas'] ?? '1 estrella' ),
 		),
+		'fieldDefs'          => $field_defs,
 		'choiceSets'         => $choice_sets,
 		'provincias'         => array_values( gnf_get_cr_provinces() ),
 		'cantonesPorProvincia' => gnf_get_cr_province_canton_map(),
@@ -1921,7 +1993,16 @@ function gnf_rest_docente_matricula_save( WP_REST_Request $request ) {
 		'docente-telefono'                 => sanitize_text_field( (string) ( $fields['representanteTelefono'] ?? '' ) ),
 		'docente-email'                    => $email,
 		'docente-email-confirm'            => $email_confirm,
-		'docente-confirmaciones'           => array(),
+		'docente-confirmaciones'           => array_values(
+			array_unique(
+				array_filter(
+					array_map(
+						'sanitize_text_field',
+						(array) ( $fields['docenteConfirmaciones'] ?? array() )
+					)
+				)
+			)
+		),
 		'anio'                             => $anio,
 		'bae-comite-estudiantes'           => absint( $fields['comiteEstudiantes'] ?? 0 ),
 		'bae-inscripcion-anterior'         => sanitize_text_field( (string) ( $fields['inscripcionAnterior'] ?? 'No' ) ),
@@ -1930,7 +2011,7 @@ function gnf_rest_docente_matricula_save( WP_REST_Request $request ) {
 	);
 	$normalized['centro-modalidad'] = $normalized['centro-nivel-educativo'];
 	$normalized['centro-horario']   = $normalized['centro-jornada'];
-	$normalized['centro-existe']     = sanitize_text_field( (string) ( $fields['centroExiste'] ?? ( $centro_id ? 'SÃ­' : 'No' ) ) );
+	$normalized['centro-existe']     = sanitize_text_field( (string) ( $fields['centroExiste'] ?? ( $centro_id ? 'Sí' : 'No' ) ) );
 	$normalized['centro-id-existente'] = absint( $fields['centroIdExistente'] ?? $centro_id );
 
 	if ( $user instanceof WP_User && is_email( $user->user_email ) ) {
@@ -2077,29 +2158,101 @@ function gnf_rest_get_docente_entry_row( $centro_id, $reto_id, $anio ) {
 }
 
 function gnf_rest_get_region_reviewers( $region_id ) {
+	$region_id = absint( $region_id );
 	if ( ! $region_id ) {
 		return array();
 	}
 
 	$users = get_users(
 		array(
-			'role__in'  => array( 'supervisor', 'comite_bae' ),
-			'number'    => 400,
-			'meta_query' => array(
-				array(
-					'key'   => 'region',
-					'value' => $region_id,
-				),
-			),
+			'role__in' => array( 'supervisor', 'comite_bae' ),
+			'number'   => 400,
 		)
 	);
 
 	$unique = array();
 	foreach ( $users as $user ) {
+		if ( function_exists( 'gnf_user_has_region_access' ) && ! gnf_user_has_region_access( $user->ID, $region_id ) ) {
+			continue;
+		}
+
 		$unique[ $user->ID ] = $user;
 	}
 
 	return array_values( $unique );
+}
+
+/**
+ * Obtiene el alcance regional efectivo del usuario para panel supervisor/comité.
+ *
+ * @param int $user_id          Usuario actual.
+ * @param int $requested_region Región solicitada por filtro.
+ * @return array<string,mixed>
+ */
+function gnf_rest_get_user_region_scope( $user_id, $requested_region = 0 ) {
+	$user             = get_userdata( $user_id );
+	$available_region_ids = function_exists( 'gnf_get_user_regions' )
+		? array_values( array_map( 'absint', gnf_get_user_regions( $user_id ) ) )
+		: array_filter( array( (int) gnf_get_user_region( $user_id ) ) );
+	$requested_region = absint( $requested_region );
+	$selected_region_ids = $available_region_ids;
+	$can_filter_all      = $user instanceof WP_User && gnf_user_has_role( $user, 'comite_bae' ) && count( $available_region_ids ) > 1;
+
+	if ( $requested_region && in_array( $requested_region, $available_region_ids, true ) ) {
+		$selected_region_ids = array( $requested_region );
+	}
+
+	$available_region_names = array();
+	foreach ( $available_region_ids as $region_id ) {
+		$term = get_term( $region_id, 'gn_region' );
+		if ( $term && ! is_wp_error( $term ) ) {
+			$available_region_names[ $region_id ] = (string) $term->name;
+		}
+	}
+
+	$selected_label = '';
+	if ( 1 === count( $selected_region_ids ) ) {
+		$selected_label = $available_region_names[ $selected_region_ids[0] ] ?? '';
+	} elseif ( count( $selected_region_ids ) > 1 ) {
+		$selected_label = $can_filter_all ? 'Ver todo' : implode( ', ', array_values( $available_region_names ) );
+	}
+
+	return array(
+		'availableRegionIds'   => $available_region_ids,
+		'selectedRegionIds'    => $selected_region_ids,
+		'selectedRegionId'     => 1 === count( $selected_region_ids ) ? (int) $selected_region_ids[0] : 0,
+		'availableRegionNames' => $available_region_names,
+		'selectedLabel'        => $selected_label,
+		'canFilterAll'         => $can_filter_all,
+	);
+}
+
+/**
+ * Obtiene IDs de centros dentro del alcance regional seleccionado.
+ *
+ * @param int[] $region_ids IDs de región.
+ * @return int[]
+ */
+function gnf_rest_get_region_scope_centros( $region_ids ) {
+	$region_ids = array_values( array_unique( array_filter( array_map( 'absint', (array) $region_ids ) ) ) );
+	if ( empty( $region_ids ) ) {
+		return array();
+	}
+
+	return get_posts(
+		array(
+			'post_type'   => 'centro_educativo',
+			'numberposts' => -1,
+			'fields'      => 'ids',
+			'tax_query'   => array(
+				array(
+					'taxonomy' => 'gn_region',
+					'field'    => 'term_id',
+					'terms'    => $region_ids,
+				),
+			),
+		)
+	);
 }
 
 function gnf_rest_notify_review_submission( $centro_id, $anio, $user_id = 0 ) {
@@ -2574,17 +2727,9 @@ function gnf_rest_docente_submit( WP_REST_Request $request ) {
 // ═══════════════════════════════════════════════════════════════════════
 
 function gnf_rest_supervisor_dashboard( WP_REST_Request $request ) {
-	$anio    = (int) ( $request->get_param( 'year' ) ?: gnf_get_active_year() );
-	$user_id = get_current_user_id();
-	$region  = gnf_get_user_region( $user_id );
-
-	$region_name = '';
-	if ( $region ) {
-		$term = get_term( $region, 'gn_region' );
-		if ( $term && ! is_wp_error( $term ) ) {
-			$region_name = $term->name;
-		}
-	}
+	$anio         = (int) ( $request->get_param( 'year' ) ?: gnf_get_active_year() );
+	$user_id      = get_current_user_id();
+	$region_scope = gnf_rest_get_user_region_scope( $user_id, (int) $request->get_param( 'region' ) );
 
 	// Count entries by estado for supervisor's region.
 	global $wpdb;
@@ -2599,15 +2744,13 @@ function gnf_rest_supervisor_dashboard( WP_REST_Request $request ) {
 	);
 
 	// Filter by region for all supervisor/comité users.
-	if ( $region ) {
-		$region_centros = get_posts( array(
-			'post_type'   => 'centro_educativo',
-			'numberposts' => -1,
-			'fields'      => 'ids',
-			'tax_query'   => array( array( 'taxonomy' => 'gn_region', 'terms' => $region ) ),
-		) );
-		$centro_ids = array_intersect( $centro_ids, $region_centros );
-	}
+	$region_centros = gnf_rest_get_region_scope_centros( $region_scope['selectedRegionIds'] ?? array() );
+	$centro_ids     = array_values(
+		array_intersect(
+			array_map( 'intval', (array) $centro_ids ),
+			array_map( 'intval', (array) $region_centros )
+		)
+	);
 
 	$stats = array( 'centros' => count( $centro_ids ), 'pendientes' => 0, 'aprobados' => 0, 'correccion' => 0, 'enviados' => 0, 'enProgreso' => 0 );
 
@@ -2634,20 +2777,28 @@ function gnf_rest_supervisor_dashboard( WP_REST_Request $request ) {
 	}
 
 	return array(
-		'stats'      => $stats,
-		'regionName' => $region_name,
+		'stats'              => $stats,
+		'regionName'         => (string) ( $region_scope['selectedLabel'] ?? '' ),
+		'selectedRegionId'   => (int) ( $region_scope['selectedRegionId'] ?? 0 ),
+		'availableRegionIds' => array_values( array_map( 'intval', (array) ( $region_scope['availableRegionIds'] ?? array() ) ) ),
+		'canFilterAll'       => ! empty( $region_scope['canFilterAll'] ),
 	);
 }
 
 function gnf_rest_supervisor_centros( WP_REST_Request $request ) {
-	$anio     = (int) ( $request->get_param( 'year' ) ?: gnf_get_active_year() );
-	$circuito = sanitize_text_field( $request->get_param( 'circuito' ) ?? '' );
-	$user_id  = get_current_user_id();
-	$region   = gnf_get_user_region( $user_id );
+	$anio         = (int) ( $request->get_param( 'year' ) ?: gnf_get_active_year() );
+	$circuito     = sanitize_text_field( $request->get_param( 'circuito' ) ?? '' );
+	$user_id      = get_current_user_id();
+	$region_scope = gnf_rest_get_user_region_scope( $user_id, (int) $request->get_param( 'region' ) );
 
 	// Only centros with active matricula.
 	$centros_con_matricula = gnf_get_centros_with_matricula( $anio );
 	if ( empty( $centros_con_matricula ) ) {
+		return array();
+	}
+
+	$region_ids = array_values( array_map( 'intval', (array) ( $region_scope['selectedRegionIds'] ?? array() ) ) );
+	if ( empty( $region_ids ) ) {
 		return array();
 	}
 
@@ -2659,15 +2810,13 @@ function gnf_rest_supervisor_centros( WP_REST_Request $request ) {
 	);
 
 	// Region-scope for all supervisor/comité users.
-	if ( $region ) {
-		$centros_args['tax_query'] = array(
-			array(
-				'taxonomy' => 'gn_region',
-				'field'    => 'term_id',
-				'terms'    => array( $region ),
-			),
-		);
-	}
+	$centros_args['tax_query'] = array(
+		array(
+			'taxonomy' => 'gn_region',
+			'field'    => 'term_id',
+			'terms'    => $region_ids,
+		),
+	);
 
 	if ( $circuito ) {
 		$centros_args['meta_query'] = array(
@@ -2749,7 +2898,7 @@ function gnf_rest_supervisor_centro_detail( WP_REST_Request $request ) {
 			'puntajeMaximo'   => $max_pts,
 			'supervisorNotes' => '',
 			'evidencias'      => array(),
-			'responses'       => array(),
+			'responses'       => gnf_build_reto_form_responses( (int) $reto_id, $anio, array(), array() ),
 			'createdAt'       => null,
 			'updatedAt'       => null,
 		);
@@ -2792,12 +2941,15 @@ function gnf_rest_supervisor_review_evidence( WP_REST_Request $request ) {
 	}
 
 	$evidencias = json_decode( $entry->evidencias ?? '[]', true );
+	// Enrich old evidence data with puntos/estado from config.
+	$evidencias = gnf_enrich_evidencias( $evidencias, $entry->reto_id, $entry->anio );
 	if ( ! is_array( $evidencias ) || ! isset( $evidencias[ $ev_index ] ) ) {
 		return new WP_Error( 'invalid_index', 'Índice de evidencia inválido.', array( 'status' => 400 ) );
 	}
 
 	$ev = $evidencias[ $ev_index ];
 
+	// Check against enriched puntos (handles old data without puntos field).
 	if ( null === ( $ev['puntos'] ?? null ) ) {
 		return new WP_Error( 'informational', 'Esta evidencia es informativa y no puede ser revisada.', array( 'status' => 400 ) );
 	}
@@ -2913,14 +3065,21 @@ function gnf_rest_admin_build_user_item( WP_User $user ) {
 	$role            = gnf_rest_admin_get_primary_role( $user );
 	$status          = gnf_rest_admin_get_user_status( $user, $role );
 	$centro_id       = 'docente' === $role ? gnf_get_centro_for_docente( $user->ID ) : 0;
-	$region_id       = gnf_get_user_region( $user->ID );
+	$region_ids      = function_exists( 'gnf_get_user_regions' ) ? gnf_get_user_regions( $user->ID ) : array_filter( array( gnf_get_user_region( $user->ID ) ) );
+	$region_id       = ! empty( $region_ids ) ? (int) $region_ids[0] : 0;
 	$can_impersonate = current_user_can( 'manage_options' ) && 'administrator' !== $role && get_current_user_id() !== (int) $user->ID;
 
-	if ( ! $region_id && $centro_id ) {
-		$region_id = (int) get_post_meta( $centro_id, 'region', true );
+	if ( empty( $region_ids ) && $centro_id ) {
+		$region_ids = array_filter( array( (int) get_post_meta( $centro_id, 'region', true ) ) );
+		$region_id  = ! empty( $region_ids ) ? (int) $region_ids[0] : 0;
 	}
 
-	$region_term     = $region_id ? get_term( $region_id, 'gn_region' ) : null;
+	$region_names = function_exists( 'gnf_get_user_region_names' ) ? gnf_get_user_region_names( $user->ID ) : array();
+	if ( empty( $region_names ) && $region_id ) {
+		$region_term  = get_term( $region_id, 'gn_region' );
+		$region_names = ( $region_term && ! is_wp_error( $region_term ) ) ? array( $region_term->name ) : array();
+	}
+
 	$impersonate_url = '';
 	if ( $can_impersonate ) {
 		$impersonate_url = wp_nonce_url(
@@ -2940,9 +3099,11 @@ function gnf_rest_admin_build_user_item( WP_User $user ) {
 		'identificacion' => (string) get_user_meta( $user->ID, 'gnf_identificacion', true ),
 		'centroId'       => $centro_id,
 		'regionId'       => $region_id ? (int) $region_id : 0,
+		'regionIds'      => array_values( array_map( 'intval', (array) $region_ids ) ),
 		'registeredAt'   => $user->user_registered,
 		'centroName'     => $centro_id ? get_the_title( $centro_id ) : '',
-		'regionName'     => ( $region_term && ! is_wp_error( $region_term ) ) ? $region_term->name : '',
+		'regionName'     => implode( ', ', array_filter( array_map( 'strval', $region_names ) ) ),
+		'regionNames'    => array_values( array_map( 'strval', (array) $region_names ) ),
 		'panelUrl'       => function_exists( 'gnf_get_default_panel_url' ) ? gnf_get_default_panel_url( $user ) : home_url(),
 		'canImpersonate' => $can_impersonate,
 		'impersonateUrl' => $impersonate_url,
@@ -3015,7 +3176,19 @@ function gnf_rest_admin_update_user( WP_REST_Request $request ) {
 			update_user_meta( $user_id, 'gnf_supervisor_status', $status );
 		}
 
-		update_user_meta( $user_id, 'region', absint( $request->get_param( 'regionId' ) ) );
+		$region_ids = 'comite_bae' === $role
+			? gnf_normalize_region_ids( $request->get_param( 'regionIds' ) )
+			: array( absint( $request->get_param( 'regionId' ) ) );
+
+		if ( empty( $region_ids ) ) {
+			$region_ids = gnf_normalize_region_ids( $request->get_param( 'regionId' ) );
+		}
+
+		if ( empty( $region_ids ) ) {
+			return new WP_Error( 'missing_region', 'Debes asignar al menos una región.', array( 'status' => 400 ) );
+		}
+
+		gnf_set_user_regions( $user_id, $region_ids );
 	}
 
 	gnf_log_audit_event(

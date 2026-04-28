@@ -47,7 +47,7 @@ export function CentroDetailPage({ centroId, onBack }: CentroDetailPageProps) {
 
       <h3 style={{ marginBottom: 'var(--gnf-space-4)' }}>Revision de retos ({entries.length})</h3>
       {entries.map((entry) => (
-        <EntryReviewCard key={entry.id} entry={entry} year={year} />
+        <EntryReviewCard key={entry.id || entry.retoId} entry={entry} />
       ))}
     </div>
   );

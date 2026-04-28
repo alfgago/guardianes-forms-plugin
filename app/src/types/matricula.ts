@@ -1,3 +1,23 @@
+export interface MatriculaFieldCondition {
+  field: string;
+  operator: string;
+  value: string;
+}
+
+export interface MatriculaFieldDefinition {
+  key: string;
+  name: string;
+  label: string;
+  type: string;
+  instructions: string;
+  required: boolean;
+  choices: Record<string, string>;
+  multiple: boolean;
+  taxonomy?: string;
+  returnFormat?: string;
+  conditionalLogic: MatriculaFieldCondition[][];
+}
+
 export interface Matricula {
   id: number;
   centroId: number;
@@ -24,6 +44,7 @@ export interface MatriculaPrefill {
   metaEstrellas: number;
   comiteEstudiantes?: number;
   prefill: MatriculaFormValues;
+  fieldDefs: Record<string, MatriculaFieldDefinition>;
   choiceSets: {
     nivel_educativo: Record<string, string>;
     dependencia: Record<string, string>;
@@ -82,6 +103,7 @@ export interface MatriculaFormValues {
   representanteTelefono: string;
   representanteEmail: string;
   representanteEmailConfirm: string;
+  docenteConfirmaciones: string[];
   comiteEstudiantes: number;
   inscripcionAnterior: string;
   metaEstrellas: string;

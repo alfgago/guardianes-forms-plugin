@@ -330,6 +330,7 @@ function gnf_render_admin_tools() {
 		<?php gnf_render_centros_import_tools_card(); ?>
 		<?php gnf_render_circuito_normalization_card(); ?>
 		<?php gnf_render_supervisor_seeder_card(); ?>
+		<?php gnf_render_recalculate_scores_card(); ?>
 		<div style="margin-top:24px;">
 			<?php if ( function_exists( 'gnf_render_reset_tools_card' ) ) { gnf_render_reset_tools_card(); } ?>
 		</div>
@@ -631,6 +632,17 @@ function gnf_get_supervisor_seed_data() {
 			array( 'Oscar Rojas Arias', 'oscar.rojas.arias@mep.go.cr', '08' ),
 			array( 'Eulin Chacon Gamboa', 'eulin.chacon.gamboa@mep.go.cr', '09' ),
 		),
+		'SAN JOSE NORTE' => array(
+			array( 'Francis Tacsan Ruiz', 'francis.tacsan.ruiz@mep.go.cr', 'DRE' ),
+			array( 'Cristina Velazquez González', 'cristina.velazquez.gonzalez@mep.go.cr', 'DRE' ),
+			array( 'Sugey Sanabria Romero', 'sugey.sanabria.romero@mep.go.cr', 'DRE' ),
+			array( 'Ronald Torres Ortiz', 'supervision01.sanjosenorte@mep.go.cr', '01' ),
+			array( 'Kenneth Jiménez González', 'supervision02.sanjosenorte@mep.go.cr', '02' ),
+			array( 'Jennifer Aymerich Bolaños', 'supervision03.sanjosenorte@mep.go.cr', '03' ),
+			array( 'Fanny Cano Salazar', 'supervision04.sanjosenorte@mep.go.cr', '04' ),
+			array( 'Wilfredo Castro Campos', 'supervision05.sanjosenorte@mep.go.cr', '05' ),
+			array( 'Ileana Arce Campos', 'supervision06.sanjosenorte@mep.go.cr', '06' ),
+		),
 		'COTO' => array(
 			array( 'Aurelio Noguera Valverde', 'aurelio.noguera.valverde@mep.go.cr', 'DRE' ),
 			array( 'Rosalba Jiménez Cisneros', 'supervision01.coto@mep.go.cr', '01' ),
@@ -700,6 +712,22 @@ function gnf_get_supervisor_seed_data() {
 }
 
 /**
+ * Returns committee seed data with access to all regions.
+ *
+ * Each entry: [ 'nombre', 'correo' ]
+ *
+ * @return array<int, array{0:string,1:string}>
+ */
+function gnf_get_global_comite_seed_data() {
+	return array(
+		array( 'Pablo Zárate (MEP)', 'pablo.zarate.montero@mep.go.cr' ),
+		array( 'Alejandro Calvo (MEP)', 'alejandro.calvo.rodriguez@mep.go.cr' ),
+		array( 'Georgina Quesada', 'gqm206@gmail.com' ),
+		array( 'Jessica Sheffield', 'jessicasheffieldzamora@gmail.com' ),
+	);
+}
+
+/**
  * Handler: seed supervisores y comité BAE.
  */
 function gnf_handle_seed_supervisors() {
@@ -741,14 +769,9 @@ function gnf_handle_seed_supervisors() {
 
 			$existing = get_user_by( 'email', $email );
 			if ( $existing ) {
-				// Update existing user.
+				// Existing users sync role and access metadata, but keep profile fields intact.
 				$user_id = $existing->ID;
 				$existing->set_role( $role );
-				wp_update_user( array(
-					'ID'           => $user_id,
-					'display_name' => $nombre,
-					'first_name'   => explode( ' ', $nombre )[0],
-				) );
 			} else {
 				// Create new user.
 				$username = sanitize_user( explode( '@', $email )[0], true );
@@ -775,7 +798,11 @@ function gnf_handle_seed_supervisors() {
 			}
 
 			// Set region and circuito meta.
-			update_user_meta( $user_id, 'region', $region_id );
+			if ( function_exists( 'gnf_set_user_regions' ) ) {
+				gnf_set_user_regions( $user_id, array( $region_id ) );
+			} else {
+				update_user_meta( $user_id, 'region', $region_id );
+			}
 			if ( $is_dre ) {
 				delete_user_meta( $user_id, 'circuito' );
 			} else {
@@ -785,6 +812,68 @@ function gnf_handle_seed_supervisors() {
 			if ( $existing ) {
 				$updated++;
 			}
+		}
+	}
+
+	$global_comite_users = gnf_get_global_comite_seed_data();
+	$all_region_ids      = get_terms(
+		array(
+			'taxonomy'   => 'gn_region',
+			'hide_empty' => false,
+			'fields'     => 'ids',
+		)
+	);
+
+	if ( is_wp_error( $all_region_ids ) || empty( $all_region_ids ) ) {
+		$errors[] = 'No se pudieron obtener las regiones para sembrar el comité global.';
+	} else {
+		$all_region_ids = array_values( array_unique( array_filter( array_map( 'absint', $all_region_ids ) ) ) );
+
+		foreach ( $global_comite_users as $entry ) {
+			$nombre = trim( $entry[0] );
+			$email  = strtolower( trim( $entry[1] ) );
+			$role   = 'comite_bae';
+
+			$existing = get_user_by( 'email', $email );
+			if ( $existing ) {
+				// Existing users sync role and region scope, but keep profile fields intact.
+				$user_id = $existing->ID;
+				$existing->set_role( $role );
+				$updated++;
+			} else {
+				$login_base = sanitize_user( explode( '@', $email )[0], true );
+				$username   = $login_base;
+				$suffix     = 1;
+				while ( username_exists( $username ) ) {
+					$username = $login_base . $suffix;
+					$suffix++;
+				}
+
+				$user_id = wp_insert_user(
+					array(
+						'user_login'   => $username,
+						'user_email'   => $email,
+						'user_pass'    => 'Guardianes2026!',
+						'display_name' => $nombre,
+						'first_name'   => explode( ' ', $nombre )[0],
+						'role'         => $role,
+					)
+				);
+				if ( is_wp_error( $user_id ) ) {
+					$errors[] = sprintf( '%s: %s', $email, $user_id->get_error_message() );
+					continue;
+				}
+				$created++;
+			}
+
+			if ( function_exists( 'gnf_set_user_regions' ) ) {
+				gnf_set_user_regions( $user_id, $all_region_ids );
+			} else {
+				update_user_meta( $user_id, 'region', (int) $all_region_ids[0] );
+				update_user_meta( $user_id, 'gnf_region_ids', $all_region_ids );
+			}
+
+			delete_user_meta( $user_id, 'circuito' );
 		}
 	}
 
@@ -802,6 +891,141 @@ function gnf_handle_seed_supervisors() {
 	exit;
 }
 add_action( 'admin_post_gnf_seed_supervisors', 'gnf_handle_seed_supervisors' );
+
+/* ─── Recalcular puntajes ─────────────────────────────────────── */
+
+/**
+ * Renderiza tarjeta de recálculo de puntajes.
+ */
+function gnf_render_recalculate_scores_card() {
+	?>
+	<div style="max-width: 960px; margin-top: 24px; background: #fff; border-radius: 12px; padding: 24px; box-shadow: 0 2px 12px rgba(0,0,0,0.06);">
+		<h2 style="margin-top:0;">Recalcular puntajes</h2>
+		<p>Recalcula los puntajes de todas las entradas de retos y los totales de cada centro. Enriquece las evidencias existentes con los nuevos campos (puntos, estado). Útil después de cambios en la lógica de scoring o migración de datos.</p>
+		<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+			<?php wp_nonce_field( 'gnf_recalculate_scores', 'gnf_nonce' ); ?>
+			<input type="hidden" name="action" value="gnf_recalculate_scores" />
+			<?php submit_button( 'Recalcular todos los puntajes', 'secondary', 'submit', false ); ?>
+		</form>
+	</div>
+	<?php
+}
+
+/**
+ * Handler: recalcula puntajes de todos los entries y centros.
+ */
+function gnf_handle_recalculate_scores() {
+	if ( ! current_user_can( gnf_menu_capability() ) ) {
+		wp_die( 'No autorizado' );
+	}
+	check_admin_referer( 'gnf_recalculate_scores', 'gnf_nonce' );
+
+	global $wpdb;
+	$table   = $wpdb->prefix . 'gn_reto_entries';
+	$entries = $wpdb->get_results( "SELECT * FROM {$table}" );
+
+	$updated_entries = 0;
+	$enriched       = 0;
+	$centros_updated = array();
+
+	foreach ( $entries as $entry ) {
+		$changed = false;
+
+		// Enrich evidencias with puntos/estado if missing.
+		$evidencias = $entry->evidencias ? json_decode( $entry->evidencias, true ) : array();
+		if ( ! empty( $evidencias ) ) {
+			$field_points = gnf_get_reto_field_points( $entry->reto_id, $entry->anio );
+			foreach ( $evidencias as &$ev ) {
+				$fid = (int) ( $ev['field_id'] ?? 0 );
+				if ( ! array_key_exists( 'puntos', $ev ) || null === $ev['puntos'] ) {
+					$ev['puntos'] = isset( $field_points[ $fid ] ) ? absint( $field_points[ $fid ]['puntos'] ) : null;
+					$changed = true;
+				}
+				if ( ! array_key_exists( 'estado', $ev ) ) {
+					if ( ! empty( $ev['requires_year_validation'] ) ) {
+						$ev['estado']             = 'rechazada';
+						$ev['supervisor_comment']  = $ev['warning'] ?? 'Rechazada: fecha EXIF no coincide con el año activo.';
+						$ev['reviewed_by']         = 0;
+						$ev['reviewed_at']         = current_time( 'mysql' );
+					} elseif ( $ev['puntos'] !== null ) {
+						$ev['estado'] = 'pendiente';
+					} else {
+						$ev['estado'] = null;
+					}
+					$changed = true;
+				}
+				if ( ! array_key_exists( 'supervisor_comment', $ev ) ) {
+					$ev['supervisor_comment'] = null;
+					$changed = true;
+				}
+				if ( ! array_key_exists( 'reviewed_by', $ev ) ) {
+					$ev['reviewed_by'] = null;
+					$changed = true;
+				}
+				if ( ! array_key_exists( 'reviewed_at', $ev ) ) {
+					$ev['reviewed_at'] = null;
+					$changed = true;
+				}
+			}
+			unset( $ev );
+
+			if ( $changed ) {
+				$wpdb->update(
+					$table,
+					array( 'evidencias' => wp_json_encode( $evidencias, JSON_UNESCAPED_UNICODE ) ),
+					array( 'id' => $entry->id ),
+					array( '%s' ),
+					array( '%d' )
+				);
+				$enriched++;
+				// Reload entry for scoring.
+				$entry = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$table} WHERE id = %d", $entry->id ) );
+			}
+		}
+
+		// Recalculate puntaje.
+		$old_puntaje = (int) $entry->puntaje;
+		$new_puntaje = gnf_recalcular_puntaje_reto( $entry );
+		if ( $new_puntaje !== $old_puntaje ) {
+			$wpdb->update(
+				$table,
+				array( 'puntaje' => $new_puntaje ),
+				array( 'id' => $entry->id ),
+				array( '%d' ),
+				array( '%d' )
+			);
+			$updated_entries++;
+		}
+
+		$key = $entry->centro_id . '_' . $entry->anio;
+		$centros_updated[ $key ] = array( (int) $entry->centro_id, (int) $entry->anio );
+	}
+
+	// Recalculate centro totals.
+	foreach ( $centros_updated as $pair ) {
+		gnf_recalcular_puntaje_centro( $pair[0], $pair[1] );
+	}
+
+	gnf_clear_supervisor_cache();
+	if ( function_exists( 'gnf_clear_admin_stats_cache' ) ) {
+		gnf_clear_admin_stats_cache( (int) gnf_get_active_year() );
+	}
+
+	set_transient( 'gnf_tools_notice', array(
+		'type'    => 'success',
+		'message' => sprintf(
+			'Puntajes recalculados. Entries: %d total, %d puntajes actualizados, %d evidencias enriquecidas. Centros recalculados: %d.',
+			count( $entries ),
+			$updated_entries,
+			$enriched,
+			count( $centros_updated )
+		),
+	), 60 );
+
+	wp_safe_redirect( admin_url( 'admin.php?page=gnf-tools' ) );
+	exit;
+}
+add_action( 'admin_post_gnf_recalculate_scores', 'gnf_handle_recalculate_scores' );
 
 /**
  * Muestra en Ajustes > General el aviso y botón para corregir roles subscriber/docente.

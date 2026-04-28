@@ -5,6 +5,7 @@ import { get } from '@/api/client';
 import { Card } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
+import { Checkbox } from '@/components/ui/Checkbox';
 import { Spinner } from '@/components/ui/Spinner';
 import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
@@ -14,6 +15,14 @@ import { RegionFilter } from '@/components/domain/RegionFilter';
 import { useToast } from '@/components/ui/Toast';
 import { PendingUsersSection } from '../components/PendingUsersSection';
 import type { CentroSearchResult, PendingUser, Region } from '@/types';
+
+function getUserRegionLabel(user: PendingUser) {
+  if (user.regionNames?.length) {
+    return user.regionNames.join(', ');
+  }
+
+  return user.regionName ?? '';
+}
 
 export function UsuariosPage() {
   const queryClient = useQueryClient();
@@ -31,6 +40,7 @@ export function UsuariosPage() {
     cargo: '',
     identificacion: '',
     regionId: '',
+    regionIds: [] as string[],
   });
   const [selectedCentro, setSelectedCentro] = useState<CentroSearchResult | null>(null);
 
@@ -47,6 +57,12 @@ export function UsuariosPage() {
   useEffect(() => {
     if (!editingUser) return;
 
+    const regionIds = editingUser.regionIds?.length
+      ? editingUser.regionIds.map(String)
+      : editingUser.regionId
+        ? [String(editingUser.regionId)]
+        : [];
+
     setFormState({
       name: editingUser.name ?? '',
       email: editingUser.email ?? '',
@@ -55,6 +71,7 @@ export function UsuariosPage() {
       cargo: editingUser.cargo ?? '',
       identificacion: editingUser.identificacion ?? '',
       regionId: editingUser.regionId ? String(editingUser.regionId) : '',
+      regionIds,
     });
 
     setSelectedCentro(
@@ -64,7 +81,7 @@ export function UsuariosPage() {
             nombre: editingUser.centroName ?? '',
             codigoMep: '',
             regionId: editingUser.regionId,
-            regionName: editingUser.regionName,
+            regionName: editingUser.regionNames?.[0] ?? editingUser.regionName,
           }
         : null,
     );
@@ -76,10 +93,16 @@ export function UsuariosPage() {
         throw new Error('No hay usuario seleccionado.');
       }
 
+      const regionIds = formState.regionIds.map(Number).filter(Boolean);
+      if (editingUser.role === 'comite_bae' && regionIds.length === 0) {
+        throw new Error('Debes asignar al menos una región al comité.');
+      }
+
       return adminApi.updateUser(editingUser.id, {
         ...formState,
         status: formState.status as 'activo' | 'pendiente',
-        regionId: formState.regionId ? Number(formState.regionId) : undefined,
+        regionId: formState.regionId ? Number(formState.regionId) : (regionIds[0] ?? undefined),
+        regionIds: editingUser.role === 'comite_bae' ? regionIds : undefined,
         centroId: editingUser.role === 'docente' ? selectedCentro?.id : undefined,
       });
     },
@@ -93,11 +116,14 @@ export function UsuariosPage() {
 
   const filteredUsers = useMemo(() => {
     return (users ?? []).filter((user) => {
-      const haystack = [user.name, user.email, user.centroName, user.regionName].join(' ').toLowerCase();
+      const regionLabel = getUserRegionLabel(user);
+      const haystack = [user.name, user.email, user.centroName, regionLabel].join(' ').toLowerCase();
       const matchesSearch = !search.trim() || haystack.includes(search.trim().toLowerCase());
       const matchesRole = role === 'all' || user.role === role;
       const matchesStatus = status === 'all' || (user.status ?? 'activo') === status;
-      const matchesRegion = !region || String(user.regionId ?? '') === region;
+      const matchesRegion = !region
+        || user.regionIds?.includes(Number(region))
+        || String(user.regionId ?? '') === region;
 
       return matchesSearch && matchesRole && matchesStatus && matchesRegion;
     });
@@ -123,7 +149,7 @@ export function UsuariosPage() {
 
     const regionCounter = new Map<string, number>();
     distinctCenters.forEach((user) => {
-      const regionName = user.regionName || 'Sin región';
+      const regionName = getUserRegionLabel(user) || 'Sin región';
       regionCounter.set(regionName, (regionCounter.get(regionName) ?? 0) + 1);
     });
 
@@ -138,6 +164,15 @@ export function UsuariosPage() {
       byRegion,
     };
   }, [filteredUsers]);
+
+  const toggleComiteRegion = (regionId: string, checked: boolean) => {
+    setFormState((current) => ({
+      ...current,
+      regionIds: checked
+        ? Array.from(new Set([...current.regionIds, regionId]))
+        : current.regionIds.filter((item) => item !== regionId),
+    }));
+  };
 
   return (
     <div>
@@ -336,7 +371,7 @@ export function UsuariosPage() {
               </>
             )}
 
-            {(editingUser.role === 'supervisor' || editingUser.role === 'comite_bae') && (
+            {editingUser.role === 'supervisor' && (
               <Select
                 label="Region"
                 value={formState.regionId}
@@ -344,6 +379,38 @@ export function UsuariosPage() {
                 options={(regions ?? []).map((item) => ({ value: String(item.id), label: item.name }))}
                 placeholder="Seleccionar region..."
               />
+            )}
+
+            {editingUser.role === 'comite_bae' && (
+              <div style={{ marginBottom: 'var(--gnf-space-4)' }}>
+                <div style={{ marginBottom: 'var(--gnf-space-2)', fontWeight: 500, fontSize: '0.875rem', color: 'var(--gnf-gray-700)' }}>
+                  Regiones asignadas
+                </div>
+                <div
+                  style={{
+                    display: 'grid',
+                    gap: 'var(--gnf-space-3)',
+                    maxHeight: 240,
+                    overflowY: 'auto',
+                    padding: 'var(--gnf-space-4)',
+                    borderRadius: 'var(--gnf-radius)',
+                    border: '1.5px solid var(--gnf-field-border)',
+                    background: 'rgba(248, 250, 252, 0.7)',
+                  }}
+                >
+                  {(regions ?? []).map((item) => (
+                    <Checkbox
+                      key={item.id}
+                      label={item.name}
+                      checked={formState.regionIds.includes(String(item.id))}
+                      onChange={(event) => toggleComiteRegion(String(item.id), event.target.checked)}
+                    />
+                  ))}
+                </div>
+                <p style={{ margin: 'var(--gnf-space-2) 0 0', fontSize: '0.8125rem', color: 'var(--gnf-muted)' }}>
+                  El comité puede revisar varias DRE. Marca una o más regiones.
+                </p>
+              </div>
             )}
 
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 'var(--gnf-space-3)' }}>

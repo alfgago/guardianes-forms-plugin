@@ -1131,17 +1131,30 @@ export function WpFormsEmbed({ retoId, year }: WpFormsEmbedProps) {
 
   const completedFieldIds = useMemo(() => {
     const ids = new Set<string>();
+    const activeEvidenceByField = new Set<string>();
 
-    data?.fieldPoints.forEach((fieldPoint) => {
-      if (hasCompletedValue(fieldValues[String(fieldPoint.fieldId)], fieldPoint.tipo)) {
-        ids.add(String(fieldPoint.fieldId));
+    evidenceList.forEach((item) => {
+      if (item.replaced || item.estado === 'rechazada') {
+        return;
+      }
+
+      const fieldId = String(item.field_id ?? '');
+      if (fieldId) {
+        activeEvidenceByField.add(fieldId);
       }
     });
 
-    evidenceList.forEach((item) => {
-      const fieldId = String(item.field_id ?? '');
-      if (fieldId) {
-        ids.add(fieldId);
+    data?.fieldPoints.forEach((fieldPoint) => {
+      const fieldId = String(fieldPoint.fieldId);
+      if (fieldPoint.tipo === 'file-upload' || fieldPoint.tipo === 'file') {
+        if (activeEvidenceByField.has(fieldId)) {
+          ids.add(fieldId);
+        }
+        return;
+      }
+
+      if (hasCompletedValue(fieldValues[fieldId], fieldPoint.tipo)) {
+        ids.add(String(fieldPoint.fieldId));
       }
     });
 

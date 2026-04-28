@@ -222,7 +222,7 @@ function gnf_build_centros_payload() {
 		 LEFT JOIN {$wpdb->postmeta} pm_e
 		        ON p.ID = pm_e.post_id AND pm_e.meta_key = 'correo_institucional'
 		 WHERE p.post_type = 'centro_educativo'
-		   AND p.post_status IN ('publish','pending')
+		   AND p.post_status = 'publish'
 		 GROUP BY p.ID, p.post_title
 		 ORDER BY p.post_title ASC"
 	);
@@ -280,6 +280,13 @@ function gnf_render_react_panel( $panel, $data = array() ) {
 		}
 		if ( function_exists( 'gnf_get_user_region' ) && ( gnf_user_has_role( $user, 'supervisor' ) || gnf_user_has_role( $user, 'comite_bae' ) ) ) {
 			$user_data['regionId'] = gnf_get_user_region( $user->ID );
+			$user_data['estado']   = function_exists( 'gnf_get_supervisor_estado' ) ? gnf_get_supervisor_estado( $user->ID ) : 'activo';
+			if ( function_exists( 'gnf_get_user_regions' ) ) {
+				$user_data['regionIds'] = array_values( array_map( 'intval', gnf_get_user_regions( $user->ID ) ) );
+			}
+			if ( function_exists( 'gnf_get_user_region_names' ) ) {
+				$user_data['regionNames'] = array_values( array_map( 'strval', gnf_get_user_region_names( $user->ID ) ) );
+			}
 		}
 	}
 

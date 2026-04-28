@@ -61,7 +61,9 @@ export function PendingUsersSection({ users, onEdit }: PendingUsersSectionProps)
             <div style={{ fontSize: '0.8125rem', color: 'var(--gnf-muted)', marginTop: 2 }}>
               {user.email} | Registrado: {formatDate(user.registeredAt)}
               {user.centroName && <> | Centro: {user.centroName}</>}
-              {user.regionName && <> | Region: {user.regionName}</>}
+              {(user.regionNames?.length || user.regionName) && (
+                <> | Región: {(user.regionNames?.length ? user.regionNames.join(', ') : user.regionName)}</>
+              )}
             </div>
           </div>
 

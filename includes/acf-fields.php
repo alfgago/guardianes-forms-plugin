@@ -622,6 +622,16 @@ add_action('acf/init', 'gnf_register_acf_fields');
  */
 function gnf_register_matricula_acf_group()
 {
+	if ( function_exists( 'acf_get_field_groups' ) ) {
+		foreach ( (array) acf_get_field_groups() as $group ) {
+			$group_key   = (string) ( $group['key'] ?? '' );
+			$group_title = (string) ( $group['title'] ?? '' );
+			if ( 'group_gnf_matricula_frontend' === $group_key || 'Guardianes - Matricula Frontend' === $group_title ) {
+				return;
+			}
+		}
+	}
+
 	$json_path = GNF_PATH . 'seeders/acf-matricula-form-group.json';
 	if (! file_exists($json_path)) {
 		return;
@@ -717,4 +727,3 @@ function gnf_ajax_fetch_form_fields() {
 	wp_send_json_success( $fields );
 }
 add_action( 'wp_ajax_gnf_fetch_form_fields', 'gnf_ajax_fetch_form_fields' );
-

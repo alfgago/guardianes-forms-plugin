@@ -58,9 +58,9 @@ function gnf_calcular_puntaje_por_campos( $entry_row ) {
 		$puntaje_max += $puntos;
 
 		if ( in_array( $tipo, array( 'file-upload', 'file' ), true ) ) {
-			$has_file = ! empty( $files_by_field[ $field_id ] )
-				|| ( isset( $fields_summary[ $field_id ] ) && $fields_summary[ $field_id ] );
-			if ( $has_file ) {
+			// File fields only score from active persisted evidence so removing a file
+			// also removes its points immediately.
+			if ( ! empty( $files_by_field[ $field_id ] ) ) {
 				$puntaje += $puntos;
 			}
 		} else {

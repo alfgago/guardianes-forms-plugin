@@ -148,7 +148,7 @@ function gnf_collect_evidencias( $fields, $anio, $centro_id, $reto_id ) {
 				'reviewed_at'        => null,
 			);
 
-			// EXIF date validation (images only) — auto-reject if year mismatch.
+			// EXIF date — always store if available. Auto-reject on year mismatch.
 			if ( 'imagen' === $tipo ) {
 				if ( ! function_exists( 'wp_read_image_metadata' ) ) {
 					require_once ABSPATH . 'wp-admin/includes/image.php';
@@ -156,12 +156,14 @@ function gnf_collect_evidencias( $fields, $anio, $centro_id, $reto_id ) {
 				$metadata      = wp_read_image_metadata( $dest );
 				$has_exif_date = ! empty( $metadata['created_timestamp'] );
 				if ( $has_exif_date ) {
+					$photo_date = gmdate( 'Y-m-d', $metadata['created_timestamp'] );
 					$photo_year = (int) gmdate( 'Y', $metadata['created_timestamp'] );
+					$evidence['photo_date'] = $photo_date;
 					if ( $photo_year !== (int) $anio ) {
 						$evidence['estado']             = 'rechazada';
 						$evidence['supervisor_comment']  = sprintf(
-							'Rechazada automáticamente: la fecha EXIF de la foto (%d) no corresponde al año activo (%d).',
-							$photo_year,
+							'Rechazada automáticamente: la fecha EXIF de la foto (%s) no corresponde al año activo (%d).',
+							$photo_date,
 							$anio
 						);
 						$evidence['reviewed_by']         = 0; // System.

@@ -61,6 +61,7 @@ interface UpdateUserPayload {
   identificacion?: string;
   centroId?: number;
   regionId?: number;
+  regionIds?: number[];
 }
 
 interface GetCentrosParams {

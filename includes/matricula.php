@@ -8,6 +8,116 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
+ * Obtiene la definición activa del formulario de matrícula para React.
+ *
+ * Prioriza la versión viva del grupo ACF si existe en base de datos y hace
+ * fallback al JSON versionado.
+ *
+ * @return array<string, array<string,mixed>>
+ */
+function gnf_get_matricula_field_definitions() {
+	static $definitions = null;
+
+	if ( null !== $definitions ) {
+		return $definitions;
+	}
+
+	$fields = array();
+
+	if ( function_exists( 'acf_get_field_groups' ) && function_exists( 'acf_get_fields' ) ) {
+		foreach ( (array) acf_get_field_groups() as $group ) {
+			$group_key   = (string) ( $group['key'] ?? '' );
+			$group_title = (string) ( $group['title'] ?? '' );
+			if ( 'group_gnf_matricula_frontend' !== $group_key && 'Guardianes - Matricula Frontend' !== $group_title ) {
+				continue;
+			}
+
+			$group_fields = acf_get_fields( $group );
+			if ( is_array( $group_fields ) && ! empty( $group_fields ) ) {
+				$fields = $group_fields;
+				break;
+			}
+		}
+	}
+
+	if ( empty( $fields ) ) {
+		$json_path = GNF_PATH . 'seeders/acf-matricula-form-group.json';
+		if ( file_exists( $json_path ) ) {
+			$content = file_get_contents( $json_path );
+			$groups  = is_string( $content ) && '' !== $content ? json_decode( $content, true ) : array();
+			if ( ! empty( $groups[0]['fields'] ) && is_array( $groups[0]['fields'] ) ) {
+				$fields = $groups[0]['fields'];
+			}
+		}
+	}
+
+	$definitions = array();
+	foreach ( (array) $fields as $field ) {
+		if ( ! is_array( $field ) ) {
+			continue;
+		}
+
+		$type = (string) ( $field['type'] ?? '' );
+		$key  = (string) ( $field['name'] ?? '' );
+		if ( '' === $key ) {
+			$key = (string) ( $field['key'] ?? '' );
+		}
+		if ( '' === $key ) {
+			continue;
+		}
+
+		$choices = array();
+		if ( ! empty( $field['choices'] ) && is_array( $field['choices'] ) ) {
+			foreach ( $field['choices'] as $choice_value => $choice_label ) {
+				$choices[ (string) $choice_value ] = (string) $choice_label;
+			}
+		}
+
+		$conditional_logic = array();
+		if ( ! empty( $field['conditional_logic'] ) && is_array( $field['conditional_logic'] ) ) {
+			foreach ( $field['conditional_logic'] as $group ) {
+				if ( ! is_array( $group ) ) {
+					continue;
+				}
+
+				$normalized_group = array();
+				foreach ( $group as $rule ) {
+					if ( ! is_array( $rule ) ) {
+						continue;
+					}
+
+					$normalized_group[] = array(
+						'field'    => (string) ( $rule['field'] ?? '' ),
+						'operator' => (string) ( $rule['operator'] ?? '==' ),
+						'value'    => (string) ( $rule['value'] ?? '' ),
+					);
+				}
+
+				if ( ! empty( $normalized_group ) ) {
+					$conditional_logic[] = $normalized_group;
+				}
+			}
+		}
+
+		$definitions[ $key ] = array(
+			'key'              => (string) ( $field['key'] ?? '' ),
+			'name'             => (string) ( $field['name'] ?? '' ),
+			'label'            => (string) ( $field['label'] ?? '' ),
+			'type'             => $type,
+			'instructions'     => (string) ( $field['instructions'] ?? '' ),
+			'required'         => ! empty( $field['required'] ),
+			'choices'          => $choices,
+			'multiple'         => ! empty( $field['multiple'] ),
+			'taxonomy'         => (string) ( $field['taxonomy'] ?? '' ),
+			'returnFormat'     => (string) ( $field['return_format'] ?? '' ),
+			'conditionalLogic' => $conditional_logic,
+		);
+	}
+
+	return $definitions;
+}
+
+/**
  * Obtiene datos prellenados para el formulario de matricula.
  *
  * @param int $user_id  ID del usuario docente.
@@ -143,7 +253,7 @@ function gnf_get_matricula_prefill_data( $user_id, $centro_id, $anio ) {
 		'docente_telefono'              => (string) $docente_telefono,
 		'docente_email'                 => $user ? (string) $user->user_email : '',
 		'docente_email_confirm'         => $user ? (string) $user->user_email : '',
-		'docente_confirmaciones'        => array(),
+		'docente_confirmaciones'        => array_values( array_map( 'strval', (array) $get_data( 'docente-confirmaciones', array() ) ) ),
 		'bae_comite_estudiantes'        => $comite_est,
 		'bae_inscripcion_anterior'      => (string) $get_data( 'bae-inscripcion-anterior', 'No' ),
 		'bae_meta_estrellas'            => $meta_estrellas ? $meta_estrellas . ' estrella' . ( $meta_estrellas > 1 ? 's' : '' ) : '1 estrella',
@@ -182,6 +292,7 @@ function gnf_get_matricula_prefill_data( $user_id, $centro_id, $anio ) {
 		'docente_telefono'                 => array( 'docente-telefono' ),
 		'docente_email'                    => array( 'docente-email' ),
 		'docente_email_confirm'            => array( 'docente-email-confirm' ),
+		'docente_confirmaciones'           => array( 'docente-confirmaciones' ),
 		'bae_comite_estudiantes'           => array( 'bae-comite-estudiantes' ),
 	);
 	foreach ( $map as $target => $sources ) {

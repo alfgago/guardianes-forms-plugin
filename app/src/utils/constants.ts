@@ -7,6 +7,7 @@ export const ESTADO_LABELS: Record<Estado, string> = {
   enviado: 'Enviado',
   aprobado: 'Aprobado',
   correccion: 'Correccion',
+  sin_evidencias: 'Sin evidencias',
 };
 
 export const ESTADO_COLORS: Record<Estado, string> = {
@@ -16,6 +17,7 @@ export const ESTADO_COLORS: Record<Estado, string> = {
   enviado: 'var(--gnf-sun)',
   aprobado: 'var(--gnf-leaf)',
   correccion: 'var(--gnf-coral)',
+  sin_evidencias: 'var(--gnf-gray-400)',
 };
 
 export const ESTADO_BG_COLORS: Record<Estado, string> = {
@@ -25,6 +27,7 @@ export const ESTADO_BG_COLORS: Record<Estado, string> = {
   enviado: 'rgba(245, 158, 11, 0.14)',
   aprobado: 'rgba(34, 197, 94, 0.12)',
   correccion: 'rgba(239, 68, 68, 0.12)',
+  sin_evidencias: 'var(--gnf-gray-100)',
 };
 
 export const ROLE_LABELS: Record<UserRole, string> = {

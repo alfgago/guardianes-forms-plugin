@@ -7,6 +7,7 @@ const TRANSITIONS: Record<Estado, Estado[]> = {
   enviado: ['aprobado', 'correccion'],
   aprobado: [],
   correccion: ['en_progreso'],
+  sin_evidencias: [],
 };
 
 export function canTransitionTo(from: Estado, to: Estado): boolean {

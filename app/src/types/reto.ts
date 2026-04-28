@@ -1,4 +1,4 @@
-export type Estado = 'no_iniciado' | 'en_progreso' | 'completo' | 'enviado' | 'aprobado' | 'correccion';
+export type Estado = 'no_iniciado' | 'en_progreso' | 'completo' | 'enviado' | 'aprobado' | 'correccion' | 'sin_evidencias';
 
 export interface Reto {
   id: number;
@@ -42,10 +42,18 @@ export interface Evidencia {
   type?: 'imagen' | 'video' | 'pdf' | 'documento';
   tipo?: 'imagen' | 'video' | 'pdf' | 'documento' | 'archivo';
   size?: number;
-  exifYear?: number;
   field_id?: number;
+  puntos?: number | null;
+  estado?: 'pendiente' | 'aprobada' | 'rechazada' | null;
+  supervisor_comment?: string | null;
+  reviewed_by?: number | null;
+  reviewed_at?: string | null;
+  replaced?: boolean;
+  photo_date?: string | null;
+  // Legacy fields (may exist in old data)
   requires_year_validation?: boolean;
   warning?: string;
+  exifYear?: number;
 }
 
 export interface RetoEntryResponse {

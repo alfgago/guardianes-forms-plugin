@@ -413,7 +413,7 @@ function gnf_is_valid_cr_province_canton($province, $canton)
  */
 function gnf_get_centro_profile_choice_sets()
 {
-	return array(
+	$choices = array(
 		'nivel_educativo' => array(
 			'preescolar' => 'Preescolar',
 			'primaria'   => 'Primaria',
@@ -461,6 +461,29 @@ function gnf_get_centro_profile_choice_sets()
 			'5' => '5 estrellas',
 		),
 	);
+
+	$field_map = array(
+		'nivel_educativo'         => 'centro_nivel_educativo',
+		'dependencia'             => 'centro_dependencia',
+		'jornada'                 => 'centro_jornada',
+		'tipologia'               => 'centro_tipologia',
+		'tipo_centro_educativo'   => 'centro_tipo_centro_educativo',
+		'coordinador_cargo'       => 'coordinador_cargo',
+		'ultimo_anio_participacion' => 'centro_ultimo_anio_participacion',
+		'ultimo_galardon_estrellas' => 'centro_ultimo_galardon_estrellas',
+	);
+
+	if ( function_exists( 'gnf_get_matricula_field_definitions' ) ) {
+		$field_defs = gnf_get_matricula_field_definitions();
+		foreach ( $field_map as $choice_key => $field_name ) {
+			$field_choices = $field_defs[ $field_name ]['choices'] ?? array();
+			if ( ! empty( $field_choices ) && is_array( $field_choices ) ) {
+				$choices[ $choice_key ] = array_map( 'strval', $field_choices );
+			}
+		}
+	}
+
+	return $choices;
 }
 
 /**
@@ -885,31 +908,155 @@ function gnf_user_has_role($user, $role)
 }
 
 /**
- * Obtiene la regiÃ³n del usuario (user_meta o ACF).
+ * Normaliza uno o varios IDs de regiÃ³n desde user_meta/ACF.
+ *
+ * @param mixed $raw Valor crudo.
+ * @return int[]
  */
-function gnf_get_user_region($user_id)
-{
-	$keys = array( 'region', 'gnf_region_id', 'gnf_region' );
-	foreach ( $keys as $key ) {
-		$region = get_user_meta( $user_id, $key, true );
-		if ( '' !== $region && null !== $region ) {
-			return absint( $region );
+function gnf_normalize_region_ids( $raw ) {
+	$regions = array();
+
+	if ( is_array( $raw ) ) {
+		foreach ( $raw as $item ) {
+			$regions = array_merge( $regions, gnf_normalize_region_ids( $item ) );
 		}
+	} elseif ( is_object( $raw ) ) {
+		$term_id = absint( $raw->term_id ?? $raw->ID ?? $raw->id ?? 0 );
+		if ( $term_id ) {
+			$regions[] = $term_id;
+		}
+	} elseif ( is_string( $raw ) ) {
+		$parts = preg_split( '/[\s,|;]+/', $raw );
+		foreach ( (array) $parts as $part ) {
+			$term_id = absint( $part );
+			if ( $term_id ) {
+				$regions[] = $term_id;
+			}
+		}
+	} else {
+		$term_id = absint( $raw );
+		if ( $term_id ) {
+			$regions[] = $term_id;
+		}
+	}
+
+	return array_values( array_unique( array_filter( array_map( 'absint', $regions ) ) ) );
+}
+
+/**
+ * Obtiene todas las regiones asignadas a un usuario.
+ *
+ * @param int $user_id ID del usuario.
+ * @return int[]
+ */
+function gnf_get_user_regions( $user_id ) {
+	$user_id = absint( $user_id );
+	if ( ! $user_id ) {
+		return array();
+	}
+
+	$regions = array();
+	$user    = get_userdata( $user_id );
+
+	if ( $user && gnf_user_has_role( $user, 'comite_bae' ) ) {
+		$regions = array_merge( $regions, gnf_normalize_region_ids( get_user_meta( $user_id, 'gnf_region_ids', true ) ) );
+	}
+
+	foreach ( array( 'region', 'gnf_region_id', 'gnf_region' ) as $key ) {
+		$regions = array_merge( $regions, gnf_normalize_region_ids( get_user_meta( $user_id, $key, true ) ) );
 	}
 
 	if ( function_exists( 'get_field' ) ) {
-		$region = get_field( 'region', 'user_' . $user_id );
-		if ( ! empty( $region ) ) {
-			return absint( $region );
+		$regions = array_merge( $regions, gnf_normalize_region_ids( get_field( 'region', 'user_' . $user_id ) ) );
+	}
+
+	$regions = array_values( array_unique( array_filter( array_map( 'absint', $regions ) ) ) );
+
+	if ( empty( $regions ) ) {
+		$centro_id = gnf_get_centro_for_docente( $user_id );
+		if ( $centro_id ) {
+			$regions = array_filter( array( gnf_get_centro_region_id( $centro_id ) ) );
 		}
 	}
 
-	$centro_id = gnf_get_centro_for_docente( $user_id );
-	if ( $centro_id ) {
-		return gnf_get_centro_region_id( $centro_id );
+	return array_values( array_map( 'absint', $regions ) );
+}
+
+/**
+ * Persiste las regiones del usuario manteniendo una regiÃ³n primaria legada.
+ *
+ * @param int   $user_id    ID del usuario.
+ * @param int[] $region_ids IDs de regiÃ³n.
+ * @return int[]
+ */
+function gnf_set_user_regions( $user_id, $region_ids ) {
+	$user_id    = absint( $user_id );
+	$region_ids = array_values( array_unique( array_filter( array_map( 'absint', (array) $region_ids ) ) ) );
+	$primary_id = ! empty( $region_ids ) ? (int) $region_ids[0] : 0;
+
+	if ( ! $user_id ) {
+		return array();
 	}
 
-	return 0;
+	if ( ! empty( $region_ids ) ) {
+		update_user_meta( $user_id, 'gnf_region_ids', $region_ids );
+	} else {
+		delete_user_meta( $user_id, 'gnf_region_ids' );
+	}
+
+	foreach ( array( 'region', 'gnf_region_id', 'gnf_region' ) as $key ) {
+		if ( $primary_id ) {
+			update_user_meta( $user_id, $key, $primary_id );
+		} else {
+			delete_user_meta( $user_id, $key );
+		}
+	}
+
+	return $region_ids;
+}
+
+/**
+ * Comprueba si el usuario tiene acceso a una regiÃ³n concreta.
+ *
+ * @param int $user_id   ID del usuario.
+ * @param int $region_id ID de regiÃ³n.
+ * @return bool
+ */
+function gnf_user_has_region_access( $user_id, $region_id ) {
+	$region_id = absint( $region_id );
+	if ( ! $region_id ) {
+		return false;
+	}
+
+	return in_array( $region_id, gnf_get_user_regions( $user_id ), true );
+}
+
+/**
+ * Obtiene la regiÃ³n primaria del usuario (compatibilidad legada).
+ */
+function gnf_get_user_region($user_id)
+{
+	$regions = gnf_get_user_regions( $user_id );
+	return ! empty( $regions ) ? (int) $regions[0] : 0;
+}
+
+/**
+ * Obtiene los nombres de las regiones asignadas a un usuario.
+ *
+ * @param int $user_id ID del usuario.
+ * @return string[]
+ */
+function gnf_get_user_region_names( $user_id ) {
+	$names = array();
+
+	foreach ( gnf_get_user_regions( $user_id ) as $region_id ) {
+		$term = get_term( $region_id, 'gn_region' );
+		if ( $term && ! is_wp_error( $term ) ) {
+			$names[] = (string) $term->name;
+		}
+	}
+
+	return array_values( array_unique( array_filter( $names ) ) );
 }
 
 /**
@@ -946,7 +1093,7 @@ function gnf_user_can_access_centro($user_id, $centro_id)
 
 	// Comité BAE: misma lógica que supervisor — solo su región asignada.
 	if ( gnf_user_has_role( $user, 'comite_bae' ) ) {
-		return (string) gnf_get_user_region( $user_id ) === (string) $centro_region;
+		return gnf_user_has_region_access( $user_id, (int) $centro_region );
 	}
 
 	if (gnf_user_has_role($user, 'docente')) {
@@ -1625,18 +1772,15 @@ function gnf_get_wpforms_display_value( $field, $raw_value ) {
 	return $value;
 }
 
-function gnf_build_reto_entry_responses( $entry, $anio = null ) {
-	$form_id = gnf_get_reto_form_id_for_year( (int) $entry->reto_id, $anio );
+function gnf_build_reto_form_responses( $reto_id, $anio = null, $raw_values = array(), $evidencias = array() ) {
+	$form_id = gnf_get_reto_form_id_for_year( (int) $reto_id, $anio );
 	if ( ! $form_id ) {
 		return array();
 	}
 
-	$form_data   = gnf_get_wpforms_form_definition( $form_id );
-	$form_fields = is_array( $form_data['fields'] ?? null ) ? $form_data['fields'] : array();
-	$field_points = gnf_get_reto_field_points( (int) $entry->reto_id, $anio );
-	$entry_data   = ! empty( $entry->data ) ? json_decode( $entry->data, true ) : array();
-	$raw_values   = is_array( $entry_data['__raw_values__'] ?? null ) ? $entry_data['__raw_values__'] : array();
-	$evidencias   = ! empty( $entry->evidencias ) ? json_decode( $entry->evidencias, true ) : array();
+	$form_data    = gnf_get_wpforms_form_definition( $form_id );
+	$form_fields  = is_array( $form_data['fields'] ?? null ) ? $form_data['fields'] : array();
+	$field_points = gnf_get_reto_field_points( (int) $reto_id, $anio );
 	$responses    = array();
 
 	foreach ( $form_fields as $field ) {
@@ -1649,23 +1793,19 @@ function gnf_build_reto_entry_responses( $entry, $anio = null ) {
 			array_filter(
 				(array) $evidencias,
 				static function ( $evidencia ) use ( $field_id ) {
-					return is_array( $evidencia ) && absint( $evidencia['field_id'] ?? 0 ) === $field_id;
+					return is_array( $evidencia )
+						&& empty( $evidencia['replaced'] )
+						&& absint( $evidencia['field_id'] ?? 0 ) === $field_id;
 				}
 			)
 		);
 
-		$raw_value       = $raw_values[ $field_id ] ?? null;
-		$field_type      = (string) ( $field['type'] ?? 'text' );
-		$is_file_field   = in_array( $field_type, array( 'file-upload', 'file' ), true );
-		$display_value   = gnf_get_wpforms_display_value( $field, $raw_value );
-		$has_value       = gnf_reto_entry_value_has_content( $raw_value ) || ! empty( $field_evidencias );
-		$should_include  = $has_value || $is_file_field;
-		$points_config  = $field_points[ $field_id ] ?? array();
-		$label          = trim( (string) ( $field['label'] ?? $field['name'] ?? '' ) );
-
-		if ( ! $should_include ) {
-			continue;
-		}
+		$raw_value     = $raw_values[ $field_id ] ?? null;
+		$field_type    = (string) ( $field['type'] ?? 'text' );
+		$display_value = gnf_get_wpforms_display_value( $field, $raw_value );
+		$has_value     = gnf_reto_entry_value_has_content( $raw_value ) || ! empty( $field_evidencias );
+		$points_config = $field_points[ $field_id ] ?? array();
+		$label         = trim( (string) ( $field['label'] ?? $field['name'] ?? '' ) );
 
 		$responses[] = array(
 			'fieldId'      => $field_id,
@@ -1679,6 +1819,69 @@ function gnf_build_reto_entry_responses( $entry, $anio = null ) {
 	}
 
 	return $responses;
+}
+
+function gnf_build_reto_entry_responses( $entry, $anio = null ) {
+	$entry_data   = ! empty( $entry->data ) ? json_decode( $entry->data, true ) : array();
+	$raw_values   = is_array( $entry_data['__raw_values__'] ?? null ) ? $entry_data['__raw_values__'] : array();
+	$evidencias   = ! empty( $entry->evidencias ) ? json_decode( $entry->evidencias, true ) : array();
+
+	return gnf_build_reto_form_responses( (int) $entry->reto_id, $anio, $raw_values, is_array( $evidencias ) ? $evidencias : array() );
+}
+
+/**
+ * Enrich evidence objects with puntos/estado fields for backward compatibility.
+ * Old evidences lack these fields; we fill them from field_points config.
+ */
+function gnf_enrich_evidencias( $evidencias, $reto_id, $anio = null ) {
+	if ( empty( $evidencias ) || ! is_array( $evidencias ) ) {
+		return array();
+	}
+	$field_points = gnf_get_reto_field_points( $reto_id, $anio );
+	foreach ( $evidencias as &$ev ) {
+		$fid = (int) ( $ev['field_id'] ?? 0 );
+		// Backfill puntos from config if missing.
+		if ( ! array_key_exists( 'puntos', $ev ) || null === $ev['puntos'] ) {
+			$ev['puntos'] = isset( $field_points[ $fid ] ) ? absint( $field_points[ $fid ]['puntos'] ) : null;
+		}
+		// Backfill estado if missing.
+		if ( ! array_key_exists( 'estado', $ev ) ) {
+			if ( ! empty( $ev['requires_year_validation'] ) ) {
+				$ev['estado']            = 'rechazada';
+				$ev['supervisor_comment'] = $ev['warning'] ?? 'Rechazada: fecha EXIF no coincide con el año activo.';
+				$ev['reviewed_by']        = 0;
+			} elseif ( $ev['puntos'] !== null ) {
+				$ev['estado'] = 'pendiente';
+			} else {
+				$ev['estado'] = null;
+			}
+		}
+		// Ensure other new fields exist.
+		if ( ! array_key_exists( 'supervisor_comment', $ev ) ) {
+			$ev['supervisor_comment'] = null;
+		}
+		if ( ! array_key_exists( 'reviewed_by', $ev ) ) {
+			$ev['reviewed_by'] = null;
+		}
+		if ( ! array_key_exists( 'reviewed_at', $ev ) ) {
+			$ev['reviewed_at'] = null;
+		}
+		// Backfill photo_date from EXIF for images without it.
+		if ( ! array_key_exists( 'photo_date', $ev ) ) {
+			$tipo = $ev['tipo'] ?? '';
+			if ( 'imagen' === $tipo && ! empty( $ev['path_local'] ) && file_exists( $ev['path_local'] ) ) {
+				if ( ! function_exists( 'wp_read_image_metadata' ) ) {
+					require_once ABSPATH . 'wp-admin/includes/image.php';
+				}
+				$meta = wp_read_image_metadata( $ev['path_local'] );
+				if ( ! empty( $meta['created_timestamp'] ) ) {
+					$ev['photo_date'] = gmdate( 'Y-m-d', $meta['created_timestamp'] );
+				}
+			}
+		}
+	}
+	unset( $ev );
+	return $evidencias;
 }
 
 function gnf_format_reto_entry($entry, $anio = null)
@@ -1699,7 +1902,7 @@ function gnf_format_reto_entry($entry, $anio = null)
 		'puntaje'         => (int) $entry->puntaje,
 		'puntajeMaximo'   => $max_pts,
 		'supervisorNotes' => $entry->supervisor_notes ?: '',
-		'evidencias'      => $entry->evidencias ? json_decode($entry->evidencias, true) : array(),
+		'evidencias'      => gnf_enrich_evidencias( $entry->evidencias ? json_decode($entry->evidencias, true) : array(), $entry->reto_id, $anio ),
 		'responses'       => gnf_build_reto_entry_responses( $entry, $anio ),
 		'createdAt'       => $entry->created_at,
 		'updatedAt'       => $entry->updated_at,
@@ -1986,6 +2189,29 @@ function gnf_get_supervisor_estado( $user_id ) {
 	}
 
 	return 'pendiente';
+}
+
+/**
+ * Indica si un supervisor/comite ya fue autorizado para revisar.
+ *
+ * @param int|WP_User $user Usuario o ID.
+ * @return bool
+ */
+function gnf_is_supervisor_account_active( $user ) {
+	$user = $user instanceof WP_User ? $user : get_userdata( (int) $user );
+	if ( ! ( $user instanceof WP_User ) ) {
+		return false;
+	}
+
+	if ( user_can( $user, 'manage_options' ) || in_array( 'administrator', (array) $user->roles, true ) ) {
+		return true;
+	}
+
+	if ( ! in_array( 'supervisor', (array) $user->roles, true ) && ! in_array( 'comite_bae', (array) $user->roles, true ) ) {
+		return false;
+	}
+
+	return 'activo' === gnf_get_supervisor_estado( $user->ID );
 }
 
 /**
@@ -2990,6 +3216,69 @@ function gnf_notify_admins($tipo, $mensaje, $relacion_tipo = '', $relacion_id = 
 }
 
 /**
+ * EnvÃ­a correo a administradores cuando un supervisor/comitÃ© requiere autorizaciÃ³n manual.
+ *
+ * @param int $user_id ID del usuario pendiente.
+ * @return bool
+ */
+function gnf_email_admins_manual_authorization_required( $user_id ) {
+	$user = get_userdata( $user_id );
+	if ( ! ( $user instanceof WP_User ) ) {
+		return false;
+	}
+
+	$requested_role = sanitize_key( (string) get_user_meta( $user_id, 'gnf_rol_solicitado', true ) );
+	$role_label     = 'comite_bae' === $requested_role ? 'ComitÃ© BAE' : 'Supervisor';
+	$region_names   = function_exists( 'gnf_get_user_region_names' ) ? gnf_get_user_region_names( $user_id ) : array();
+
+	if ( empty( $region_names ) && function_exists( 'gnf_get_user_region' ) ) {
+		$region_id = (int) gnf_get_user_region( $user_id );
+		if ( $region_id ) {
+			$region = get_term( $region_id, 'gn_region' );
+			if ( $region && ! is_wp_error( $region ) ) {
+				$region_names = array( (string) $region->name );
+			}
+		}
+	}
+
+	$emails = array_values(
+		array_unique(
+			array_filter(
+				array_map(
+					'sanitize_email',
+					wp_list_pluck( get_users( array( 'role' => 'administrator' ) ), 'user_email' )
+				),
+				'is_email'
+			)
+		)
+	);
+
+	if ( empty( $emails ) ) {
+		return false;
+	}
+
+	$site_name    = wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES );
+	$approval_url = admin_url( 'admin.php?page=gnf-usuarios' );
+	$subject      = sprintf( '[%s] AutorizaciÃ³n manual requerida para %s', $site_name, $user->display_name );
+	$message      = implode(
+		"\n",
+		array(
+			sprintf( 'Se registrÃ³ una nueva cuenta de %s que requiere autorizaciÃ³n manual.', $role_label ),
+			'',
+			sprintf( 'Nombre: %s', $user->display_name ),
+			sprintf( 'Correo: %s', $user->user_email ),
+			sprintf( 'Rol solicitado: %s', $role_label ),
+			sprintf( 'RegiÃ³n: %s', ! empty( $region_names ) ? implode( ', ', array_map( 'strval', $region_names ) ) : 'Sin regiÃ³n asignada' ),
+			'',
+			'Debes autorizar manualmente esta cuenta antes de que pueda revisar centros y retos.',
+			sprintf( 'Revisar solicitudes pendientes: %s', $approval_url ),
+		)
+	);
+
+	return (bool) wp_mail( $emails, $subject, $message );
+}
+
+/**
  * Solicitar correcciÃ³n (ticket) y notificar.
  */
 function gnf_request_correction($entry_id, $mensaje, $supervisor_id)
@@ -3762,24 +4051,26 @@ function gnf_get_reto_allowed_tipos($reto_id)
  */
 function gnf_get_supervisores_by_region($region_id)
 {
-	$meta_query = array(
+	$region_id = absint( $region_id );
+	if ( ! $region_id ) {
+		return array();
+	}
+
+	$users = get_users(
 		array(
-			'key'   => 'region',
-			'value' => $region_id,
-		),
+			'role__in' => array( 'supervisor', 'comite_bae' ),
+			'number'   => 400,
+		)
 	);
-	// Include both supervisors and comité BAE (DRE) for the region.
-	$supervisors = get_users( array(
-		'role'       => 'supervisor',
-		'number'     => 200,
-		'meta_query' => $meta_query,
-	) );
-	$comite = get_users( array(
-		'role'       => 'comite_bae',
-		'number'     => 200,
-		'meta_query' => $meta_query,
-	) );
-	return array_merge( $supervisors, $comite );
+
+	$matched = array();
+	foreach ( $users as $user ) {
+		if ( gnf_user_has_region_access( $user->ID, $region_id ) ) {
+			$matched[ $user->ID ] = $user;
+		}
+	}
+
+	return array_values( $matched );
 }
 
 /**
@@ -3943,6 +4234,106 @@ function gnf_get_supervisor_notificaciones( $user_id, $limit = 50 ) {
 }
 
 /**
+ * Indica si el mensaje de notificación corresponde a una evidencia concreta.
+ *
+ * @param string $message       Mensaje completo.
+ * @param string $evidence_name Nombre del archivo.
+ * @return bool
+ */
+function gnf_notification_message_mentions_evidence( $message, $evidence_name ) {
+	$message       = (string) $message;
+	$evidence_name = trim( (string) $evidence_name );
+
+	if ( '' === $evidence_name ) {
+		return false;
+	}
+
+	return false !== strpos( $message, $evidence_name );
+}
+
+/**
+ * Construye las evidencias que se deben mostrar en una notificación.
+ *
+ * @param object $item  Fila de notificación.
+ * @param object $entry Reto entry.
+ * @return array<int,array<string,mixed>>
+ */
+function gnf_build_notification_evidence_items( $item, $entry ) {
+	$evidence_types = array(
+		'evidencia_subida',
+		'evidencia_resubida',
+		'evidencia_aprobada',
+		'evidencia_rechazada',
+		'invalid_photo_date',
+	);
+
+	if ( empty( $item->tipo ) || ! in_array( (string) $item->tipo, $evidence_types, true ) ) {
+		return array();
+	}
+
+	$evidencias = gnf_enrich_evidencias(
+		! empty( $entry->evidencias ) ? json_decode( $entry->evidencias, true ) : array(),
+		(int) $entry->reto_id,
+		(int) $entry->anio
+	);
+	$responses = gnf_build_reto_entry_responses( $entry, (int) $entry->anio );
+
+	$labels_by_field = array();
+	foreach ( (array) $responses as $response ) {
+		$field_id = absint( $response['fieldId'] ?? 0 );
+		if ( $field_id ) {
+			$labels_by_field[ $field_id ] = (string) ( $response['label'] ?? '' );
+		}
+	}
+
+	$field_points = gnf_get_reto_field_points( (int) $entry->reto_id, (int) $entry->anio );
+	foreach ( (array) $field_points as $field_id => $config ) {
+		$field_id = absint( $field_id );
+		if ( $field_id && empty( $labels_by_field[ $field_id ] ) ) {
+			$labels_by_field[ $field_id ] = (string) ( $config['label'] ?? '' );
+		}
+	}
+
+	$items = array();
+	foreach ( (array) $evidencias as $index => $evidencia ) {
+		if ( ! is_array( $evidencia ) || ! empty( $evidencia['replaced'] ) ) {
+			continue;
+		}
+
+		$file_name = (string) ( $evidencia['nombre'] ?? $evidencia['filename'] ?? '' );
+		if ( ! gnf_notification_message_mentions_evidence( (string) $item->mensaje, $file_name ) ) {
+			continue;
+		}
+
+		$field_id       = absint( $evidencia['field_id'] ?? 0 );
+		$tipo           = (string) ( $evidencia['tipo'] ?? $evidencia['type'] ?? 'archivo' );
+		$preview_url    = (string) ( $evidencia['ruta'] ?? $evidencia['url'] ?? '' );
+		$current_status = (string) ( $evidencia['estado'] ?? ( ! empty( $evidencia['requires_year_validation'] ) ? 'rechazada' : 'pendiente' ) );
+		$is_image       = 'imagen' === $tipo || ( $file_name && preg_match( '/\.(jpe?g|png|gif|webp)$/i', $file_name ) );
+
+		$items[] = array(
+			'evidenceIndex'          => (int) $index,
+			'fieldId'                => $field_id,
+			'questionLabel'          => $labels_by_field[ $field_id ] ?? ( $field_id ? sprintf( 'Campo %d', $field_id ) : 'Evidencia' ),
+			'fileName'               => $file_name,
+			'previewUrl'             => $preview_url,
+			'tipo'                   => $tipo,
+			'isImage'                => (bool) $is_image,
+			'estado'                 => $current_status,
+			'puntos'                 => isset( $evidencia['puntos'] ) ? (int) $evidencia['puntos'] : null,
+			'supervisorComment'      => $evidencia['supervisor_comment'] ?? null,
+			'reviewedBy'             => isset( $evidencia['reviewed_by'] ) ? (int) $evidencia['reviewed_by'] : null,
+			'reviewedAt'             => $evidencia['reviewed_at'] ?? null,
+			'photoDate'              => $evidencia['photo_date'] ?? null,
+			'requiresYearValidation' => ! empty( $evidencia['requires_year_validation'] ),
+			'canReview'              => null !== ( $evidencia['puntos'] ?? null ) && 'pendiente' === $current_status,
+		);
+	}
+
+	return $items;
+}
+
+/**
  * Construye el contexto enriquecido de una notificación para React.
  *
  * @param object $item    Fila de notificación.
@@ -3966,6 +4357,8 @@ function gnf_build_notification_context( $item, $user_id ) {
 		'year'         => 0,
 		'entryStatus'  => '',
 		'hasRejectedEvidence' => false,
+		'evidenceItems' => array(),
+		'requiresYearValidation' => false,
 	);
 
 	if ( empty( $item->relacion_tipo ) || empty( $item->relacion_id ) ) {
@@ -3990,10 +4383,11 @@ function gnf_build_notification_context( $item, $user_id ) {
 			return $context;
 		}
 
-		$centro     = get_post( (int) $entry->centro_id );
-		$reto       = get_post( (int) $entry->reto_id );
-		$region     = function_exists( 'gnf_rest_get_centro_region_term' ) ? gnf_rest_get_centro_region_term( (int) $entry->centro_id ) : null;
-		$evidencias = ! empty( $entry->evidencias ) ? json_decode( $entry->evidencias, true ) : array();
+		$centro         = get_post( (int) $entry->centro_id );
+		$reto           = get_post( (int) $entry->reto_id );
+		$region         = function_exists( 'gnf_rest_get_centro_region_term' ) ? gnf_rest_get_centro_region_term( (int) $entry->centro_id ) : null;
+		$evidencias     = ! empty( $entry->evidencias ) ? json_decode( $entry->evidencias, true ) : array();
+		$evidence_items = gnf_build_notification_evidence_items( $item, $entry );
 
 		foreach ( (array) $evidencias as $evidencia ) {
 			if ( ! empty( $evidencia['replaced'] ) ) {
@@ -4014,7 +4408,28 @@ function gnf_build_notification_context( $item, $user_id ) {
 		$context['circuito']     = (string) get_post_meta( (int) $entry->centro_id, 'circuito', true );
 		$context['year']         = (int) $entry->anio;
 		$context['entryStatus']  = (string) $entry->estado;
-		$context['canReview']    = ! $is_docente && 'enviado' === $entry->estado && gnf_user_can_access_centro( $user_id, (int) $entry->centro_id );
+		$context['evidenceItems'] = $evidence_items;
+		$context['requiresYearValidation'] = ! empty(
+			array_filter(
+				(array) $evidence_items,
+				static function ( $evidence_item ) {
+					return ! empty( $evidence_item['requiresYearValidation'] );
+				}
+			)
+		);
+		$context['canReview']    = ! $is_docente
+			&& gnf_user_can_access_centro( $user_id, (int) $entry->centro_id )
+			&& (
+				'enviado' === $entry->estado
+				|| ! empty(
+					array_filter(
+						(array) $evidence_items,
+						static function ( $evidence_item ) {
+							return ! empty( $evidence_item['canReview'] );
+						}
+					)
+				)
+			);
 
 		if ( $is_docente ) {
 			$context['actionTarget'] = array(

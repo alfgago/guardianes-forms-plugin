@@ -1,6 +1,5 @@
 import type { CentroWithStats } from '@/types';
 import { DataTable, type Column } from '@/components/data/DataTable';
-import { StarRating } from '@/components/ui/StarRating';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Eye } from 'lucide-react';
@@ -8,9 +7,10 @@ import { Eye } from 'lucide-react';
 interface CentroTableProps {
   centros: CentroWithStats[];
   onViewDetail: (centroId: number) => void;
+  emptyMessage?: string;
 }
 
-export function CentroTable({ centros, onViewDetail }: CentroTableProps) {
+export function CentroTable({ centros, onViewDetail, emptyMessage = 'No hay centros con matrícula activa.' }: CentroTableProps) {
   const columns: Column<CentroWithStats>[] = [
     {
       key: 'nombre',
@@ -20,20 +20,8 @@ export function CentroTable({ centros, onViewDetail }: CentroTableProps) {
       render: (c) => (
         <button
           type="button"
-          onClick={(event) => {
-            event.stopPropagation();
-            onViewDetail(c.id);
-          }}
-          style={{
-            border: 'none',
-            background: 'none',
-            padding: 0,
-            font: 'inherit',
-            fontWeight: 700,
-            color: 'var(--gnf-ocean-dark)',
-            cursor: 'pointer',
-            textAlign: 'left',
-          }}
+          onClick={(event) => { event.stopPropagation(); onViewDetail(c.id); }}
+          style={{ border: 'none', background: 'none', padding: 0, font: 'inherit', fontWeight: 700, color: 'var(--gnf-ocean-dark)', cursor: 'pointer', textAlign: 'left' }}
         >
           {c.nombre}
         </button>
@@ -41,16 +29,16 @@ export function CentroTable({ centros, onViewDetail }: CentroTableProps) {
     },
     {
       key: 'codigo',
-      header: 'Codigo MEP',
-      render: (c) => <span style={{ fontSize: '0.8125rem', color: 'var(--gnf-muted)' }}>{c.codigoMep || 'Sin código'}</span>,
+      header: 'Código MEP',
+      render: (c) => <span style={{ fontSize: '0.8125rem', color: 'var(--gnf-muted)' }}>{c.codigoMep || '—'}</span>,
     },
     {
       key: 'ubicacion',
-      header: 'Ubicacion',
+      header: 'Ubicación',
       render: (c) => (
         <div style={{ display: 'grid', gap: 2, fontSize: '0.8125rem' }}>
-          <span>{c.regionName || 'Sin región'}</span>
-          <span style={{ color: 'var(--gnf-muted)' }}>{c.circuito ? `Circuito ${c.circuito}` : 'Sin circuito'}</span>
+          <span>{c.regionName || '—'}</span>
+          <span style={{ color: 'var(--gnf-muted)' }}>{c.circuito ? `Circuito ${c.circuito}` : ''}</span>
         </div>
       ),
     },
@@ -62,34 +50,38 @@ export function CentroTable({ centros, onViewDetail }: CentroTableProps) {
       render: (c) => <span>{c.annual.puntajeTotal} pts</span>,
     },
     {
-      key: 'estrella',
-      header: 'Galardón',
-      render: (c) => <StarRating rating={c.annual.estrellaFinal} size={14} />,
+      key: 'evidencias',
+      header: 'Evidencias',
+      sortable: true,
+      sortValue: (c) => c.evPendientes ?? 0,
+      render: (c) => {
+        const pending = c.evPendientes ?? 0;
+        const approved = c.evAprobadas ?? 0;
+        const rejected = c.evRechazadas ?? 0;
+        const total = c.evTotal ?? 0;
+        if (total === 0) {
+          return <span style={{ fontSize: '0.8125rem', color: 'var(--gnf-muted)' }}>Sin evidencias</span>;
+        }
+        return (
+          <div style={{ display: 'flex', gap: 6, alignItems: 'center', fontSize: '0.8125rem' }}>
+            {pending > 0 && <Badge color="#b45309" bg="rgba(245, 158, 11, 0.12)">{pending} pendientes</Badge>}
+            {rejected > 0 && <Badge color="#dc2626" bg="rgba(239, 107, 74, 0.12)">{rejected} rechazadas</Badge>}
+            {pending === 0 && rejected === 0 && approved === total && (
+              <Badge color="#166534" bg="rgba(34, 197, 94, 0.12)">Todo aprobado</Badge>
+            )}
+            {pending === 0 && rejected === 0 && approved < total && (
+              <span style={{ color: 'var(--gnf-muted)' }}>{approved}/{total}</span>
+            )}
+          </div>
+        );
+      },
     },
     {
       key: 'retos',
       header: 'Retos',
       render: (c) => (
-        <div style={{ display: 'flex', gap: 4, fontSize: '0.8125rem' }}>
-          <span style={{ color: '#16a34a' }}>{c.aprobados}A</span>
-          <span style={{ color: '#d97706' }}>{c.enviados}E</span>
-          {c.correccion > 0 && <span style={{ color: '#dc2626' }}>{c.correccion}C</span>}
-          <span style={{ color: 'var(--gnf-muted)' }}>/{c.retosCount}</span>
-        </div>
+        <span style={{ fontSize: '0.8125rem', color: 'var(--gnf-muted)' }}>{c.retosCount}</span>
       ),
-    },
-    {
-      key: 'estado',
-      header: 'Estado',
-      render: (c) => {
-        if (c.enviados > 0) {
-          return <Badge color="#b45309" bg="rgba(245, 158, 11, 0.12)">{c.enviados} por revisar</Badge>;
-        }
-        if (c.aprobados === c.retosCount && c.retosCount > 0) {
-          return <Badge color="#166534" bg="rgba(34, 197, 94, 0.12)">Completo</Badge>;
-        }
-        return <span style={{ fontSize: '0.8125rem', color: 'var(--gnf-muted)' }}>En progreso</span>;
-      },
     },
     {
       key: 'actions',
@@ -109,8 +101,8 @@ export function CentroTable({ centros, onViewDetail }: CentroTableProps) {
       columns={columns}
       keyExtractor={(c) => c.id}
       onRowClick={(c) => onViewDetail(c.id)}
-      rowHighlight={(c) => (c.enviados > 0 ? 'rgba(30, 95, 138, 0.05)' : undefined)}
-      emptyMessage="No hay centros con matricula activa."
+      rowHighlight={(c) => ((c.evPendientes ?? 0) > 0 ? 'rgba(30, 95, 138, 0.05)' : undefined)}
+      emptyMessage={emptyMessage}
     />
   );
 }

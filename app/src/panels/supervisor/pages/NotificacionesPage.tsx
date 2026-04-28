@@ -1,6 +1,18 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Bell, Check, CheckCheck, CheckCircle2, ExternalLink, MapPin, RotateCcw, School, TriangleAlert } from 'lucide-react';
+import {
+  Bell,
+  Check,
+  CheckCheck,
+  CheckCircle2,
+  ExternalLink,
+  FileText,
+  MapPin,
+  School,
+  TriangleAlert,
+  Upload,
+  XCircle,
+} from 'lucide-react';
 import { notificationsApi } from '@/api/notifications';
 import { supervisorApi } from '@/api/supervisor';
 import { EmptyState } from '@/components/ui/EmptyState';
@@ -8,19 +20,21 @@ import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Spinner } from '@/components/ui/Spinner';
-import { Alert } from '@/components/ui/Alert';
 import { Textarea } from '@/components/ui/Textarea';
-import { useToast } from '@/components/ui/Toast';
 import { useNotificationStore } from '@/stores/useNotificationStore';
-import { useYearStore } from '@/stores/useYearStore';
+import { useToast } from '@/components/ui/Toast';
 import { formatDateTime } from '@/utils/formatters';
 import { navigateTo } from '@/utils/url';
-import type { Notification, NotificationType } from '@/types';
+import type { Notification, NotificationEvidenceItem, NotificationType } from '@/types';
 
 const TYPE_META: Record<NotificationType, { label: string; color: string; bg: string }> = {
   correccion: { label: 'Corrección solicitada', color: '#b45309', bg: 'rgba(245, 158, 11, 0.14)' },
   aprobado: { label: 'Aprobado', color: '#166534', bg: 'rgba(34, 197, 94, 0.14)' },
   invalid_photo_date: { label: 'Validación de año', color: '#b45309', bg: 'rgba(245, 158, 11, 0.14)' },
+  evidencia_subida: { label: 'Nueva evidencia', color: '#1d4ed8', bg: 'rgba(59, 130, 246, 0.14)' },
+  evidencia_resubida: { label: 'Evidencia corregida', color: '#0369a1', bg: 'rgba(14, 116, 144, 0.14)' },
+  evidencia_aprobada: { label: 'Evidencia aprobada', color: '#166534', bg: 'rgba(34, 197, 94, 0.14)' },
+  evidencia_rechazada: { label: 'Evidencia rechazada', color: '#b91c1c', bg: 'rgba(239, 68, 68, 0.14)' },
   matricula: { label: 'Matrícula', color: '#0f766e', bg: 'rgba(20, 184, 166, 0.14)' },
   general: { label: 'General', color: '#475569', bg: 'rgba(148, 163, 184, 0.18)' },
   participacion_enviada: { label: 'Participación enviada', color: '#1d4ed8', bg: 'rgba(59, 130, 246, 0.14)' },
@@ -38,9 +52,7 @@ export function NotificacionesPage() {
   const setNotifications = useNotificationStore((state) => state.setNotifications);
   const markRead = useNotificationStore((state) => state.markRead);
   const markAllRead = useNotificationStore((state) => state.markAllRead);
-  const year = useYearStore((state) => state.selectedYear);
   const queryClient = useQueryClient();
-  const { toast } = useToast();
 
   const { data: notifications, isLoading } = useQuery({
     queryKey: ['notifications'],
@@ -69,44 +81,6 @@ export function NotificacionesPage() {
     },
   });
 
-  const reviewMutation = useMutation({
-    mutationFn: async ({
-      notification,
-      action,
-      notes,
-    }: {
-      notification: Notification;
-      action: 'aprobar' | 'correccion';
-      notes?: string;
-    }) => {
-      if (!notification.entryId) {
-        throw new Error('La notificación no tiene una entrada asociada para revisar.');
-      }
-
-      await supervisorApi.updateEntry(notification.entryId, {
-        action,
-        notes: action === 'correccion' ? notes : undefined,
-      });
-
-      if (!notification.leido) {
-        await notificationsApi.markAsRead(notification.id);
-      }
-    },
-    onSuccess: (_data, { notification, action }) => {
-      markRead(notification.id);
-      toast('success', action === 'aprobar' ? 'Reto aprobado.' : 'Corrección solicitada.');
-      queryClient.invalidateQueries({ queryKey: ['notifications'] });
-      queryClient.invalidateQueries({ queryKey: ['supervisor-centro'] });
-      queryClient.invalidateQueries({ queryKey: ['supervisor-centros', year] });
-      queryClient.invalidateQueries({ queryKey: ['admin-centros', year] });
-      queryClient.invalidateQueries({ queryKey: ['admin-stats', year] });
-      queryClient.invalidateQueries({ queryKey: ['admin-reports', year] });
-    },
-    onError: (error) => {
-      toast('error', error instanceof Error ? error.message : 'No se pudo actualizar la revisión.');
-    },
-  });
-
   const unreadNotifications = useMemo(
     () => (notifications ?? []).filter((notification) => !notification.leido),
     [notifications],
@@ -117,21 +91,29 @@ export function NotificacionesPage() {
     [notifications],
   );
 
+  async function handleMarkRead(notificationId: number) {
+    if (!notifications?.some((item) => item.id === notificationId && !item.leido)) {
+      return;
+    }
+
+    try {
+      await notificationsApi.markAsRead(notificationId);
+    } finally {
+      markRead(notificationId);
+      queryClient.invalidateQueries({ queryKey: ['notifications'] });
+    }
+  }
+
   async function handleOpen(notification: Notification) {
     if (!notification.actionTarget) {
       if (!notification.leido) {
-        markMutation.mutate(notification.id);
+        await handleMarkRead(notification.id);
       }
       return;
     }
 
     if (!notification.leido) {
-      try {
-        await notificationsApi.markAsRead(notification.id);
-        markRead(notification.id);
-      } catch {
-        // Ignore read-state failures and still send the user to the actionable destination.
-      }
+      await handleMarkRead(notification.id);
     }
 
     navigateTo(notification.actionTarget.page, notification.actionTarget.params);
@@ -204,9 +186,8 @@ export function NotificacionesPage() {
                   notification={notification}
                   onMarkRead={(id) => markMutation.mutate(id)}
                   onOpen={handleOpen}
-                  onReview={(action, notes) => reviewMutation.mutate({ notification, action, notes })}
+                  onReviewed={handleMarkRead}
                   markPending={markMutation.isPending && markMutation.variables === notification.id}
-                  reviewPending={reviewMutation.isPending && reviewMutation.variables?.notification.id === notification.id}
                 />
               ))}
             </div>
@@ -227,9 +208,8 @@ export function NotificacionesPage() {
                   notification={notification}
                   onMarkRead={(id) => markMutation.mutate(id)}
                   onOpen={handleOpen}
-                  onReview={(action, notes) => reviewMutation.mutate({ notification, action, notes })}
+                  onReviewed={handleMarkRead}
                   markPending={false}
-                  reviewPending={reviewMutation.isPending && reviewMutation.variables?.notification.id === notification.id}
                 />
               ))}
             </div>
@@ -243,27 +223,23 @@ export function NotificacionesPage() {
 interface NotificationCardProps {
   notification: Notification;
   onMarkRead: (id: number) => void;
-  onOpen: (notification: Notification) => void;
-  onReview: (action: 'aprobar' | 'correccion', notes?: string) => void;
+  onOpen: (notification: Notification) => void | Promise<void>;
+  onReviewed: (id: number) => void | Promise<void>;
   markPending: boolean;
-  reviewPending: boolean;
 }
 
 function NotificationCard({
   notification,
   onMarkRead,
   onOpen,
-  onReview,
+  onReviewed,
   markPending,
-  reviewPending,
 }: NotificationCardProps) {
-  const [showCorrectionForm, setShowCorrectionForm] = useState(false);
-  const [notes, setNotes] = useState('');
   const meta = TYPE_META[notification.tipo] ?? TYPE_META.general;
-  const isReviewable = Boolean(notification.canReview && notification.entryId && notification.entryStatus === 'enviado');
   const locationLabel = [notification.regionName, notification.circuito ? `Circuito ${notification.circuito}` : '']
     .filter(Boolean)
     .join(' | ');
+  const evidenceItems = notification.evidenceItems ?? [];
 
   return (
     <Card
@@ -320,63 +296,263 @@ function NotificationCard({
         </div>
       </div>
 
-      {notification.requiresYearValidation && (
-        <Alert variant="warning" title="Evidencia con fecha fuera del año activo">
-          Este reto no se puede aprobar desde aquí hasta que el centro reemplace la imagen o se valide la evidencia correcta.
-        </Alert>
+      {evidenceItems.length > 0 && (
+        <div style={{ display: 'grid', gap: 'var(--gnf-space-3)' }}>
+          {evidenceItems.map((evidence) => (
+            <NotificationEvidenceCard
+              key={`${notification.id}-${evidence.evidenceIndex}-${evidence.fieldId ?? 'field'}`}
+              notification={notification}
+              evidence={evidence}
+              onReviewed={onReviewed}
+            />
+          ))}
+        </div>
       )}
 
-      {isReviewable && (
-        <div style={{ paddingTop: 'var(--gnf-space-2)', borderTop: '1px solid var(--gnf-border)' }}>
-          {showCorrectionForm ? (
-            <div>
-              <Textarea
-                label="Nota de corrección"
-                value={notes}
-                onChange={(event) => setNotes(event.target.value)}
-                placeholder="Indica qué debe corregir el centro educativo."
-              />
-              <div style={{ display: 'flex', gap: 'var(--gnf-space-2)', flexWrap: 'wrap' }}>
-                <Button
-                  variant="danger"
-                  size="sm"
-                  icon={<RotateCcw size={14} />}
-                  loading={reviewPending}
-                  disabled={!notes.trim()}
-                  onClick={() => onReview('correccion', notes.trim())}
+      {notification.tipo === 'invalid_photo_date' && evidenceItems.length === 0 && (
+        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: '0.8125rem', color: '#b45309' }}>
+          <TriangleAlert size={14} />
+          Revisa la evidencia en el detalle del centro.
+        </div>
+      )}
+    </Card>
+  );
+}
+
+function NotificationEvidenceCard({
+  notification,
+  evidence,
+  onReviewed,
+}: {
+  notification: Notification;
+  evidence: NotificationEvidenceItem;
+  onReviewed: (id: number) => void | Promise<void>;
+}) {
+  const [comment, setComment] = useState(evidence.supervisorComment ?? '');
+  const [showRejectForm, setShowRejectForm] = useState(false);
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  const status = evidence.estado ?? 'pendiente';
+  const isApproved = status === 'aprobada';
+  const isRejected = status === 'rechazada';
+  const canReview = !!notification.entryId && !!notification.canReview && !!evidence.canReview;
+
+  const mutation = useMutation({
+    mutationFn: (action: 'aprobar' | 'rechazar') => supervisorApi.reviewEvidence(notification.entryId!, evidence.evidenceIndex, {
+      action,
+      comment: action === 'rechazar' ? comment : '',
+    }),
+    onSuccess: async (_data, action) => {
+      toast('success', action === 'aprobar' ? 'Evidencia aprobada.' : 'Evidencia rechazada.');
+      queryClient.invalidateQueries({ queryKey: ['supervisor-centro'] });
+      queryClient.invalidateQueries({ queryKey: ['supervisor-centros'] });
+      queryClient.invalidateQueries({ queryKey: ['supervisor-dashboard'] });
+      queryClient.invalidateQueries({ queryKey: ['notifications'] });
+      if (!notification.leido) {
+        await onReviewed(notification.id);
+      }
+      setShowRejectForm(false);
+    },
+    onError: (error: Error) => {
+      toast('error', error.message || 'No se pudo actualizar la evidencia.');
+    },
+  });
+
+  const statusColor = isApproved ? '#166534' : isRejected ? '#b91c1c' : '#b45309';
+  const statusBg = isApproved ? 'rgba(34, 197, 94, 0.12)' : isRejected ? 'rgba(239, 68, 68, 0.12)' : 'rgba(245, 158, 11, 0.14)';
+  const borderColor = evidence.requiresYearValidation ? '#f59e0b' : isRejected ? '#ef4444' : 'var(--gnf-border)';
+
+  return (
+    <div
+      style={{
+        display: 'grid',
+        gap: 'var(--gnf-space-3)',
+        padding: 'var(--gnf-space-4)',
+        border: `1px solid ${borderColor}`,
+        borderRadius: 'var(--gnf-radius)',
+        background: evidence.requiresYearValidation ? 'rgba(255, 247, 237, 0.8)' : 'rgba(248, 250, 252, 0.7)',
+      }}
+    >
+      <div style={{ display: 'flex', gap: 'var(--gnf-space-4)', flexWrap: 'wrap' }}>
+        <div style={{ flexShrink: 0 }}>
+          {evidence.previewUrl ? (
+            <a href={evidence.previewUrl} target="_blank" rel="noopener noreferrer" style={{ display: 'block', textDecoration: 'none' }}>
+              {evidence.isImage ? (
+                <img
+                  src={evidence.previewUrl}
+                  alt={evidence.fileName || evidence.questionLabel}
+                  style={{ width: 104, height: 104, objectFit: 'cover', borderRadius: 'var(--gnf-radius-sm)', border: '1px solid rgba(148, 163, 184, 0.35)' }}
+                />
+              ) : (
+                <div
+                  style={{
+                    width: 104,
+                    height: 104,
+                    borderRadius: 'var(--gnf-radius-sm)',
+                    border: '1px dashed rgba(148, 163, 184, 0.45)',
+                    background: 'var(--gnf-white)',
+                    display: 'grid',
+                    placeItems: 'center',
+                    color: 'var(--gnf-muted)',
+                  }}
                 >
-                  Enviar corrección
-                </Button>
-                <Button variant="ghost" size="sm" onClick={() => setShowCorrectionForm(false)}>
-                  Cancelar
-                </Button>
-              </div>
-            </div>
+                  <FileText size={30} />
+                </div>
+              )}
+            </a>
           ) : (
-            <div style={{ display: 'flex', gap: 'var(--gnf-space-2)', flexWrap: 'wrap' }}>
+            <div
+              style={{
+                width: 104,
+                height: 104,
+                borderRadius: 'var(--gnf-radius-sm)',
+                border: '1px dashed rgba(148, 163, 184, 0.45)',
+                background: 'var(--gnf-white)',
+                display: 'grid',
+                placeItems: 'center',
+                color: 'var(--gnf-muted)',
+              }}
+            >
+              <Upload size={28} />
+            </div>
+          )}
+        </div>
+
+        <div style={{ flex: 1, minWidth: 260, display: 'grid', gap: 'var(--gnf-space-2)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--gnf-space-2)', flexWrap: 'wrap' }}>
+            <strong style={{ color: 'var(--gnf-ocean-dark)' }}>{evidence.questionLabel}</strong>
+            <Badge color={statusColor} bg={statusBg}>
+              {isApproved ? 'Aprobada' : isRejected ? 'Rechazada' : 'Pendiente'}
+            </Badge>
+            {evidence.puntos != null && evidence.puntos > 0 && (
+              <Badge color="#166534" bg="rgba(34, 197, 94, 0.12)">{evidence.puntos} pts</Badge>
+            )}
+          </div>
+
+          <div style={{ display: 'grid', gap: 4, fontSize: '0.8125rem', color: 'var(--gnf-muted)' }}>
+            {evidence.fileName && (
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                <Upload size={14} />
+                {evidence.isImage || !evidence.previewUrl ? (
+                  <span>{evidence.isImage ? 'Imagen adjunta' : evidence.fileName}</span>
+                ) : (
+                  <>
+                    <a
+                      href={evidence.previewUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{ color: 'var(--gnf-ocean-dark)', fontWeight: 600, textDecoration: 'none' }}
+                    >
+                      {evidence.fileName}
+                    </a>
+                    <a
+                      href={evidence.previewUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{ color: 'var(--gnf-ocean)', fontWeight: 600, textDecoration: 'none' }}
+                    >
+                      Abrir archivo
+                    </a>
+                  </>
+                )}
+              </span>
+            )}
+            {evidence.photoDate && <span>Fecha de la foto: {formatPhotoDate(evidence.photoDate)}</span>}
+          </div>
+
+          {evidence.supervisorComment && (
+            <div
+              style={{
+                padding: '10px 12px',
+                borderRadius: 'var(--gnf-radius-sm)',
+                background: isRejected ? 'rgba(239, 68, 68, 0.08)' : 'rgba(30, 95, 138, 0.06)',
+                fontSize: '0.8125rem',
+                color: 'var(--gnf-gray-700)',
+              }}
+            >
+              {evidence.supervisorComment}
+            </div>
+          )}
+
+          {evidence.requiresYearValidation && (
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: '0.8125rem', color: '#b45309' }}>
+              <TriangleAlert size={14} />
+              La fecha de la foto no coincide con el año activo.
+            </div>
+          )}
+        </div>
+      </div>
+
+      {canReview && (
+        <div style={{ display: 'grid', gap: 'var(--gnf-space-2)' }}>
+          <div style={{ display: 'flex', gap: 'var(--gnf-space-2)', flexWrap: 'wrap' }}>
+            <Button
+              size="sm"
+              disabled={isApproved || mutation.isPending}
+              loading={mutation.isPending && mutation.variables === 'aprobar'}
+              onClick={() => mutation.mutate('aprobar')}
+            >
+              Aprobar
+            </Button>
+
+            {!showRejectForm ? (
               <Button
+                variant="danger"
                 size="sm"
-                icon={<CheckCircle2 size={14} />}
-                loading={reviewPending}
-                disabled={notification.requiresYearValidation}
-                onClick={() => onReview('aprobar')}
+                icon={<XCircle size={14} />}
+                disabled={mutation.isPending}
+                onClick={() => setShowRejectForm(true)}
               >
-                Aprobar
+                Rechazar
               </Button>
-              <Button variant="outline" size="sm" icon={<RotateCcw size={14} />} onClick={() => setShowCorrectionForm(true)}>
-                Solicitar corrección
+            ) : (
+              <Button variant="ghost" size="sm" onClick={() => setShowRejectForm(false)}>
+                Cancelar nota
+              </Button>
+            )}
+          </div>
+
+          {showRejectForm && (
+            <div style={{ paddingTop: 'var(--gnf-space-1)' }}>
+              <Textarea
+                label=""
+                value={comment}
+                onChange={(event) => setComment(event.target.value)}
+                placeholder="Explica qué debe corregirse..."
+                rows={2}
+                style={{ marginBottom: 'var(--gnf-space-2)' }}
+              />
+              <Button
+                variant="danger"
+                size="sm"
+                loading={mutation.isPending && mutation.variables === 'rechazar'}
+                disabled={!comment.trim()}
+                onClick={() => mutation.mutate('rechazar')}
+              >
+                Enviar nota
               </Button>
             </div>
           )}
         </div>
       )}
-
-      {notification.tipo === 'invalid_photo_date' && !notification.requiresYearValidation && (
-        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: '0.8125rem', color: '#b45309' }}>
-          <TriangleAlert size={14} />
-          Revisa la evidencia antes de aprobar el reto.
-        </div>
-      )}
-    </Card>
+    </div>
   );
+}
+
+function formatPhotoDate(photoDate: string) {
+  if (!photoDate) {
+    return '';
+  }
+
+  const normalized = /^\d{4}-\d{2}-\d{2}$/.test(photoDate) ? `${photoDate}T00:00:00` : photoDate;
+  const date = new Date(normalized);
+  if (Number.isNaN(date.getTime())) {
+    return photoDate;
+  }
+
+  return date.toLocaleDateString('es-CR', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  });
 }

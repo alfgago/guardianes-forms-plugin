@@ -542,22 +542,25 @@ function gnf_handle_supervisor_register()
 	update_user_meta($user_id, 'gnf_rol_solicitado', $rol_solicitado);
 	update_user_meta($user_id, 'region', $region);
 	update_user_meta($user_id, $status_key, 'pendiente');
+	update_user_meta($user_id, 'gnf_supervisor_estado', 'pendiente');
 
 	// Notificar a administradores.
-	$admins = get_users(array('role' => 'administrator', 'fields' => 'ID'));
-	foreach ($admins as $admin_id) {
-		gnf_insert_notification(
-			$admin_id,
+	if ( function_exists( 'gnf_notify_admins' ) ) {
+		gnf_notify_admins(
 			'supervisor_pendiente',
-			sprintf('Nueva solicitud de %s: %s (%s)', $rol_solicitado, $display_name, $email),
+			sprintf( 'Nueva solicitud de %s pendiente de autorizacion manual: %s (%s)', $rol_solicitado, $display_name, $email ),
 			'usuario',
 			$user_id
 		);
 	}
+	if ( function_exists( 'gnf_email_admins_manual_authorization_required' ) ) {
+		gnf_email_admins_manual_authorization_required( $user_id );
+	}
+	$pending_msg = 'Tu solicitud ha sido enviada y quedo pendiente de autorizacion manual por un administrador. Recibiras un correo cuando sea aprobada.';
 
 	// Mensaje de éxito.
 	$msg = 'Tu solicitud ha sido enviada. Recibirás un correo cuando sea aprobada.';
-	wp_safe_redirect(add_query_arg('gnf_msg', rawurlencode($msg), $redirect));
+	wp_safe_redirect(add_query_arg('gnf_msg', rawurlencode($pending_msg), $redirect));
 	exit;
 }
 add_action('admin_post_nopriv_gnf_supervisor_register', 'gnf_handle_supervisor_register');

@@ -4,9 +4,10 @@ interface RegionFilterProps {
   regions: Region[];
   value: string;
   onChange: (regionId: string) => void;
+  allLabel?: string;
 }
 
-export function RegionFilter({ regions, value, onChange }: RegionFilterProps) {
+export function RegionFilter({ regions, value, onChange, allLabel = 'Todas las regiones' }: RegionFilterProps) {
   return (
     <select
       value={value}
@@ -23,7 +24,7 @@ export function RegionFilter({ regions, value, onChange }: RegionFilterProps) {
         cursor: 'pointer',
       }}
     >
-      <option value="">Todas las regiones</option>
+      <option value="">{allLabel}</option>
       {regions.map((r) => (
         <option key={r.id} value={String(r.id)}>
           {r.name}

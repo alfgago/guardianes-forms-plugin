@@ -36,6 +36,10 @@ export interface CentroWithStats extends Centro {
   enviados: number;
   correccion: number;
   enProgreso: number;
+  evPendientes: number;
+  evAprobadas: number;
+  evRechazadas: number;
+  evTotal: number;
   validado?: boolean;
   comiteStatus?: string;
 }
