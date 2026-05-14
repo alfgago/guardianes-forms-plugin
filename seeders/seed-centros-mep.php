@@ -79,6 +79,25 @@ function gnf_normalize_centros_lookup_value( $value ) {
 }
 
 /**
+ * Normalizes circuit values for imports and matching.
+ *
+ * @param mixed $value Raw circuit value.
+ * @return string
+ */
+function gnf_normalize_centros_circuito_value( $value ) {
+	if ( function_exists( 'gnf_normalize_circuito' ) ) {
+		return gnf_normalize_circuito( $value );
+	}
+
+	$circuito = trim( (string) $value );
+	if ( '' !== $circuito && preg_match( '/^\d+$/', $circuito ) ) {
+		return str_pad( (string) absint( $circuito ), 2, '0', STR_PAD_LEFT );
+	}
+
+	return $circuito;
+}
+
+/**
  * Normalizes region names for cache lookups.
  *
  * @param mixed $value Raw value.
@@ -107,7 +126,7 @@ function gnf_get_centros_title_region_lookup_key( $nombre, $region_term_id ) {
  * @return string
  */
 function gnf_get_centros_title_circuit_lookup_key( $nombre, $circuito ) {
-	return gnf_normalize_centros_lookup_value( $nombre ) . '|' . gnf_normalize_centros_lookup_value( $circuito );
+	return gnf_normalize_centros_lookup_value( $nombre ) . '|' . gnf_normalize_centros_lookup_value( gnf_normalize_centros_circuito_value( $circuito ) );
 }
 
 /**
@@ -181,7 +200,7 @@ function gnf_build_centros_import_cache() {
 		$centro_id      = (int) $row->ID;
 		$codigo         = trim( (string) $row->codigo_mep );
 		$region_term_id = (int) $row->region_term_id;
-		$circuito       = trim( (string) $row->circuito );
+		$circuito       = gnf_normalize_centros_circuito_value( $row->circuito );
 
 		$cache['records'][ $centro_id ] = array(
 			'title'          => (string) $row->post_title,
@@ -263,6 +282,8 @@ function gnf_prepare_centros_region_term( $regional, &$cache ) {
  * @return void
  */
 function gnf_sync_centros_import_cache_record( $centro_id, $nombre, $codigo, $region_term_id, $circuito, &$cache ) {
+	$circuito = gnf_normalize_centros_circuito_value( $circuito );
+
 	$cache['records'][ $centro_id ] = array(
 		'title'          => $nombre,
 		'codigo_mep'     => $codigo,
@@ -296,7 +317,7 @@ function gnf_import_single_centro_record( $data, $line_ref, $dry_run, &$cache ) 
 	$nombre      = trim( (string) ( $data['nombre'] ?? '' ) );
 	$codigo      = trim( (string) ( $data['codigo'] ?? '' ) );
 	$regional    = trim( (string) ( $data['regional'] ?? '' ) );
-	$circuito    = trim( (string) ( $data['circuito'] ?? '' ) );
+	$circuito    = gnf_normalize_centros_circuito_value( $data['circuito'] ?? '' );
 	$canton      = trim( (string) ( $data['canton'] ?? '' ) );
 	$provincia   = trim( (string) ( $data['provincia'] ?? '' ) );
 	$distrito    = trim( (string) ( $data['distrito'] ?? '' ) );
@@ -564,7 +585,7 @@ function gnf_import_centros_from_csv_batch( $csv_path, $offset = 0, $limit = 250
 				'nombre'         => $nombre,
 				'codigo'         => $codigo,
 				'regional'       => $regional,
-				'circuito'       => isset( $col_idx['circuito'] ) ? trim( (string) ( $row[ $col_idx['circuito'] ] ?? '' ) ) : '',
+				'circuito'       => isset( $col_idx['circuito'] ) ? gnf_normalize_centros_circuito_value( $row[ $col_idx['circuito'] ] ?? '' ) : '',
 				'canton'         => isset( $col_idx['canton'] ) ? trim( (string) ( $row[ $col_idx['canton'] ] ?? '' ) ) : '',
 				'provincia'      => isset( $col_idx['provincia'] ) ? trim( (string) ( $row[ $col_idx['provincia'] ] ?? '' ) ) : '',
 				'distrito'       => isset( $col_idx['distrito'] ) ? trim( (string) ( $row[ $col_idx['distrito'] ] ?? '' ) ) : '',
@@ -648,6 +669,7 @@ function gnf_import_centros_from_csv( $csv_path, $dry_run = false ) {
  */
 function gnf_find_existing_centro( $nombre, $codigo, $regional, $circuito, $cache = null ) {
 	global $wpdb;
+	$circuito = gnf_normalize_centros_circuito_value( $circuito );
 
 	if ( is_array( $cache ) ) {
 		$codigo_key = gnf_normalize_centros_lookup_value( $codigo );
@@ -729,6 +751,10 @@ function gnf_find_existing_centro( $nombre, $codigo, $regional, $circuito, $cach
 	}
 
 	if ( $circuito ) {
+		$circuito_values = function_exists( 'gnf_get_circuito_query_values' ) ? gnf_get_circuito_query_values( $circuito ) : array( $circuito );
+		if ( ! function_exists( 'gnf_get_circuito_query_values' ) && preg_match( '/^\d+$/', $circuito ) ) {
+			$circuito_values[] = (string) absint( $circuito );
+		}
 		$query_args = array(
 			'post_type'      => 'centro_educativo',
 			'post_status'    => array( 'publish', 'draft' ),
@@ -737,8 +763,9 @@ function gnf_find_existing_centro( $nombre, $codigo, $regional, $circuito, $cach
 			'fields'         => 'ids',
 			'meta_query'     => array(
 				array(
-					'key'   => 'circuito',
-					'value' => $circuito,
+					'key'     => 'circuito',
+					'value'   => array_values( array_unique( array_filter( $circuito_values, 'strlen' ) ) ),
+					'compare' => 'IN',
 				),
 			),
 		);
@@ -844,7 +871,7 @@ function gnf_import_centros_from_json_batch( $json_path, $offset = 0, $limit = 2
 				'nombre'         => $nombre,
 				'codigo'         => $codigo,
 				'regional'       => isset( $entry['DIRECCION_REGIONAL'] ) ? trim( (string) $entry['DIRECCION_REGIONAL'] ) : '',
-				'circuito'       => isset( $entry['CIRCUITO'] ) ? trim( (string) $entry['CIRCUITO'] ) : '',
+				'circuito'       => isset( $entry['CIRCUITO'] ) ? gnf_normalize_centros_circuito_value( $entry['CIRCUITO'] ) : '',
 				'canton'         => isset( $entry['CANTON'] ) ? trim( (string) $entry['CANTON'] ) : '',
 				'provincia'      => isset( $entry['PROVINCIA'] ) ? trim( (string) $entry['PROVINCIA'] ) : '',
 				'distrito'       => isset( $entry['DISTRITO'] ) ? trim( (string) $entry['DISTRITO'] ) : '',

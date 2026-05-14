@@ -514,7 +514,7 @@ function gnf_render_circuito_normalization_card() {
 	?>
 	<div style="max-width: 960px; margin-top: 24px; background: #fff; border-radius: 12px; padding: 24px; box-shadow: 0 2px 12px rgba(0,0,0,0.06);">
 		<h2 style="margin-top:0;">Normalizar circuitos</h2>
-		<p>Unifica el formato de circuito de todos los centros educativos a 2 dígitos con cero a la izquierda (1 → 01, 2 → 02, etc.). Solo afecta valores numéricos simples.</p>
+		<p>Unifica el formato de circuito de centros y supervisores a 2 dígitos con cero a la izquierda (1 → 01, 2 → 02, etc.). Solo afecta valores numéricos simples.</p>
 		<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
 			<?php wp_nonce_field( 'gnf_normalize_circuitos', 'gnf_nonce' ); ?>
 			<input type="hidden" name="action" value="gnf_normalize_circuitos" />
@@ -541,8 +541,9 @@ function gnf_handle_normalize_circuitos() {
 		'fields'         => 'ids',
 	) );
 
-	$updated = 0;
-	$skipped = 0;
+	$updated       = 0;
+	$skipped       = 0;
+	$users_updated = 0;
 	foreach ( $centros as $centro_id ) {
 		$raw = get_post_meta( $centro_id, 'circuito', true );
 		if ( '' === $raw || null === $raw ) {
@@ -550,9 +551,9 @@ function gnf_handle_normalize_circuitos() {
 			continue;
 		}
 		$trimmed = trim( (string) $raw );
-		// Only normalize purely numeric values (1 → 01, 9 → 09, 10 stays 10).
+		// Only normalize purely numeric values (1 -> 01, 9 -> 09, 10 stays 10).
 		if ( preg_match( '/^\d+$/', $trimmed ) ) {
-			$normalized = str_pad( $trimmed, 2, '0', STR_PAD_LEFT );
+			$normalized = function_exists( 'gnf_normalize_circuito' ) ? gnf_normalize_circuito( $trimmed ) : str_pad( $trimmed, 2, '0', STR_PAD_LEFT );
 			if ( $normalized !== $trimmed ) {
 				update_post_meta( $centro_id, 'circuito', $normalized );
 				$updated++;
@@ -564,9 +565,31 @@ function gnf_handle_normalize_circuitos() {
 		}
 	}
 
+	$users = get_users(
+		array(
+			'meta_key' => 'circuito',
+			'fields'   => array( 'ID' ),
+		)
+	);
+	foreach ( $users as $user ) {
+		$raw = get_user_meta( $user->ID, 'circuito', true );
+		if ( '' === $raw || null === $raw ) {
+			continue;
+		}
+		$trimmed = trim( (string) $raw );
+		if ( ! preg_match( '/^\d+$/', $trimmed ) ) {
+			continue;
+		}
+		$normalized = function_exists( 'gnf_normalize_circuito' ) ? gnf_normalize_circuito( $trimmed ) : str_pad( $trimmed, 2, '0', STR_PAD_LEFT );
+		if ( $normalized !== $trimmed ) {
+			update_user_meta( $user->ID, 'circuito', $normalized );
+			$users_updated++;
+		}
+	}
+
 	set_transient( 'gnf_tools_notice', array(
 		'type'    => 'success',
-		'message' => sprintf( 'Circuitos normalizados. Actualizados: %d. Sin cambio: %d.', $updated, $skipped ),
+		'message' => sprintf( 'Circuitos normalizados. Centros actualizados: %d. Supervisores actualizados: %d. Centros sin cambio: %d.', $updated, $users_updated, $skipped ),
 	), 60 );
 
 	wp_safe_redirect( admin_url( 'admin.php?page=gnf-tools' ) );

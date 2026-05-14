@@ -81,7 +81,7 @@ function gnf_ajax_search_centros() {
 			'codigo_mep'  => $row->codigo_mep ?: '',
 			'region'      => $row->region ?: '',
 			'region_name' => $region_name,
-			'circuito'    => $row->circuito ?: '',
+			'circuito'    => function_exists( 'gnf_normalize_circuito' ) ? gnf_normalize_circuito( $row->circuito ?: '' ) : ( $row->circuito ?: '' ),
 			'canton'      => $row->canton ?: '',
 			'provincia'   => $row->provincia ?: '',
 			'distrito'    => $row->distrito ?: '',
@@ -115,7 +115,7 @@ function gnf_ajax_get_all_centros() {
 	foreach ( $centros as $centro ) {
 		$codigo_mep = get_post_meta( $centro->ID, 'codigo_mep', true );
 		$region     = get_post_meta( $centro->ID, 'region', true );
-		$circuito   = get_post_meta( $centro->ID, 'circuito', true );
+		$circuito   = function_exists( 'gnf_normalize_circuito' ) ? gnf_normalize_circuito( get_post_meta( $centro->ID, 'circuito', true ) ) : get_post_meta( $centro->ID, 'circuito', true );
 
 		$region_name = '';
 		if ( $region ) {

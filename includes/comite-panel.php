@@ -86,6 +86,7 @@ function gnf_get_comite_data( $anio ) {
 	// Filtros.
 	$region_filter   = $user_region ? $user_region : ( isset( $_GET['region'] ) ? absint( $_GET['region'] ) : 0 );
 	$circuito_filter = isset( $_GET['circuito'] ) ? sanitize_text_field( wp_unslash( $_GET['circuito'] ) ) : '';
+	$circuito_filter = function_exists( 'gnf_normalize_circuito' ) ? gnf_normalize_circuito( $circuito_filter ) : $circuito_filter;
 	$estado_filter   = isset( $_GET['estado'] ) ? sanitize_key( $_GET['estado'] ) : '';
 	$search          = isset( $_GET['s'] ) ? sanitize_text_field( $_GET['s'] ) : '';
 
@@ -204,12 +205,14 @@ function gnf_get_comite_data( $anio ) {
 	}
 
 	if ( $circuito_filter ) {
+		$circuito_values = function_exists( 'gnf_get_circuito_query_values' ) ? gnf_get_circuito_query_values( $circuito_filter ) : array( $circuito_filter );
 		if ( ! isset( $centros_args['meta_query'] ) ) {
 			$centros_args['meta_query'] = array();
 		}
 		$centros_args['meta_query'][] = array(
-			'key'   => 'circuito',
-			'value' => $circuito_filter,
+			'key'     => 'circuito',
+			'value'   => $circuito_values,
+			'compare' => 'IN',
 		);
 	}
 
@@ -291,7 +294,7 @@ function gnf_get_comite_data( $anio ) {
 	$circuitos_query = new WP_Query( $circuitos_args );
 	$circuitos_disponibles = array();
 	foreach ( $circuitos_query->posts as $cid ) {
-		$circ = get_post_meta( $cid, 'circuito', true );
+		$circ = function_exists( 'gnf_normalize_circuito' ) ? gnf_normalize_circuito( get_post_meta( $cid, 'circuito', true ) ) : get_post_meta( $cid, 'circuito', true );
 		if ( $circ && ! in_array( $circ, $circuitos_disponibles, true ) ) {
 			$circuitos_disponibles[] = $circ;
 		}

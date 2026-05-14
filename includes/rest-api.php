@@ -582,6 +582,10 @@ function gnf_rest_get_default_redirect( $user ) {
  * @return void
  */
 function gnf_rest_update_post_field( $field, $value, $post_id ) {
+	if ( 'circuito' === $field && function_exists( 'gnf_normalize_circuito' ) ) {
+		$value = gnf_normalize_circuito( $value );
+	}
+
 	if ( function_exists( 'update_field' ) ) {
 		update_field( $field, $value, $post_id );
 		return;
@@ -621,7 +625,7 @@ function gnf_rest_build_centro_base( $centro_id ) {
 		'codigoMep'       => (string) ( get_field( 'codigo_mep', $centro_id ) ?: get_post_meta( $centro_id, 'codigo_mep', true ) ?: '' ),
 		'regionId'        => $region_term ? (int) $region_term->term_id : 0,
 		'regionName'      => $region_term ? $region_term->name : '',
-		'circuito'        => (string) get_post_meta( $centro_id, 'circuito', true ),
+		'circuito'        => function_exists( 'gnf_normalize_circuito' ) ? gnf_normalize_circuito( get_post_meta( $centro_id, 'circuito', true ) ) : (string) get_post_meta( $centro_id, 'circuito', true ),
 		'direccion'       => (string) ( get_field( 'direccion', $centro_id ) ?: get_post_meta( $centro_id, 'direccion', true ) ?: '' ),
 		'provincia'       => (string) ( get_field( 'provincia', $centro_id ) ?: get_post_meta( $centro_id, 'provincia', true ) ?: '' ),
 		'canton'          => (string) ( get_field( 'canton', $centro_id ) ?: get_post_meta( $centro_id, 'canton', true ) ?: '' ),
@@ -1446,7 +1450,7 @@ function gnf_rest_centro_get( WP_REST_Request $request ) {
 		'canton'               => get_field( 'canton', $id ) ?: '',
 		'telefono'             => get_field( 'telefono', $id ) ?: '',
 		'correoInstitucional'  => get_field( 'correo_institucional', $id ) ?: '',
-		'circuito'             => get_field( 'circuito', $id ) ?: '',
+		'circuito'             => function_exists( 'gnf_normalize_circuito' ) ? gnf_normalize_circuito( get_field( 'circuito', $id ) ?: get_post_meta( $id, 'circuito', true ) ) : ( get_field( 'circuito', $id ) ?: '' ),
 		'codigoPresupuestario' => get_field( 'codigo_presupuestario', $id ) ?: '',
 		'nivelEducativo'       => get_field( 'nivel_educativo', $id ) ?: '',
 		'dependencia'          => get_field( 'dependencia', $id ) ?: '',
@@ -1495,6 +1499,9 @@ function gnf_rest_centro_update( WP_REST_Request $request ) {
 	foreach ( $fields as $request_key => $meta_key ) {
 		$value = $request->get_param( $request_key );
 		if ( $value !== null ) {
+			if ( 'circuito' === $meta_key && function_exists( 'gnf_normalize_circuito' ) ) {
+				$value = gnf_normalize_circuito( $value );
+			}
 			update_field( $meta_key, sanitize_text_field( (string) $value ), $id );
 		}
 	}
@@ -1888,7 +1895,7 @@ function gnf_rest_docente_matricula( WP_REST_Request $request ) {
 			'centroTipologia'              => (string) ( $prefill['centro_tipologia'] ?? '' ),
 			'centroTipoCentroEducativo'    => (string) ( $prefill['centro_tipo_centro_educativo'] ?? '' ),
 			'centroRegion'                 => (int) ( $prefill['centro_region'] ?? 0 ),
-			'centroCircuito'               => (string) ( $prefill['centro_circuito'] ?? '' ),
+			'centroCircuito'               => function_exists( 'gnf_normalize_circuito' ) ? gnf_normalize_circuito( $prefill['centro_circuito'] ?? '' ) : (string) ( $prefill['centro_circuito'] ?? '' ),
 			'centroProvincia'              => (string) ( $prefill['centro_provincia'] ?? '' ),
 			'centroCanton'                 => (string) ( $prefill['centro_canton'] ?? '' ),
 			'centroCodigoPresupuestario'   => (string) ( $prefill['centro_codigo_presupuestario'] ?? '' ),
@@ -1973,7 +1980,9 @@ function gnf_rest_docente_matricula_save( WP_REST_Request $request ) {
 		'centro-tipologia'                 => gnf_normalize_centro_choice( 'tipologia', sanitize_text_field( (string) ( $fields['centroTipologia'] ?? '' ) ) ),
 		'centro-tipo-centro-educativo'     => gnf_normalize_centro_choice( 'tipo_centro_educativo', sanitize_text_field( (string) ( $fields['centroTipoCentroEducativo'] ?? '' ) ) ),
 		'centro-region'                    => absint( $fields['centroRegion'] ?? 0 ),
-		'centro-circuito'                  => sanitize_text_field( (string) ( $fields['centroCircuito'] ?? '' ) ),
+		'centro-circuito'                  => function_exists( 'gnf_normalize_circuito' )
+			? gnf_normalize_circuito( sanitize_text_field( (string) ( $fields['centroCircuito'] ?? '' ) ) )
+			: sanitize_text_field( (string) ( $fields['centroCircuito'] ?? '' ) ),
 		'centro-provincia'                 => $provincia,
 		'centro-canton'                    => $canton,
 		'centro-codigo-presupuestario'     => sanitize_text_field( (string) ( $fields['centroCodigoPresupuestario'] ?? '' ) ),
@@ -2787,7 +2796,9 @@ function gnf_rest_supervisor_dashboard( WP_REST_Request $request ) {
 
 function gnf_rest_supervisor_centros( WP_REST_Request $request ) {
 	$anio         = (int) ( $request->get_param( 'year' ) ?: gnf_get_active_year() );
-	$circuito     = sanitize_text_field( $request->get_param( 'circuito' ) ?? '' );
+	$circuito     = function_exists( 'gnf_normalize_circuito' )
+		? gnf_normalize_circuito( sanitize_text_field( $request->get_param( 'circuito' ) ?? '' ) )
+		: sanitize_text_field( $request->get_param( 'circuito' ) ?? '' );
 	$user_id      = get_current_user_id();
 	$region_scope = gnf_rest_get_user_region_scope( $user_id, (int) $request->get_param( 'region' ) );
 
@@ -2819,10 +2830,12 @@ function gnf_rest_supervisor_centros( WP_REST_Request $request ) {
 	);
 
 	if ( $circuito ) {
+		$circuito_values = function_exists( 'gnf_get_circuito_query_values' ) ? gnf_get_circuito_query_values( $circuito ) : array( $circuito );
 		$centros_args['meta_query'] = array(
 			array(
-				'key'   => 'circuito',
-				'value' => $circuito,
+				'key'     => 'circuito',
+				'value'   => $circuito_values,
+				'compare' => 'IN',
 			),
 		);
 	}

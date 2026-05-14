@@ -6,6 +6,7 @@ interface PanelInitData {
   nonce: string;
   anio: number;
   pluginUrl: string;
+  adminPostUrl?: string;
   logoUrl: string;
   authLogoUrl?: string;
   user: User | null;
@@ -26,6 +27,7 @@ export function useInitData(panel: string): PanelInitData {
         nonce: '',
         anio: new Date().getFullYear(),
         pluginUrl: '',
+        adminPostUrl: '/wp-admin/admin-post.php',
         logoUrl: '',
         authLogoUrl: '',
         user: null,

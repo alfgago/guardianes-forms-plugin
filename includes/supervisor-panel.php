@@ -76,6 +76,7 @@ function gnf_render_supervisor_panel() {
 	} else {
 		// Comité BAE/DRE can filter by circuito via URL, or see all.
 		$circuito_filter = isset( $_GET['circuito'] ) ? sanitize_text_field( wp_unslash( $_GET['circuito'] ) ) : '';
+		$circuito_filter = function_exists( 'gnf_normalize_circuito' ) ? gnf_normalize_circuito( $circuito_filter ) : $circuito_filter;
 	}
 
 	// Solo centros con matrícula activa para el año.
@@ -98,10 +99,12 @@ function gnf_render_supervisor_panel() {
 	}
 
 	if ( $circuito_filter ) {
+		$circuito_values = function_exists( 'gnf_get_circuito_query_values' ) ? gnf_get_circuito_query_values( $circuito_filter ) : array( $circuito_filter );
 		$centros_args['meta_query'] = array(
 			array(
-				'key'   => 'circuito',
-				'value' => $circuito_filter,
+				'key'     => 'circuito',
+				'value'   => $circuito_values,
+				'compare' => 'IN',
 			),
 		);
 	}
@@ -125,7 +128,7 @@ function gnf_render_supervisor_panel() {
 		) : array(),
 	) );
 	foreach ( $all_centros_for_circuits->posts as $cid ) {
-		$circ = get_post_meta( $cid, 'circuito', true );
+		$circ = function_exists( 'gnf_normalize_circuito' ) ? gnf_normalize_circuito( get_post_meta( $cid, 'circuito', true ) ) : get_post_meta( $cid, 'circuito', true );
 		if ( $circ && ! in_array( $circ, $circuitos_disponibles, true ) ) {
 			$circuitos_disponibles[] = $circ;
 		}
@@ -173,4 +176,3 @@ function gnf_render_supervisor_panel() {
 	wp_reset_postdata();
 	return ob_get_clean();
 }
-

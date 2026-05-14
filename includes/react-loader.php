@@ -303,6 +303,7 @@ function gnf_render_react_panel( $panel, $data = array() ) {
 			'nonce'     => wp_create_nonce( 'wp_rest' ),
 			'anio'      => $active_year,
 			'pluginUrl' => GNF_URL,
+			'adminPostUrl' => esc_url_raw( admin_url( 'admin-post.php' ) ),
 			'logoUrl'   => defined( 'GNF_APP_LOGO_URL' ) ? GNF_APP_LOGO_URL : GNF_LOGO_URL,
 			'authLogoUrl' => defined( 'GNF_AUTH_LOGO_URL' ) ? GNF_AUTH_LOGO_URL : ( defined( 'GNF_APP_LOGO_URL' ) ? GNF_APP_LOGO_URL : GNF_LOGO_URL ),
 			'user'      => $user_data,

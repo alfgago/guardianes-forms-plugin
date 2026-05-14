@@ -278,12 +278,65 @@
 		}));
 	}
 
+	function initPasswordToggles() {
+		document.querySelectorAll('input[type="password"]').forEach(function (input) {
+			if (input.dataset.gnfPasswordToggle === '1' || !input.parentNode) return;
+			input.dataset.gnfPasswordToggle = '1';
+
+			const wrapper = document.createElement('span');
+			wrapper.className = 'gnf-password-toggle-wrap';
+			wrapper.style.position = 'relative';
+			wrapper.style.display = 'block';
+
+			input.parentNode.insertBefore(wrapper, input);
+			wrapper.appendChild(input);
+			input.style.paddingRight = '44px';
+
+			const button = document.createElement('button');
+			button.type = 'button';
+			button.className = 'gnf-password-toggle';
+			button.setAttribute('aria-label', 'Mostrar contrasena');
+			button.title = 'Mostrar contrasena';
+			button.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"></path><circle cx="12" cy="12" r="3"></circle></svg>';
+			Object.assign(button.style, {
+				position: 'absolute',
+				top: '50%',
+				right: '8px',
+				transform: 'translateY(-50%)',
+				width: '32px',
+				height: '32px',
+				border: '0',
+				borderRadius: '6px',
+				background: 'transparent',
+				color: '#667085',
+				cursor: 'pointer',
+				display: 'inline-flex',
+				alignItems: 'center',
+				justifyContent: 'center'
+			});
+
+			button.addEventListener('mousedown', function (event) {
+				event.preventDefault();
+			});
+			button.addEventListener('click', function () {
+				const show = input.type === 'password';
+				input.type = show ? 'text' : 'password';
+				button.setAttribute('aria-label', show ? 'Ocultar contrasena' : 'Mostrar contrasena');
+				button.title = show ? 'Ocultar contrasena' : 'Mostrar contrasena';
+			});
+
+			wrapper.appendChild(button);
+		});
+	}
+
 	$(function () {
 		// Mejora todos los inputs file de WPForms en la página.
 		document.querySelectorAll('input[type="file"]').forEach(enhanceFileInput);
 
 		// Inicializar autocompletado de centros.
 		initCentroAutocomplete();
+
+		initPasswordToggles();
 
 		// Tabs auth login/register.
 		document.querySelectorAll('.gnf-auth__tab').forEach(function (btn) {

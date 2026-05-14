@@ -73,24 +73,68 @@ function gnf_handle_export_csv() {
 add_action( 'admin_post_gnf_export_csv', 'gnf_handle_export_csv' );
 
 /**
- * Exporta CSV con listado de centros matriculados (una fila por centro).
+ * Resuelve el alcance permitido para exportaciones de centros.
  *
- * Columnas: Centro, Código MEP, Dirección Regional, Retos seleccionados, Año.
- *
- * @param int|null $region_id Filtrar por región (term_id). Null = todas.
- * @param int|null $anio      Año. Default: año activo.
+ * @param int|null $region_id Region solicitada.
+ * @param string   $circuito  Circuito solicitado.
+ * @return array{region_ids:int[],circuito:string}
  */
-function gnf_export_centros_csv( $region_id = null, $anio = null ) {
-	if ( ! current_user_can( 'manage_options' ) && ! gnf_user_has_role( wp_get_current_user(), 'supervisor' ) ) {
+function gnf_get_centros_export_scope( $region_id = null, $circuito = '' ) {
+	$user     = wp_get_current_user();
+	$circuito = function_exists( 'gnf_normalize_circuito' ) ? gnf_normalize_circuito( $circuito ) : trim( (string) $circuito );
+
+	if ( current_user_can( 'manage_options' ) ) {
+		return array(
+			'region_ids' => $region_id ? array( absint( $region_id ) ) : array(),
+			'circuito'   => $circuito,
+		);
+	}
+
+	if ( ! gnf_user_has_role( $user, 'supervisor' ) && ! gnf_user_has_role( $user, 'comite_bae' ) ) {
 		wp_die( 'Sin permisos' );
 	}
 
-	$anio = gnf_normalize_year( $anio );
+	$allowed_regions = function_exists( 'gnf_get_user_regions' ) ? gnf_get_user_regions( $user->ID ) : array();
+	$allowed_regions = array_values( array_filter( array_map( 'absint', (array) $allowed_regions ) ) );
 
-	// Obtener IDs de centros con matrícula en este año.
+	if ( empty( $allowed_regions ) ) {
+		wp_die( 'Sin region asignada' );
+	}
+
+	if ( $region_id ) {
+		$requested_region = absint( $region_id );
+		if ( ! in_array( $requested_region, $allowed_regions, true ) ) {
+			wp_die( 'Sin permisos para esta region' );
+		}
+		$allowed_regions = array( $requested_region );
+	}
+
+	$user_circuito = function_exists( 'gnf_get_user_circuito' ) ? gnf_get_user_circuito( $user->ID ) : '';
+	if ( '' !== $user_circuito ) {
+		if ( '' !== $circuito && $circuito !== $user_circuito ) {
+			wp_die( 'Sin permisos para este circuito' );
+		}
+		$circuito = $user_circuito;
+	}
+
+	return array(
+		'region_ids' => $allowed_regions,
+		'circuito'   => $circuito,
+	);
+}
+
+/**
+ * Query base para centros matriculados exportables.
+ *
+ * @param int[]  $region_ids Region term IDs. Empty = all regions.
+ * @param string $circuito   Circuito normalizado.
+ * @param int    $anio       Año.
+ * @return WP_Post[]
+ */
+function gnf_get_centros_matriculados_for_export( $region_ids, $circuito, $anio ) {
 	$centros_ids = gnf_get_centros_with_matricula( $anio );
 	if ( empty( $centros_ids ) ) {
-		$centros_ids = array( 0 );
+		return array();
 	}
 
 	$args = array(
@@ -100,17 +144,46 @@ function gnf_export_centros_csv( $region_id = null, $anio = null ) {
 		'orderby'        => 'title',
 		'order'          => 'ASC',
 	);
-	if ( $region_id ) {
+
+	if ( ! empty( $region_ids ) ) {
 		$args['tax_query'] = array(
 			array(
 				'taxonomy' => 'gn_region',
 				'field'    => 'term_id',
-				'terms'    => (int) $region_id,
+				'terms'    => array_values( array_map( 'absint', (array) $region_ids ) ),
 			),
 		);
 	}
 
-	$centros = get_posts( $args );
+	if ( '' !== $circuito ) {
+		$args['meta_query'] = array(
+			array(
+				'key'     => 'circuito',
+				'value'   => function_exists( 'gnf_get_circuito_query_values' ) ? gnf_get_circuito_query_values( $circuito ) : array( $circuito ),
+				'compare' => 'IN',
+			),
+		);
+	}
+
+	return get_posts( $args );
+}
+
+/**
+ * Exporta CSV con listado de centros matriculados (una fila por centro).
+ *
+ * Columnas: Centro, Código MEP, Dirección Regional, Retos seleccionados, Año.
+ *
+ * @param int|null $region_id Filtrar por región (term_id). Null = todas.
+ * @param int|null $anio      Año. Default: año activo.
+ */
+function gnf_export_centros_csv( $region_id = null, $anio = null, $circuito = '' ) {
+	if ( ! current_user_can( 'manage_options' ) && ! gnf_user_has_role( wp_get_current_user(), 'supervisor' ) && ! gnf_user_has_role( wp_get_current_user(), 'comite_bae' ) ) {
+		wp_die( 'Sin permisos' );
+	}
+
+	$anio    = gnf_normalize_year( $anio );
+	$scope   = gnf_get_centros_export_scope( $region_id, $circuito );
+	$centros = gnf_get_centros_matriculados_for_export( $scope['region_ids'], $scope['circuito'], $anio );
 
 	$filename = 'centros-matriculados-' . ( $region_id ? 'region-' . $region_id . '-' : '' ) . $anio . '.csv';
 	header( 'Content-Type: text/csv; charset=utf-8' );
@@ -145,11 +218,53 @@ function gnf_export_centros_csv( $region_id = null, $anio = null ) {
  * Endpoint admin_post para exportar centros matriculados.
  */
 function gnf_handle_export_centros_csv() {
-	$region = isset( $_GET['region'] ) ? absint( $_GET['region'] ) : null;
-	$anio   = isset( $_GET['year'] ) ? absint( $_GET['year'] ) : gnf_get_context_year( gnf_get_active_year() );
-	gnf_export_centros_csv( $region, $anio );
+	$region   = isset( $_GET['region'] ) ? absint( $_GET['region'] ) : null;
+	$anio     = isset( $_GET['year'] ) ? absint( $_GET['year'] ) : gnf_get_context_year( gnf_get_active_year() );
+	$circuito = isset( $_GET['circuito'] ) ? sanitize_text_field( wp_unslash( $_GET['circuito'] ) ) : '';
+	gnf_export_centros_csv( $region, $anio, $circuito );
 }
 add_action( 'admin_post_gnf_export_centros_csv', 'gnf_handle_export_centros_csv' );
+
+/**
+ * Exporta una lista simple de centros matriculados para DRE: nombre y codigo.
+ */
+function gnf_export_centros_matriculados_simple_csv( $region_id = null, $anio = null, $circuito = '' ) {
+	$anio    = gnf_normalize_year( $anio );
+	$scope   = gnf_get_centros_export_scope( $region_id, $circuito );
+	$centros = gnf_get_centros_matriculados_for_export( $scope['region_ids'], $scope['circuito'], $anio );
+
+	$filename = 'centros-matriculados-dre-' . $anio . '.csv';
+	header( 'Content-Type: text/csv; charset=utf-8' );
+	header( 'Content-Disposition: attachment; filename=' . $filename );
+
+	$output = fopen( 'php://output', 'w' );
+	fprintf( $output, chr( 0xEF ) . chr( 0xBB ) . chr( 0xBF ) );
+	fputcsv( $output, array( 'Centro Educativo', 'Código MEP' ) );
+
+	foreach ( $centros as $centro ) {
+		fputcsv(
+			$output,
+			array(
+				$centro->post_title,
+				get_post_meta( $centro->ID, 'codigo_mep', true ) ?: '',
+			)
+		);
+	}
+
+	fclose( $output );
+	exit;
+}
+
+/**
+ * Endpoint admin_post para lista simple de centros matriculados DRE.
+ */
+function gnf_handle_export_centros_matriculados_simple_csv() {
+	$region   = isset( $_GET['region'] ) ? absint( $_GET['region'] ) : null;
+	$anio     = isset( $_GET['year'] ) ? absint( $_GET['year'] ) : gnf_get_context_year( gnf_get_active_year() );
+	$circuito = isset( $_GET['circuito'] ) ? sanitize_text_field( wp_unslash( $_GET['circuito'] ) ) : '';
+	gnf_export_centros_matriculados_simple_csv( $region, $anio, $circuito );
+}
+add_action( 'admin_post_gnf_export_centros_matriculados_simple_csv', 'gnf_handle_export_centros_matriculados_simple_csv' );
 
 /**
  * Helper para PDF resumen del docente (placeholder).

@@ -705,7 +705,9 @@ function gnf_handle_update_centro()
 	$canton     = sanitize_text_field(wp_unslash($_POST['centro_canton'] ?? ''));
 	$codigo     = sanitize_text_field(wp_unslash($_POST['centro_codigo'] ?? $_POST['centro_codigo_mep'] ?? ''));
 	$region     = absint($_POST['centro_region'] ?? 0);
-	$circuito   = sanitize_text_field(wp_unslash($_POST['centro_circuito'] ?? ''));
+	$circuito   = function_exists( 'gnf_normalize_circuito' )
+		? gnf_normalize_circuito( sanitize_text_field(wp_unslash($_POST['centro_circuito'] ?? '')) )
+		: sanitize_text_field(wp_unslash($_POST['centro_circuito'] ?? ''));
 	$telefono   = sanitize_text_field(wp_unslash($_POST['centro_telefono'] ?? ''));
 	$current_user = wp_get_current_user();
 	$correo       = $current_user instanceof WP_User && is_email( $current_user->user_email )

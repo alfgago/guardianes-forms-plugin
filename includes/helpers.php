@@ -1060,6 +1060,49 @@ function gnf_get_user_region_names( $user_id ) {
 }
 
 /**
+ * Normaliza circuitos numericos a dos digitos.
+ *
+ * @param mixed $value Valor crudo.
+ * @return string
+ */
+function gnf_normalize_circuito( $value ) {
+	$circuito = trim( (string) $value );
+	if ( '' === $circuito ) {
+		return '';
+	}
+
+	if ( preg_match( '/^\d+$/', $circuito ) ) {
+		return str_pad( (string) absint( $circuito ), 2, '0', STR_PAD_LEFT );
+	}
+
+	return $circuito;
+}
+
+/**
+ * Valores equivalentes para buscar circuitos antes y despues de normalizar.
+ *
+ * @param mixed $value Valor crudo.
+ * @return string[]
+ */
+function gnf_get_circuito_query_values( $value ) {
+	$raw        = trim( (string) $value );
+	$normalized = gnf_normalize_circuito( $raw );
+	$values     = array();
+
+	if ( '' !== $normalized ) {
+		$values[] = $normalized;
+	}
+	if ( '' !== $raw ) {
+		$values[] = $raw;
+	}
+	if ( '' !== $normalized && preg_match( '/^\d+$/', $normalized ) ) {
+		$values[] = (string) absint( $normalized );
+	}
+
+	return array_values( array_unique( array_filter( $values, 'strlen' ) ) );
+}
+
+/**
  * Obtiene el circuito asignado a un usuario supervisor.
  *
  * @param int $user_id ID del usuario.
@@ -1071,7 +1114,7 @@ function gnf_get_user_circuito( $user_id ) {
 		return '';
 	}
 	$circuito = get_user_meta( $user_id, 'circuito', true );
-	return is_string( $circuito ) ? trim( $circuito ) : '';
+	return is_string( $circuito ) ? gnf_normalize_circuito( $circuito ) : '';
 }
 
 /**
@@ -1117,7 +1160,7 @@ function gnf_user_can_access_centro($user_id, $centro_id)
 			return true; // No circuito assigned = sees whole region (fallback).
 		}
 		$centro_circuito = get_post_meta( $centro_id, 'circuito', true );
-		return (string) $user_circuito === (string) $centro_circuito;
+		return (string) $user_circuito === (string) gnf_normalize_circuito( $centro_circuito );
 	}
 
 	return false;
@@ -4265,6 +4308,7 @@ function gnf_build_notification_evidence_items( $item, $entry ) {
 		'evidencia_aprobada',
 		'evidencia_rechazada',
 		'invalid_photo_date',
+		'correccion',
 	);
 
 	if ( empty( $item->tipo ) || ! in_array( (string) $item->tipo, $evidence_types, true ) ) {
@@ -4301,14 +4345,21 @@ function gnf_build_notification_evidence_items( $item, $entry ) {
 		}
 
 		$file_name = (string) ( $evidencia['nombre'] ?? $evidencia['filename'] ?? '' );
-		if ( ! gnf_notification_message_mentions_evidence( (string) $item->mensaje, $file_name ) ) {
+		$current_status = (string) ( $evidencia['estado'] ?? ( ! empty( $evidencia['requires_year_validation'] ) ? 'rechazada' : 'pendiente' ) );
+		$comment        = (string) ( $evidencia['supervisor_comment'] ?? '' );
+		$mentions_file  = gnf_notification_message_mentions_evidence( (string) $item->mensaje, $file_name );
+		$mentions_note  = '' !== $comment && false !== strpos( (string) $item->mensaje, $comment );
+		$show_rejected  = in_array( (string) $item->tipo, array( 'evidencia_rechazada', 'correccion', 'invalid_photo_date' ), true )
+			&& ( 'rechazada' === $current_status || ! empty( $evidencia['requires_year_validation'] ) );
+		$show_approved  = 'evidencia_aprobada' === (string) $item->tipo && 'aprobada' === $current_status;
+
+		if ( ! $mentions_file && ! $mentions_note && ! $show_rejected && ! $show_approved ) {
 			continue;
 		}
 
 		$field_id       = absint( $evidencia['field_id'] ?? 0 );
 		$tipo           = (string) ( $evidencia['tipo'] ?? $evidencia['type'] ?? 'archivo' );
 		$preview_url    = (string) ( $evidencia['ruta'] ?? $evidencia['url'] ?? '' );
-		$current_status = (string) ( $evidencia['estado'] ?? ( ! empty( $evidencia['requires_year_validation'] ) ? 'rechazada' : 'pendiente' ) );
 		$is_image       = 'imagen' === $tipo || ( $file_name && preg_match( '/\.(jpe?g|png|gif|webp)$/i', $file_name ) );
 
 		$items[] = array(
@@ -4405,7 +4456,7 @@ function gnf_build_notification_context( $item, $user_id ) {
 		$context['centroId']     = (int) $entry->centro_id;
 		$context['centroNombre'] = $centro ? (string) $centro->post_title : '';
 		$context['regionName']   = ( $region && ! is_wp_error( $region ) ) ? (string) $region->name : '';
-		$context['circuito']     = (string) get_post_meta( (int) $entry->centro_id, 'circuito', true );
+		$context['circuito']     = function_exists( 'gnf_normalize_circuito' ) ? gnf_normalize_circuito( get_post_meta( (int) $entry->centro_id, 'circuito', true ) ) : (string) get_post_meta( (int) $entry->centro_id, 'circuito', true );
 		$context['year']         = (int) $entry->anio;
 		$context['entryStatus']  = (string) $entry->estado;
 		$context['evidenceItems'] = $evidence_items;
@@ -4460,7 +4511,7 @@ function gnf_build_notification_context( $item, $user_id ) {
 		$context['centroId']     = $centro_id;
 		$context['centroNombre'] = $centro ? (string) $centro->post_title : '';
 		$context['regionName']   = ( $region && ! is_wp_error( $region ) ) ? (string) $region->name : '';
-		$context['circuito']     = (string) get_post_meta( $centro_id, 'circuito', true );
+		$context['circuito']     = function_exists( 'gnf_normalize_circuito' ) ? gnf_normalize_circuito( get_post_meta( $centro_id, 'circuito', true ) ) : (string) get_post_meta( $centro_id, 'circuito', true );
 		$context['year']         = function_exists( 'gnf_get_active_year' ) ? (int) gnf_get_active_year() : (int) gmdate( 'Y' );
 
 		if ( $is_docente ) {

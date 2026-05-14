@@ -192,7 +192,9 @@ function gnf_handle_matricula_submission( $normalized_fields, $entry_id, $form_d
 		$region    = absint( $normalized_fields['centro-region'] ?? 0 );
 		$direccion = sanitize_textarea_field( (string) ( $normalized_fields['centro-direccion'] ?? '' ) );
 		$telefono  = sanitize_text_field( (string) ( $normalized_fields['centro-telefono'] ?? '' ) );
-		$circuito  = sanitize_text_field( (string) ( $normalized_fields['centro-circuito'] ?? '' ) );
+		$circuito  = function_exists( 'gnf_normalize_circuito' )
+			? gnf_normalize_circuito( sanitize_text_field( (string) ( $normalized_fields['centro-circuito'] ?? '' ) ) )
+			: sanitize_text_field( (string) ( $normalized_fields['centro-circuito'] ?? '' ) );
 		$canton    = sanitize_text_field( (string) ( $normalized_fields['centro-canton'] ?? '' ) );
 		$provincia = sanitize_text_field( (string) ( $normalized_fields['centro-provincia'] ?? '' ) );
 
@@ -263,7 +265,13 @@ function gnf_handle_matricula_submission( $normalized_fields, $entry_id, $form_d
 	update_post_meta( $centro_id, 'tipo_centro_educativo', $tipo_centro_educativo );
 	update_post_meta( $centro_id, 'modalidad', $nivel_educativo );
 	update_post_meta( $centro_id, 'horario', $jornada );
-	update_post_meta( $centro_id, 'circuito', sanitize_text_field( (string) ( $normalized_fields['centro-circuito'] ?? '' ) ) );
+		update_post_meta(
+			$centro_id,
+			'circuito',
+			function_exists( 'gnf_normalize_circuito' )
+				? gnf_normalize_circuito( sanitize_text_field( (string) ( $normalized_fields['centro-circuito'] ?? '' ) ) )
+				: sanitize_text_field( (string) ( $normalized_fields['centro-circuito'] ?? '' ) )
+		);
 	update_post_meta( $centro_id, 'canton', sanitize_text_field( (string) ( $normalized_fields['centro-canton'] ?? '' ) ) );
 	update_post_meta( $centro_id, 'provincia', sanitize_text_field( (string) ( $normalized_fields['centro-provincia'] ?? '' ) ) );
 	update_post_meta( $centro_id, 'codigo_presupuestario', sanitize_text_field( (string) ( $normalized_fields['centro-codigo-presupuestario'] ?? '' ) ) );

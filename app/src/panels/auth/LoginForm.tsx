@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
-import { LogIn } from 'lucide-react';
+import { Eye, EyeOff, LogIn } from 'lucide-react';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { Alert } from '@/components/ui/Alert';
@@ -14,6 +14,7 @@ interface LoginFormProps {
 export function LoginForm({ onForgotPassword }: LoginFormProps) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const setUser = useAuthStore((s) => s.setUser);
 
   const mutation = useMutation({
@@ -52,11 +53,34 @@ export function LoginForm({ onForgotPassword }: LoginFormProps) {
         />
         <Input
           label="Contrasena"
-          type="password"
+          type={showPassword ? 'text' : 'password'}
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           required
           autoComplete="current-password"
+          rightElement={
+            <button
+              type="button"
+              aria-label={showPassword ? 'Ocultar contrasena' : 'Mostrar contrasena'}
+              title={showPassword ? 'Ocultar contrasena' : 'Mostrar contrasena'}
+              onMouseDown={(event) => event.preventDefault()}
+              onClick={() => setShowPassword((current) => !current)}
+              style={{
+                width: 32,
+                height: 32,
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                border: 'none',
+                borderRadius: 'var(--gnf-radius-sm)',
+                background: 'transparent',
+                color: 'var(--gnf-muted)',
+                cursor: 'pointer',
+              }}
+            >
+              {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+            </button>
+          }
         />
         <div style={{ textAlign: 'right', marginTop: '-4px', marginBottom: 'var(--gnf-space-4)' }}>
           <button

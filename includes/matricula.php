@@ -233,7 +233,7 @@ function gnf_get_matricula_prefill_data( $user_id, $centro_id, $anio ) {
 		'centro_tipologia'              => (string) $centro_tipologia,
 		'centro_tipo_centro_educativo'  => $centro_id ? gnf_normalize_centro_choice( 'tipo_centro_educativo', (string) get_post_meta( $centro_id, 'tipo_centro_educativo', true ) ) : '',
 		'centro_region'                 => $region_meta ? (int) $region_meta : '',
-		'centro_circuito'               => $centro_id ? (string) get_post_meta( $centro_id, 'circuito', true ) : '',
+		'centro_circuito'               => $centro_id ? ( function_exists( 'gnf_normalize_circuito' ) ? gnf_normalize_circuito( get_post_meta( $centro_id, 'circuito', true ) ) : (string) get_post_meta( $centro_id, 'circuito', true ) ) : '',
 		'centro_provincia'              => $centro_id ? (string) get_post_meta( $centro_id, 'provincia', true ) : '',
 		'centro_canton'                 => $centro_id ? (string) get_post_meta( $centro_id, 'canton', true ) : '',
 		'centro_codigo_presupuestario'  => $centro_id ? (string) get_post_meta( $centro_id, 'codigo_presupuestario', true ) : '',
@@ -1166,7 +1166,9 @@ function gnf_handle_submit_matricula() {
 		'centro-tipologia'              => gnf_normalize_centro_choice( 'tipologia', sanitize_text_field( wp_unslash( $_POST['centro_tipologia'] ?? '' ) ) ),
 		'centro-tipo-centro-educativo'  => gnf_normalize_centro_choice( 'tipo_centro_educativo', sanitize_text_field( wp_unslash( $_POST['centro_tipo_centro_educativo'] ?? '' ) ) ),
 		'centro-region'                 => absint( $_POST['centro_region'] ?? 0 ),
-		'centro-circuito'               => sanitize_text_field( wp_unslash( $_POST['centro_circuito'] ?? '' ) ),
+		'centro-circuito'               => function_exists( 'gnf_normalize_circuito' )
+			? gnf_normalize_circuito( sanitize_text_field( wp_unslash( $_POST['centro_circuito'] ?? '' ) ) )
+			: sanitize_text_field( wp_unslash( $_POST['centro_circuito'] ?? '' ) ),
 		'centro-provincia'              => sanitize_text_field( wp_unslash( $_POST['centro_provincia'] ?? '' ) ),
 		'centro-canton'                 => sanitize_text_field( wp_unslash( $_POST['centro_canton'] ?? '' ) ),
 		'centro-codigo-presupuestario'  => sanitize_text_field( wp_unslash( $_POST['centro_codigo_presupuestario'] ?? '' ) ),
@@ -1212,7 +1214,9 @@ function gnf_handle_submit_matricula() {
 			$normalized['centro-region'] = absint( get_post_meta( $selected_centro, 'region', true ) );
 		}
 		if ( empty( $normalized['centro-circuito'] ) ) {
-			$normalized['centro-circuito'] = (string) get_post_meta( $selected_centro, 'circuito', true );
+			$normalized['centro-circuito'] = function_exists( 'gnf_normalize_circuito' )
+				? gnf_normalize_circuito( get_post_meta( $selected_centro, 'circuito', true ) )
+				: (string) get_post_meta( $selected_centro, 'circuito', true );
 		}
 		if ( empty( $normalized['centro-nombre'] ) ) {
 			$normalized['centro-nombre'] = (string) get_the_title( $selected_centro );

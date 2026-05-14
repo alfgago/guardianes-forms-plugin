@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { School, Clock, CheckCircle2, AlertCircle } from 'lucide-react';
+import { AlertCircle, CheckCircle2, Clock, Download, School } from 'lucide-react';
 import { supervisorApi } from '@/api/supervisor';
 import { get } from '@/api/client';
 import { useYearStore } from '@/stores/useYearStore';
 import { useAuthStore } from '@/stores/useAuthStore';
+import { useInitData } from '@/hooks/useInitData';
 import { Spinner } from '@/components/ui/Spinner';
 import { Input } from '@/components/ui/Input';
 import { StatsGrid } from '@/components/data/StatsGrid';
@@ -40,6 +41,8 @@ function FilterField({ label, children, minWidth = 180 }: { label: string; child
 export function DashboardPage({ onViewCentro }: DashboardPageProps) {
   const year = useYearStore((s) => s.selectedYear);
   const user = useAuthStore((s) => s.user);
+  const supervisorInit = useInitData('supervisor');
+  const comiteInit = useInitData('comite');
   const [circuito, setCircuito] = useState('');
   const [region, setRegion] = useState('');
   const [search, setSearch] = useState('');
@@ -56,6 +59,7 @@ export function DashboardPage({ onViewCentro }: DashboardPageProps) {
   }, [user?.regionId, user?.regionIds]);
   const canFilterByRegion = isComite && assignedRegionIds.length > 1;
   const selectedRegion = canFilterByRegion && region ? Number(region) : undefined;
+  const adminPostUrl = supervisorInit.adminPostUrl || comiteInit.adminPostUrl || '/wp-admin/admin-post.php';
 
   const { data: regionOptions } = useQuery({
     queryKey: ['supervisor-region-options'],
@@ -128,23 +132,56 @@ export function DashboardPage({ onViewCentro }: DashboardPageProps) {
     return dashboard?.regionName ?? user?.regionNames?.join(', ') ?? '';
   }, [availableRegions, canFilterByRegion, dashboard?.regionName, region, user?.regionNames]);
 
-  if (loadingStats) return <Spinner />;
-
-  const stats = dashboard?.stats;
-  const hasRegionFilter = canFilterByRegion && availableRegions.length > 0;
   const emptyMessage = search.trim()
     ? 'No hay centros que coincidan con la búsqueda.'
     : circuito || region
       ? 'No hay centros para los filtros actuales.'
       : 'No hay centros con matrícula activa.';
+  const exportUrl = useMemo(() => {
+    const url = new URL(adminPostUrl, window.location.origin);
+    url.searchParams.set('action', 'gnf_export_centros_matriculados_simple_csv');
+    url.searchParams.set('year', String(year));
+    if (selectedRegion) {
+      url.searchParams.set('region', String(selectedRegion));
+    }
+    if (circuito) {
+      url.searchParams.set('circuito', circuito);
+    }
+    return url.toString();
+  }, [adminPostUrl, circuito, selectedRegion, year]);
+
+  if (loadingStats) return <Spinner />;
+
+  const stats = dashboard?.stats;
+  const hasRegionFilter = canFilterByRegion && availableRegions.length > 0;
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--gnf-space-6)' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 'var(--gnf-space-3)', flexWrap: 'wrap', marginBottom: 'var(--gnf-space-6)' }}>
         <div>
           <h2>Escritorio</h2>
           <p style={{ color: 'var(--gnf-muted)' }}>Año {year}{regionSummary ? ` | ${regionSummary}` : ''}</p>
         </div>
+        <a
+          href={exportUrl}
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 8,
+            padding: '10px 16px',
+            borderRadius: 'var(--gnf-radius)',
+            border: '1px solid var(--gnf-forest)',
+            color: 'var(--gnf-forest)',
+            fontWeight: 600,
+            textDecoration: 'none',
+            background: 'transparent',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          <Download size={16} />
+          Descargar lista
+        </a>
       </div>
 
       {stats && (
