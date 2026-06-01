@@ -241,6 +241,13 @@ function EvidenceReviewItem({
     : (evidence.exifYear ? String(evidence.exifYear) : null);
   const dateDisplay = photoDate ?? (fallbackYear ? `Ano ${fallbackYear}` : null);
   const isAutoRejected = isRejected && (evidence.reviewed_by === 0 || evidence.reviewed_by === null);
+  const reviewerName = evidence.reviewed_by_name?.trim();
+  const reviewedDate = evidence.reviewed_at
+    ? new Date(evidence.reviewed_at).toLocaleDateString('es-CR')
+    : '';
+  const reviewMeta = !isAutoRejected && (reviewerName || reviewedDate)
+    ? `${reviewerName ? `Revisado por ${reviewerName}` : 'Revisado'}${reviewedDate ? ` el ${reviewedDate}` : ''}`
+    : '';
 
   const mutation = useMutation({
     mutationFn: (action: 'aprobar' | 'rechazar') =>
@@ -471,9 +478,9 @@ function EvidenceReviewItem({
           </div>
         )}
 
-        {evidence.reviewed_at && evidence.reviewed_by !== 0 && (
+        {reviewMeta && (
           <div style={{ fontSize: '0.6875rem', color: 'var(--gnf-muted)', marginBottom: 6 }}>
-            Revisado el {new Date(evidence.reviewed_at).toLocaleDateString('es-CR')}
+            {reviewMeta}
           </div>
         )}
 

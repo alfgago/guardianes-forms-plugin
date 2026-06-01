@@ -361,6 +361,10 @@ function NotificationEvidenceCard({
   const statusColor = isApproved ? '#166534' : isRejected ? '#b91c1c' : '#b45309';
   const statusBg = isApproved ? 'rgba(34, 197, 94, 0.12)' : isRejected ? 'rgba(239, 68, 68, 0.12)' : 'rgba(245, 158, 11, 0.14)';
   const borderColor = evidence.requiresYearValidation ? '#f59e0b' : isRejected ? '#ef4444' : 'var(--gnf-border)';
+  const reviewedByName = evidence.reviewedByName?.trim();
+  const reviewMeta = evidence.reviewedBy !== 0 && (reviewedByName || evidence.reviewedAt)
+    ? `${reviewedByName ? `Revisado por ${reviewedByName}` : 'Revisado'}${evidence.reviewedAt ? ` el ${formatDateTime(evidence.reviewedAt)}` : ''}`
+    : '';
 
   return (
     <div
@@ -458,6 +462,7 @@ function NotificationEvidenceCard({
               </span>
             )}
             {evidence.photoDate && <span>Fecha de la foto: {formatPhotoDate(evidence.photoDate)}</span>}
+            {reviewMeta && <span>{reviewMeta}</span>}
           </div>
 
           {evidence.supervisorComment && (

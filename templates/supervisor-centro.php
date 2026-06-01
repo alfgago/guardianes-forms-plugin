@@ -243,6 +243,8 @@ $icons = array(
 												$ev_nombre   = $ev['nombre'] ?? 'Archivo';
 												$ev_tipo     = $ev['tipo'] ?? 'archivo';
 												$ev_comment  = $ev['supervisor_comment'] ?? '';
+												$ev_reviewer = $ev['reviewed_by_name'] ?? ( ! empty( $ev['reviewed_by'] ) && function_exists( 'gnf_get_reviewer_display_name' ) ? gnf_get_reviewer_display_name( (int) $ev['reviewed_by'] ) : '' );
+												$ev_reviewed_date = ! empty( $ev['reviewed_at'] ) ? mysql2date( get_option( 'date_format' ), $ev['reviewed_at'] ) : '';
 												$has_puntos  = null !== $ev_puntos;
 												$url = ! empty( $ev['path_local'] )
 													? add_query_arg( array(
@@ -281,6 +283,13 @@ $icons = array(
 													<?php if ( $ev_comment ) : ?>
 														<div class="gnf-ev-card__comment">
 															<small class="gnf-muted"><?php echo esc_html( $ev_comment ); ?></small>
+														</div>
+													<?php endif; ?>
+													<?php if ( ! empty( $ev['reviewed_by'] ) && ( $ev_reviewer || $ev_reviewed_date ) ) : ?>
+														<div class="gnf-ev-card__comment">
+															<small class="gnf-muted">
+																<?php echo esc_html( trim( ( $ev_reviewer ? 'Revisado por ' . $ev_reviewer : 'Revisado' ) . ( $ev_reviewed_date ? ' el ' . $ev_reviewed_date : '' ) ) ); ?>
+															</small>
 														</div>
 													<?php endif; ?>
 													<?php if ( $has_puntos ) : ?>

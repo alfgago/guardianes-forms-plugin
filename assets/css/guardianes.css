@@ -1159,6 +1159,12 @@
 	background: transparent;
 }
 
+.gnf-auth__tab[data-tab="register"],
+.gnf-auth-register-tab--disabled,
+.gnf-new-centro-action--disabled {
+	display: none !important;
+}
+
 .gnf-auth__tab.is-active {
 	background: var(--gnf-white);
 	color: var(--gnf-ocean);

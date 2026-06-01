@@ -2,18 +2,7 @@ import { CalendarDays } from 'lucide-react';
 import { useYearStore } from '@/stores/useYearStore';
 
 export function YearSelector() {
-  const { selectedYear, availableYears, setSelectedYear } = useYearStore();
-  const hasMultipleYears = availableYears.length > 1;
-
-  function handleYearChange(year: number) {
-    setSelectedYear(year);
-
-    const params = new URLSearchParams(window.location.search);
-    params.set('year', String(year));
-    const qs = params.toString();
-    const nextUrl = `${window.location.pathname}${qs ? `?${qs}` : ''}`;
-    window.history.replaceState({}, '', nextUrl);
-  }
+  const { selectedYear } = useYearStore();
 
   return (
     <div className="gnf-year-selector">
@@ -26,21 +15,6 @@ export function YearSelector() {
           <div className="gnf-year-selector__value">{selectedYear}</div>
         </div>
       </div>
-
-      {hasMultipleYears && (
-        <select
-          className="gnf-year-selector__select"
-          value={selectedYear}
-          onChange={(e) => handleYearChange(Number(e.target.value))}
-          aria-label="Seleccionar año"
-        >
-          {availableYears.map((year) => (
-            <option key={year} value={year}>
-              {year}
-            </option>
-          ))}
-        </select>
-      )}
     </div>
   );
 }

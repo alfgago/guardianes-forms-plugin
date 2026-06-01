@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { retosApi, type AutosaveFieldPayload, type ConditionalFieldRule, type ConditionalRule } from '@/api/retos';
 import { Spinner } from '@/components/ui/Spinner';
 import { Alert } from '@/components/ui/Alert';
@@ -14,6 +14,13 @@ import { CheckCircle2, ExternalLink, Save } from 'lucide-react';
 interface WpFormsEmbedProps {
   retoId: number;
   year: number;
+}
+
+type EmbeddedEvidence = Evidencia & { __index: number };
+
+interface FilePreviewOptions {
+  canRemove?: boolean;
+  onRemove?: (index: number, filename?: string) => Promise<boolean | void> | boolean | void;
 }
 
 function getFieldId(fieldEl: Element): string | null {
@@ -371,21 +378,55 @@ function extractFieldValues(snapshot: Record<string, AutosaveFieldPayload>) {
   return Object.fromEntries(Object.entries(snapshot).map(([fieldId, field]) => [fieldId, field.value]));
 }
 
+function getEvidenceStatus(file: Evidencia) {
+  const estado = file.requires_year_validation ? 'rechazada' : file.estado;
+
+  if (estado === 'rechazada') {
+    return {
+      label: 'Observada',
+      color: '#b91c1c',
+      background: 'rgba(239, 68, 68, 0.10)',
+      border: 'rgba(239, 68, 68, 0.28)',
+    };
+  }
+
+  if (estado === 'aprobada') {
+    return {
+      label: 'Aprobada',
+      color: '#166534',
+      background: 'rgba(34, 197, 94, 0.10)',
+      border: 'rgba(34, 197, 94, 0.28)',
+    };
+  }
+
+  return {
+    label: 'Pendiente',
+    color: '#075985',
+    background: 'rgba(14, 165, 233, 0.10)',
+    border: 'rgba(14, 165, 233, 0.25)',
+  };
+}
+
+function getEvidenceFeedback(file: Evidencia) {
+  return (file.supervisor_comment || file.warning || '').trim();
+}
+
 /**
  * For each file-upload field, show a preview of previously uploaded files
  * based on the entry's evidencias. This lets the user see what's already
  * attached without re-uploading.
  */
-function injectFileUploadPreviews(form: HTMLFormElement, evidencias: Array<{ field_id?: number; filename?: string; nombre?: string; url?: string; ruta?: string; tipo?: string; type?: string }>) {
+function injectFileUploadPreviews(form: HTMLFormElement, evidencias: Evidencia[], options: FilePreviewOptions = {}) {
   if (!evidencias.length) return;
 
   // Group evidencias by field_id.
-  const byField = new Map<number, typeof evidencias>();
-  evidencias.forEach((ev) => {
+  const byField = new Map<number, EmbeddedEvidence[]>();
+  evidencias.forEach((ev, index) => {
+    if (ev.replaced) return;
     const fid = ev.field_id;
     if (!fid) return;
     if (!byField.has(fid)) byField.set(fid, []);
-    byField.get(fid)!.push(ev);
+    byField.get(fid)!.push({ ...ev, __index: index });
   });
 
   byField.forEach((files, fieldId) => {
@@ -397,16 +438,20 @@ function injectFileUploadPreviews(form: HTMLFormElement, evidencias: Array<{ fie
 
     const previewDiv = document.createElement('div');
     previewDiv.className = 'gnf-file-preview';
-    previewDiv.style.cssText = 'margin-top:8px;display:flex;flex-wrap:wrap;gap:8px;';
+    previewDiv.style.cssText = 'margin-top:8px;display:grid;gap:8px;';
 
     files.forEach((file) => {
       const name = file.filename || file.nombre || 'archivo';
       const url = file.url || file.ruta || '';
       const tipo = file.tipo || file.type || '';
       const isImage = tipo === 'imagen' || /\.(jpg|jpeg|png|gif|webp)$/i.test(name);
+      const status = getEvidenceStatus(file);
+      const feedback = getEvidenceFeedback(file);
 
       const item = document.createElement('div');
-      item.style.cssText = 'display:flex;align-items:center;gap:6px;padding:6px 10px;border-radius:8px;background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.25);font-size:0.8125rem;color:#166534;max-width:280px;';
+      item.className = 'gnf-file-preview__item';
+      item.dataset.evidenceIndex = String(file.__index);
+      item.style.cssText = `display:flex;align-items:flex-start;gap:8px;padding:8px 10px;border-radius:8px;background:${status.background};border:1px solid ${status.border};font-size:0.8125rem;color:${status.color};max-width:100%;`;
 
       if (isImage && url) {
         const thumb = document.createElement('img');
@@ -421,10 +466,75 @@ function injectFileUploadPreviews(form: HTMLFormElement, evidencias: Array<{ fie
         item.appendChild(icon);
       }
 
+      const textWrap = document.createElement('div');
+      textWrap.style.cssText = 'min-width:0;flex:1;display:grid;gap:3px;';
+
       const label = document.createElement('span');
       label.textContent = name;
-      label.style.cssText = 'overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';
-      item.appendChild(label);
+      label.style.cssText = 'overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:700;';
+      textWrap.appendChild(label);
+
+      const meta = document.createElement('span');
+      meta.textContent = status.label;
+      meta.style.cssText = `font-size:0.75rem;font-weight:700;color:${status.color};`;
+      textWrap.appendChild(meta);
+
+      if (feedback) {
+        const feedbackEl = document.createElement('span');
+        feedbackEl.textContent = feedback;
+        feedbackEl.style.cssText = 'font-size:0.75rem;line-height:1.35;color:#7f1d1d;';
+        textWrap.appendChild(feedbackEl);
+      }
+
+      item.appendChild(textWrap);
+
+      if (options.canRemove && options.onRemove) {
+        const removeButton = document.createElement('button');
+        removeButton.type = 'button';
+        removeButton.className = 'gnf-file-preview__remove';
+        removeButton.setAttribute('aria-label', `Eliminar evidencia ${name}`);
+        removeButton.title = 'Eliminar evidencia';
+        removeButton.textContent = 'X';
+        removeButton.style.cssText = 'width:28px;height:28px;display:inline-flex;align-items:center;justify-content:center;border:1px solid rgba(185,28,28,0.25);border-radius:999px;background:#fff;color:#b91c1c;font-size:0.8125rem;font-weight:800;line-height:1;cursor:pointer;flex-shrink:0;';
+        removeButton.addEventListener('click', async (event) => {
+          event.preventDefault();
+          event.stopPropagation();
+
+          removeButton.disabled = true;
+          removeButton.style.cursor = 'wait';
+          item.setAttribute('aria-busy', 'true');
+
+          try {
+            const currentIndex = Number(item.dataset.evidenceIndex ?? file.__index);
+            const removed = await options.onRemove?.(currentIndex, name);
+            if (removed === false) {
+              removeButton.disabled = false;
+              removeButton.style.cursor = 'pointer';
+              item.removeAttribute('aria-busy');
+              return;
+            }
+
+            item.remove();
+            form.querySelectorAll<HTMLElement>('.gnf-file-preview__item[data-evidence-index]').forEach((previewItem) => {
+              const previewIndex = Number(previewItem.dataset.evidenceIndex);
+              if (Number.isFinite(previewIndex) && previewIndex > currentIndex) {
+                previewItem.dataset.evidenceIndex = String(previewIndex - 1);
+              }
+            });
+            if (previewDiv.children.length === 0) {
+              previewDiv.remove();
+            }
+            fieldEl.querySelector('.gnf-file-limit-hint')?.remove();
+          } catch (err) {
+            console.error('[GNF] No se pudo eliminar la evidencia', err);
+            window.alert('No se pudo eliminar la evidencia. Intenta de nuevo.');
+            removeButton.disabled = false;
+            removeButton.style.cursor = 'pointer';
+            item.removeAttribute('aria-busy');
+          }
+        });
+        item.appendChild(removeButton);
+      }
 
       previewDiv.appendChild(item);
     });
@@ -465,7 +575,7 @@ function getFileSelectionLimit(fieldEl: HTMLElement): number {
 }
 
 function getCurrentEvidenceCount(fieldEl: HTMLElement): number {
-  return fieldEl.querySelectorAll('.gnf-file-preview > div').length;
+  return fieldEl.querySelectorAll('.gnf-file-preview__item').length;
 }
 
 function showFileLimitMessage(fieldEl: HTMLElement, message: string) {
@@ -844,6 +954,27 @@ export function WpFormsEmbed({ retoId, year }: WpFormsEmbedProps) {
     [triggerAutosave],
   );
 
+  const handleRemoveEvidence = useCallback(
+    async (index: number, filename?: string) => {
+      const label = filename ? ` "${filename}"` : '';
+      const confirmed = window.confirm(`¿Eliminar esta evidencia${label}? Después podrás subir una nueva en este mismo campo.`);
+      if (!confirmed) {
+        return false;
+      }
+
+      const res = await retosApi.removeEvidence(retoId, year, index);
+      if (res.entry) {
+        setCurrentEntry(res.entry);
+      }
+      queryClient.invalidateQueries({ queryKey: ['wpforms-html', retoId, year] });
+      queryClient.invalidateQueries({ queryKey: ['wizard-steps', year] });
+      queryClient.invalidateQueries({ queryKey: ['docente-retos', year] });
+      queryClient.invalidateQueries({ queryKey: ['docente-dashboard', year] });
+      return true;
+    },
+    [queryClient, retoId, year],
+  );
+
   // ── Form injection + event binding ─────────────────────────────────
   // All callback deps (scheduleAutosave, syncFieldValues, triggerAutosave)
   // are now STABLE — they only change when retoId/year change, NOT on
@@ -876,8 +1007,12 @@ export function WpFormsEmbed({ retoId, year }: WpFormsEmbedProps) {
 
     // Show thumbnails/names of previously uploaded files so the user
     // can verify what's already attached without re-uploading.
-    const entryEvidencias = (data.entry?.evidencias ?? []) as Array<{ field_id?: number; filename?: string; nombre?: string; url?: string; ruta?: string; tipo?: string; type?: string }>;
-    injectFileUploadPreviews(form, entryEvidencias);
+    const entryEvidencias = (data.entry?.evidencias ?? []) as Evidencia[];
+    const formIsEditable = !data.entry?.estado || !['enviado', 'aprobado'].includes(data.entry.estado);
+    injectFileUploadPreviews(form, entryEvidencias, {
+      canRemove: formIsEditable,
+      onRemove: handleRemoveEvidence,
+    });
     enforceFileSelectionLimits(form);
 
     // ── Full re-hydration (values + CL) ────────────────────────────
@@ -1099,7 +1234,7 @@ export function WpFormsEmbed({ retoId, year }: WpFormsEmbedProps) {
         }
       }
     };
-  }, [data?.conditionalRules, data?.html, data?.savedValues, retoId, scheduleAutosave, triggerAutosave]);
+  }, [data?.conditionalRules, data?.entry?.estado, data?.entry?.evidencias, data?.html, data?.savedValues, handleRemoveEvidence, retoId, scheduleAutosave, triggerAutosave]);
 
   // ── Derived values ─────────────────────────────────────────────────
   const saveStatusLabel = useMemo(() => {
@@ -1111,23 +1246,6 @@ export function WpFormsEmbed({ retoId, year }: WpFormsEmbedProps) {
 
   const evidenceList = (currentEntry?.evidencias ?? []) as Evidencia[];
   const isEditable = !currentEntry?.estado || !['enviado', 'aprobado'].includes(currentEntry.estado);
-
-  const removeEvidenceMutation = useMutation({
-    mutationFn: (index: number) => retosApi.removeEvidence(retoId, year, index),
-    onSuccess: (res) => {
-      if (res.entry) {
-        setCurrentEntry(res.entry);
-      }
-      queryClient.invalidateQueries({ queryKey: ['docente-reto-form', retoId, year] });
-    },
-  });
-
-  const handleRemoveEvidence = useCallback(
-    (index: number) => {
-      removeEvidenceMutation.mutate(index);
-    },
-    [removeEvidenceMutation],
-  );
 
   const completedFieldIds = useMemo(() => {
     const ids = new Set<string>();

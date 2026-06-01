@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { UserPlus } from 'lucide-react';
 import { Input } from '@/components/ui/Input';
+import { PasswordInput } from '@/components/ui/PasswordInput';
 import { Select } from '@/components/ui/Select';
 import { Button } from '@/components/ui/Button';
 import { Alert } from '@/components/ui/Alert';
@@ -94,7 +95,7 @@ export function DocenteRegisterForm() {
 
       <Input label="Nombre completo" value={nombre} onChange={(e) => setNombre(e.target.value)} required />
       <Input label="Correo electronico institucional" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
-      <Input label="Contrasena" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+      <PasswordInput label="Contrasena" value={password} onChange={(e) => setPassword(e.target.value)} required />
 
       <h3 style={{ margin: 'var(--gnf-space-6) 0 var(--gnf-space-4)', fontSize: '1rem' }}>Centro educativo</h3>
 

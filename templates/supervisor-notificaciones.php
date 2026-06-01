@@ -130,6 +130,8 @@ $tipo_labels = array(
 								$ev_data  = $n['evidence_data'] ?? null;
 								$ev_info  = $ev_data && ! empty( $ev_data['evidencias'] ) ? $ev_data['evidencias'][0] : null;
 								$ev_state = $ev_info ? ( $ev_info['estado'] ?? 'pendiente' ) : null;
+								$ev_reviewer = $ev_info ? ( $ev_info['reviewed_by_name'] ?? '' ) : '';
+								$ev_reviewed_date = $ev_info && ! empty( $ev_info['reviewed_at'] ) ? mysql2date( get_option( 'date_format' ), $ev_info['reviewed_at'] ) : '';
 
 								$icon_color = 'var(--gnf-sun, #f59e0b)';
 								if ( $ev_state === 'aprobada' ) {
@@ -203,6 +205,11 @@ $tipo_labels = array(
 													<?php if ( ! empty( $ev_info['supervisor_comment'] ) ) : ?>
 														<div class="gnf-correction-note" style="margin-bottom: 8px;">
 															<small><?php echo esc_html( $ev_info['supervisor_comment'] ); ?></small>
+														</div>
+													<?php endif; ?>
+													<?php if ( ! empty( $ev_info['reviewed_by'] ) && ( $ev_reviewer || $ev_reviewed_date ) ) : ?>
+														<div class="gnf-correction-note" style="margin-bottom: 8px;">
+															<small><?php echo esc_html( trim( ( $ev_reviewer ? 'Revisado por ' . $ev_reviewer : 'Revisado' ) . ( $ev_reviewed_date ? ' el ' . $ev_reviewed_date : '' ) ) ); ?></small>
 														</div>
 													<?php endif; ?>
 													<textarea class="gnf-notif-ev-note gnf-input" rows="2" placeholder="Comentario (requerido al rechazar)..." style="width: 100%; margin-bottom: 8px; font-size: 0.85rem;"><?php echo esc_textarea( $ev_info['supervisor_comment'] ?? '' ); ?></textarea>

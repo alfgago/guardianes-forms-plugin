@@ -40,12 +40,39 @@ function gnf_calcular_puntaje_por_campos( $entry_row ) {
 	$data_raw       = json_decode( $entry_row->data ?? '{}', true );
 	$fields_summary = $data_raw['__fields__'] ?? array();
 
-	// Index evidencias by field_id, excluding rejected and replaced ones.
+	// Some old entries do not have estado/puntos persisted on each evidence.
+	// Enrich before scoring so rejected evidence never keeps points.
 	$evidencias_raw = json_decode( $entry_row->evidencias ?? '[]', true );
+	$evidencias     = function_exists( 'gnf_enrich_evidencias' )
+		? gnf_enrich_evidencias( is_array( $evidencias_raw ) ? $evidencias_raw : array(), $entry_row->reto_id, $anio ?: null )
+		: ( is_array( $evidencias_raw ) ? $evidencias_raw : array() );
+
+	// Index evidence fields. all_file_fields lets us treat legacy field_points
+	// without a field_type as file fields when they have persisted evidence.
 	$files_by_field = array();
-	foreach ( (array) $evidencias_raw as $ev ) {
-		if ( ! empty( $ev['field_id'] ) && empty( $ev['replaced'] ) && 'rechazada' !== ( $ev['estado'] ?? '' ) ) {
-			$files_by_field[ (int) $ev['field_id'] ] = true;
+	$all_file_fields = array();
+	foreach ( (array) $evidencias as $ev ) {
+		$field_id = absint( $ev['field_id'] ?? 0 );
+		if ( ! $field_id ) {
+			continue;
+		}
+
+		$all_file_fields[ $field_id ] = true;
+		$estado = ! empty( $ev['requires_year_validation'] ) ? 'rechazada' : (string) ( $ev['estado'] ?? 'pendiente' );
+		if ( empty( $ev['replaced'] ) && 'rechazada' !== $estado ) {
+			$files_by_field[ $field_id ] = true;
+		}
+	}
+
+	$form_field_types = array();
+	$form_id = function_exists( 'gnf_get_reto_form_id_for_year' ) ? gnf_get_reto_form_id_for_year( $entry_row->reto_id, $anio ?: null ) : 0;
+	if ( $form_id && function_exists( 'gnf_get_wpforms_form_definition' ) ) {
+		$form_data = gnf_get_wpforms_form_definition( $form_id );
+		foreach ( (array) ( $form_data['fields'] ?? array() ) as $field_key => $field ) {
+			$field_id = absint( $field['id'] ?? $field_key );
+			if ( $field_id ) {
+				$form_field_types[ $field_id ] = (string) ( $field['type'] ?? '' );
+			}
 		}
 	}
 
@@ -54,12 +81,15 @@ function gnf_calcular_puntaje_por_campos( $entry_row ) {
 	foreach ( $field_points as $field_id => $info ) {
 		$field_id = (int) $field_id;
 		$puntos   = absint( $info['puntos'] ?? 0 );
-		$tipo     = $info['tipo'] ?? '';
+		$tipo     = (string) ( $info['tipo'] ?? '' );
+		if ( '' === $tipo && isset( $form_field_types[ $field_id ] ) ) {
+			$tipo = $form_field_types[ $field_id ];
+		}
 		$puntaje_max += $puntos;
 
-		if ( in_array( $tipo, array( 'file-upload', 'file' ), true ) ) {
+		if ( in_array( $tipo, array( 'file-upload', 'file' ), true ) || ! empty( $all_file_fields[ $field_id ] ) ) {
 			// File fields only score from active persisted evidence so removing a file
-			// also removes its points immediately.
+			// or rejecting it also removes its points immediately.
 			if ( ! empty( $files_by_field[ $field_id ] ) ) {
 				$puntaje += $puntos;
 			}

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { KeyRound } from 'lucide-react';
-import { Input } from '@/components/ui/Input';
+import { PasswordInput } from '@/components/ui/PasswordInput';
 import { Button } from '@/components/ui/Button';
 import { Alert } from '@/components/ui/Alert';
 import { authApi } from '@/api/auth';
@@ -57,17 +57,15 @@ export function ResetPasswordForm({ login, resetKey, onBack }: ResetPasswordForm
 
       {mutation.error && <Alert variant="error">{(mutation.error as Error).message}</Alert>}
 
-      <Input
+      <PasswordInput
         label="Nueva contrasena"
-        type="password"
         value={password}
         onChange={(e) => setPassword(e.target.value)}
         minLength={8}
         required
       />
-      <Input
+      <PasswordInput
         label="Confirmar contrasena"
-        type="password"
         value={confirmPassword}
         onChange={(e) => setConfirmPassword(e.target.value)}
         minLength={8}

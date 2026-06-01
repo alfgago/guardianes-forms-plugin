@@ -1873,6 +1873,25 @@ function gnf_build_reto_entry_responses( $entry, $anio = null ) {
 }
 
 /**
+ * Obtiene el nombre visible de quien reviso una evidencia.
+ */
+function gnf_get_reviewer_display_name( $user_id ) {
+	$user_id = absint( $user_id );
+	if ( ! $user_id ) {
+		return '';
+	}
+
+	static $names = array();
+	if ( array_key_exists( $user_id, $names ) ) {
+		return $names[ $user_id ];
+	}
+
+	$user = get_userdata( $user_id );
+	$names[ $user_id ] = $user ? (string) $user->display_name : '';
+	return $names[ $user_id ];
+}
+
+/**
  * Enrich evidence objects with puntos/estado fields for backward compatibility.
  * Old evidences lack these fields; we fill them from field_points config.
  */
@@ -1908,6 +1927,9 @@ function gnf_enrich_evidencias( $evidencias, $reto_id, $anio = null ) {
 		}
 		if ( ! array_key_exists( 'reviewed_at', $ev ) ) {
 			$ev['reviewed_at'] = null;
+		}
+		if ( ! array_key_exists( 'reviewed_by_name', $ev ) || ( empty( $ev['reviewed_by_name'] ) && ! empty( $ev['reviewed_by'] ) ) ) {
+			$ev['reviewed_by_name'] = ! empty( $ev['reviewed_by'] ) ? gnf_get_reviewer_display_name( (int) $ev['reviewed_by'] ) : null;
 		}
 		// Backfill photo_date from EXIF for images without it.
 		if ( ! array_key_exists( 'photo_date', $ev ) ) {
@@ -4248,6 +4270,7 @@ function gnf_get_supervisor_notificaciones( $user_id, $limit = 50 ) {
 								'estado'             => $ev['estado'] ?? null,
 								'supervisor_comment' => $ev['supervisor_comment'] ?? null,
 								'reviewed_by'        => $ev['reviewed_by'] ?? null,
+								'reviewed_by_name'   => $ev['reviewed_by_name'] ?? ( ! empty( $ev['reviewed_by'] ) ? gnf_get_reviewer_display_name( (int) $ev['reviewed_by'] ) : null ),
 								'reviewed_at'        => $ev['reviewed_at'] ?? null,
 							);
 						}
@@ -4361,6 +4384,11 @@ function gnf_build_notification_evidence_items( $item, $entry ) {
 		$tipo           = (string) ( $evidencia['tipo'] ?? $evidencia['type'] ?? 'archivo' );
 		$preview_url    = (string) ( $evidencia['ruta'] ?? $evidencia['url'] ?? '' );
 		$is_image       = 'imagen' === $tipo || ( $file_name && preg_match( '/\.(jpe?g|png|gif|webp)$/i', $file_name ) );
+		$reviewed_by    = isset( $evidencia['reviewed_by'] ) ? (int) $evidencia['reviewed_by'] : null;
+		$reviewer_name  = (string) ( $evidencia['reviewed_by_name'] ?? '' );
+		if ( '' === $reviewer_name && $reviewed_by ) {
+			$reviewer_name = gnf_get_reviewer_display_name( $reviewed_by );
+		}
 
 		$items[] = array(
 			'evidenceIndex'          => (int) $index,
@@ -4373,7 +4401,8 @@ function gnf_build_notification_evidence_items( $item, $entry ) {
 			'estado'                 => $current_status,
 			'puntos'                 => isset( $evidencia['puntos'] ) ? (int) $evidencia['puntos'] : null,
 			'supervisorComment'      => $evidencia['supervisor_comment'] ?? null,
-			'reviewedBy'             => isset( $evidencia['reviewed_by'] ) ? (int) $evidencia['reviewed_by'] : null,
+			'reviewedBy'             => $reviewed_by,
+			'reviewedByName'         => $reviewer_name ?: null,
 			'reviewedAt'             => $evidencia['reviewed_at'] ?? null,
 			'photoDate'              => $evidencia['photo_date'] ?? null,
 			'requiresYearValidation' => ! empty( $evidencia['requires_year_validation'] ),

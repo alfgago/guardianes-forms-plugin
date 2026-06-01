@@ -9,10 +9,16 @@ import { useInitData } from '@/hooks/useInitData';
 import { useTrackPageView } from '@/hooks/useTrackPageView';
 
 const HOME_URL = 'https://movimientoguardianes.org/bae2026/';
+const DISABLE_CENTRO_REGISTRATION = true;
 
 const allTabs = [
   { id: 'login', label: 'Ingresar' },
-  { id: 'register-docente', label: 'Crear Cuenta' },
+  {
+    id: 'register-docente',
+    label: 'Crear Cuenta',
+    className: DISABLE_CENTRO_REGISTRATION ? 'gnf-auth-register-tab gnf-auth-register-tab--disabled' : 'gnf-auth-register-tab',
+    disabled: DISABLE_CENTRO_REGISTRATION,
+  },
 ];
 
 export function AuthPanel() {
@@ -68,16 +74,17 @@ export function AuthPanel() {
     return allTabs;
   }, [redirectTo]);
 
-  const safeDefaultTab = tabs.some((tab) => tab.id === defaultTab) ? defaultTab : tabs[0]?.id ?? 'login';
+  const enabledTabs = useMemo(() => tabs.filter((tab) => !tab.disabled), [tabs]);
+  const safeDefaultTab = enabledTabs.some((tab) => tab.id === defaultTab) ? defaultTab : enabledTabs[0]?.id ?? 'login';
   const [activeTab, setActiveTab] = useState(safeDefaultTab);
   const [forgotMode, setForgotMode] = useState(false);
   useTrackPageView({ panel: 'auth', page: isResetMode ? 'reset-password' : forgotMode ? 'forgot-password' : activeTab });
 
   useEffect(() => {
-    if (!tabs.some((tab) => tab.id === activeTab)) {
+    if (!enabledTabs.some((tab) => tab.id === activeTab)) {
       setActiveTab(safeDefaultTab);
     }
-  }, [activeTab, safeDefaultTab, tabs]);
+  }, [activeTab, enabledTabs, safeDefaultTab]);
 
   function handleBackToLogin() {
     setForgotMode(false);
@@ -93,7 +100,7 @@ export function AuthPanel() {
       return <ForgotPasswordForm onBack={handleBackToLogin} />;
     }
 
-    if (activeTab === 'register-docente') {
+    if (activeTab === 'register-docente' && !DISABLE_CENTRO_REGISTRATION) {
       return <DocenteRegisterForm />;
     }
 

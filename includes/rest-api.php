@@ -574,6 +574,16 @@ function gnf_rest_get_default_redirect( $user ) {
 }
 
 /**
+ * Año operativo para paneles React mientras el historial anual está pausado.
+ *
+ * @return int
+ */
+function gnf_rest_get_active_panel_year() {
+	$anio = function_exists( 'gnf_get_active_year' ) ? gnf_get_active_year() : (int) gmdate( 'Y' );
+	return function_exists( 'gnf_normalize_year' ) ? gnf_normalize_year( $anio ) : absint( $anio );
+}
+
+/**
  * Actualiza campo ACF si existe, con fallback a post meta.
  *
  * @param string $field Campo/meta.
@@ -1716,7 +1726,7 @@ function gnf_rest_notifications_mark_all_read() {
 
 function gnf_rest_docente_dashboard( WP_REST_Request $request ) {
 	$user_id   = get_current_user_id();
-	$anio      = (int) ( $request->get_param( 'year' ) ?: gnf_get_active_year() );
+	$anio      = gnf_rest_get_active_panel_year();
 	$centro_id = gnf_get_centro_for_docente( $user_id );
 
 	if ( ! $centro_id ) {
@@ -1771,7 +1781,7 @@ function gnf_rest_docente_dashboard( WP_REST_Request $request ) {
 
 function gnf_rest_docente_retos( WP_REST_Request $request ) {
 	$user_id   = get_current_user_id();
-	$anio      = (int) ( $request->get_param( 'year' ) ?: gnf_get_active_year() );
+	$anio      = gnf_rest_get_active_panel_year();
 	$centro_id = gnf_get_centro_for_docente( $user_id );
 	$retos_sel = gnf_get_centro_retos_seleccionados( $centro_id, $anio );
 	$entries   = gnf_get_user_reto_entries( $user_id, $anio );
@@ -1813,7 +1823,7 @@ function gnf_rest_docente_retos( WP_REST_Request $request ) {
 					'puntaje'         => (int) $entry->puntaje,
 					'puntajeMaximo'   => $max_pts,
 					'supervisorNotes' => $entry->supervisor_notes ?: '',
-					'evidencias'      => $entry->evidencias ? json_decode( $entry->evidencias, true ) : array(),
+					'evidencias'      => gnf_enrich_evidencias( $entry->evidencias ? json_decode( $entry->evidencias, true ) : array(), $entry->reto_id, $anio ),
 					'createdAt'       => $entry->created_at,
 					'updatedAt'       => $entry->updated_at,
 				)
@@ -1826,7 +1836,7 @@ function gnf_rest_docente_retos( WP_REST_Request $request ) {
 
 function gnf_rest_docente_matricula( WP_REST_Request $request ) {
 	$user_id   = get_current_user_id();
-	$anio      = (int) ( $request->get_param( 'year' ) ?: gnf_get_active_year() );
+	$anio      = gnf_rest_get_active_panel_year();
 	$centro_id = gnf_get_centro_for_docente( $user_id );
 
 	$prefill = function_exists( 'gnf_get_matricula_prefill_data' )
@@ -1938,7 +1948,7 @@ function gnf_rest_docente_matricula( WP_REST_Request $request ) {
 
 function gnf_rest_docente_matricula_save( WP_REST_Request $request ) {
 	$user_id   = get_current_user_id();
-	$anio      = (int) ( $request->get_param( 'year' ) ?: gnf_get_active_year() );
+	$anio      = gnf_rest_get_active_panel_year();
 	$fields    = $request->get_param( 'fields' );
 	$centro_id = gnf_get_centro_for_docente( $user_id );
 	$user      = get_userdata( $user_id );
@@ -2067,7 +2077,7 @@ function gnf_rest_docente_matricula_add_reto( WP_REST_Request $request ) {
 	$user_id   = get_current_user_id();
 	$reto_id   = (int) $request->get_param( 'retoId' );
 	$centro_id = gnf_get_centro_for_docente( $user_id );
-	$anio      = (int) ( $request->get_param( 'year' ) ?: gnf_get_active_year() );
+	$anio      = gnf_rest_get_active_panel_year();
 
 	$current = gnf_get_centro_retos_seleccionados( $centro_id, $anio );
 	if ( ! in_array( $reto_id, $current, true ) ) {
@@ -2094,7 +2104,7 @@ function gnf_rest_docente_matricula_remove_reto( WP_REST_Request $request ) {
 	$user_id   = get_current_user_id();
 	$reto_id   = (int) $request->get_param( 'id' );
 	$centro_id = gnf_get_centro_for_docente( $user_id );
-	$anio      = (int) ( $request->get_param( 'year' ) ?: gnf_get_active_year() );
+	$anio      = gnf_rest_get_active_panel_year();
 
 	// Do not allow removing obligatory retos.
 	if ( gnf_is_reto_required( $reto_id, $anio ) ) {
@@ -2122,7 +2132,7 @@ function gnf_rest_docente_matricula_remove_reto( WP_REST_Request $request ) {
 
 function gnf_rest_docente_wizard( WP_REST_Request $request ) {
 	$user_id   = get_current_user_id();
-	$anio      = (int) ( $request->get_param( 'year' ) ?: gnf_get_active_year() );
+	$anio      = gnf_rest_get_active_panel_year();
 	$centro_id = gnf_get_centro_for_docente( $user_id );
 
 	if ( ! $centro_id || ! function_exists( 'gnf_get_wizard_steps' ) ) {
@@ -2394,7 +2404,7 @@ function gnf_rest_get_wpforms_conditional_rules( $form_id ) {
 
 function gnf_rest_docente_form_html( WP_REST_Request $request ) {
 	$reto_id   = (int) $request->get_param( 'reto_id' );
-	$anio      = (int) ( $request->get_param( 'year' ) ?: gnf_get_active_year() );
+	$anio      = gnf_rest_get_active_panel_year();
 	$user_id   = get_current_user_id();
 	$centro_id = gnf_get_centro_for_docente( $user_id );
 	$form_id   = gnf_get_reto_form_id_for_year( $reto_id, $anio );
@@ -2437,7 +2447,7 @@ function gnf_rest_docente_form_html( WP_REST_Request $request ) {
 
 function gnf_rest_docente_autosave_reto( WP_REST_Request $request ) {
 	$reto_id   = (int) $request->get_param( 'reto_id' );
-	$anio      = (int) ( $request->get_param( 'year' ) ?: gnf_get_active_year() );
+	$anio      = gnf_rest_get_active_panel_year();
 	$user_id   = get_current_user_id();
 	$centro_id = gnf_get_centro_for_docente( $user_id );
 	$reto_post = get_post( $reto_id );
@@ -2532,7 +2542,7 @@ function gnf_rest_docente_autosave_reto( WP_REST_Request $request ) {
 
 function gnf_rest_docente_remove_evidence( WP_REST_Request $request ) {
 	$reto_id   = (int) $request->get_param( 'reto_id' );
-	$anio      = (int) ( $request->get_param( 'year' ) ?: gnf_get_active_year() );
+	$anio      = gnf_rest_get_active_panel_year();
 	$index     = $request->get_param( 'index' );
 	$user_id   = get_current_user_id();
 	$centro_id = gnf_get_centro_for_docente( $user_id );
@@ -2562,6 +2572,7 @@ function gnf_rest_docente_remove_evidence( WP_REST_Request $request ) {
 	}
 
 	$removed = $evidencias[ $index ];
+	$removed_field_id = absint( $removed['field_id'] ?? 0 );
 
 	// Delete the physical file if it exists.
 	if ( ! empty( $removed['path_local'] ) && file_exists( $removed['path_local'] ) ) {
@@ -2574,16 +2585,48 @@ function gnf_rest_docente_remove_evidence( WP_REST_Request $request ) {
 
 	array_splice( $evidencias, $index, 1 );
 
+	$data_changed = false;
+	$data_raw     = ! empty( $entry->data ) ? json_decode( $entry->data, true ) : array();
+	if ( $removed_field_id && is_array( $data_raw ) ) {
+		$has_active_same_field = false;
+		foreach ( (array) $evidencias as $ev ) {
+			$field_id = absint( $ev['field_id'] ?? 0 );
+			$estado   = ! empty( $ev['requires_year_validation'] ) ? 'rechazada' : (string) ( $ev['estado'] ?? 'pendiente' );
+			if ( $field_id === $removed_field_id && empty( $ev['replaced'] ) && 'rechazada' !== $estado ) {
+				$has_active_same_field = true;
+				break;
+			}
+		}
+
+		if ( ! $has_active_same_field ) {
+			foreach ( array( '__fields__', '__raw_values__' ) as $field_key ) {
+				if ( isset( $data_raw[ $field_key ] ) && is_array( $data_raw[ $field_key ] ) ) {
+					if ( array_key_exists( $removed_field_id, $data_raw[ $field_key ] ) || array_key_exists( (string) $removed_field_id, $data_raw[ $field_key ] ) ) {
+						unset( $data_raw[ $field_key ][ $removed_field_id ], $data_raw[ $field_key ][ (string) $removed_field_id ] );
+						$data_changed = true;
+					}
+				}
+			}
+		}
+	}
+
 	global $wpdb;
 	$table = $wpdb->prefix . 'gn_reto_entries';
+	$update_data = array(
+		'evidencias' => wp_json_encode( array_values( $evidencias ), JSON_UNESCAPED_UNICODE ),
+		'updated_at' => current_time( 'mysql' ),
+	);
+	$update_format = array( '%s', '%s' );
+	if ( $data_changed ) {
+		$update_data['data'] = wp_json_encode( $data_raw, JSON_UNESCAPED_UNICODE );
+		$update_format[] = '%s';
+	}
+
 	$wpdb->update(
 		$table,
-		array(
-			'evidencias' => wp_json_encode( array_values( $evidencias ) ),
-			'updated_at' => current_time( 'mysql' ),
-		),
+		$update_data,
 		array( 'id' => (int) $entry->id ),
-		array( '%s', '%s' ),
+		$update_format,
 		array( '%d' )
 	);
 
@@ -2608,7 +2651,7 @@ function gnf_rest_docente_finalize_reto( WP_REST_Request $request ) {
 	$reto_id   = (int) $request->get_param( 'reto_id' );
 	$user_id   = get_current_user_id();
 	$centro_id = gnf_get_centro_for_docente( $user_id );
-	$anio      = (int) ( $request->get_param( 'year' ) ?: gnf_get_active_year() );
+	$anio      = gnf_rest_get_active_panel_year();
 
 	global $wpdb;
 	$table = $wpdb->prefix . 'gn_reto_entries';
@@ -2662,7 +2705,7 @@ function gnf_rest_docente_reopen_reto( WP_REST_Request $request ) {
 	$reto_id   = (int) $request->get_param( 'reto_id' );
 	$user_id   = get_current_user_id();
 	$centro_id = gnf_get_centro_for_docente( $user_id );
-	$anio      = (int) ( $request->get_param( 'year' ) ?: gnf_get_active_year() );
+	$anio      = gnf_rest_get_active_panel_year();
 
 	global $wpdb;
 	$table = $wpdb->prefix . 'gn_reto_entries';
@@ -2697,7 +2740,7 @@ function gnf_rest_docente_reopen_reto( WP_REST_Request $request ) {
 
 function gnf_rest_docente_submit( WP_REST_Request $request ) {
 	$user_id   = get_current_user_id();
-	$anio      = (int) ( $request->get_param( 'year' ) ?: gnf_get_active_year() );
+	$anio      = gnf_rest_get_active_panel_year();
 	$centro_id = gnf_get_centro_for_docente( $user_id );
 
 	if ( ! gnf_are_all_retos_complete( $centro_id, $anio ) ) {
@@ -2736,7 +2779,7 @@ function gnf_rest_docente_submit( WP_REST_Request $request ) {
 // ═══════════════════════════════════════════════════════════════════════
 
 function gnf_rest_supervisor_dashboard( WP_REST_Request $request ) {
-	$anio         = (int) ( $request->get_param( 'year' ) ?: gnf_get_active_year() );
+	$anio         = gnf_rest_get_active_panel_year();
 	$user_id      = get_current_user_id();
 	$region_scope = gnf_rest_get_user_region_scope( $user_id, (int) $request->get_param( 'region' ) );
 
@@ -2795,7 +2838,7 @@ function gnf_rest_supervisor_dashboard( WP_REST_Request $request ) {
 }
 
 function gnf_rest_supervisor_centros( WP_REST_Request $request ) {
-	$anio         = (int) ( $request->get_param( 'year' ) ?: gnf_get_active_year() );
+	$anio         = gnf_rest_get_active_panel_year();
 	$circuito     = function_exists( 'gnf_normalize_circuito' )
 		? gnf_normalize_circuito( sanitize_text_field( $request->get_param( 'circuito' ) ?? '' ) )
 		: sanitize_text_field( $request->get_param( 'circuito' ) ?? '' );
@@ -2860,7 +2903,7 @@ function gnf_rest_supervisor_centros( WP_REST_Request $request ) {
 
 function gnf_rest_supervisor_centro_detail( WP_REST_Request $request ) {
 	$centro_id = (int) $request->get_param( 'id' );
-	$anio      = (int) ( $request->get_param( 'year' ) ?: gnf_get_active_year() );
+	$anio      = gnf_rest_get_active_panel_year();
 
 	$post = get_post( $centro_id );
 	if ( ! $post || 'centro_educativo' !== $post->post_type ) {
@@ -2972,10 +3015,13 @@ function gnf_rest_supervisor_review_evidence( WP_REST_Request $request ) {
 
 	$now     = current_time( 'mysql' );
 	$user_id = get_current_user_id();
+	$reviewer = get_userdata( $user_id );
+	$reviewer_name = ( $reviewer && $reviewer->display_name ) ? (string) $reviewer->display_name : 'Supervisor';
 
 	$evidencias[ $ev_index ]['estado']             = 'aprobar' === $action ? 'aprobada' : 'rechazada';
 	$evidencias[ $ev_index ]['supervisor_comment']  = $comment ?: null;
 	$evidencias[ $ev_index ]['reviewed_by']         = $user_id;
+	$evidencias[ $ev_index ]['reviewed_by_name']    = $reviewer_name;
 	$evidencias[ $ev_index ]['reviewed_at']         = $now;
 
 	$wpdb->update(
@@ -2991,6 +3037,7 @@ function gnf_rest_supervisor_review_evidence( WP_REST_Request $request ) {
 
 	$updated_entry = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$table} WHERE id = %d", $entry_id ) );
 	gnf_refresh_reto_entry_score( $updated_entry );
+	$updated_entry = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$table} WHERE id = %d", $entry_id ) );
 	gnf_clear_supervisor_cache();
 
 	$reto = get_post( $entry->reto_id );
@@ -3000,7 +3047,7 @@ function gnf_rest_supervisor_review_evidence( WP_REST_Request $request ) {
 		gnf_insert_notification(
 			$entry->user_id,
 			'evidencia_aprobada',
-			sprintf( 'Tu evidencia "%s" del reto "%s" fue aprobada.', $ev_nombre, $reto_title ),
+			sprintf( 'Tu evidencia "%s" del reto "%s" fue aprobada por %s.', $ev_nombre, $reto_title, $reviewer_name ),
 			'reto_entry',
 			$entry_id
 		);
@@ -3008,7 +3055,7 @@ function gnf_rest_supervisor_review_evidence( WP_REST_Request $request ) {
 		gnf_insert_notification(
 			$entry->user_id,
 			'evidencia_rechazada',
-			sprintf( 'Tu evidencia "%s" del reto "%s" fue rechazada: %s', $ev_nombre, $reto_title, $comment ),
+			sprintf( 'Tu evidencia "%s" del reto "%s" fue rechazada por %s: %s', $ev_nombre, $reto_title, $reviewer_name, $comment ),
 			'reto_entry',
 			$entry_id
 		);
@@ -3022,11 +3069,12 @@ function gnf_rest_supervisor_review_evidence( WP_REST_Request $request ) {
 			'reto_id'        => (int) $entry->reto_id,
 			'anio'           => (int) $entry->anio,
 			'panel'          => 'supervisor',
-			'message'        => 'aprobar' === $action ? 'Supervisor aprobó evidencia.' : 'Supervisor rechazó evidencia.',
+			'message'        => sprintf( '%s %s evidencia.', $reviewer_name, 'aprobar' === $action ? 'aprobó' : 'rechazó' ),
 			'meta'           => array(
 				'entry_id'       => $entry_id,
 				'evidence_index' => $ev_index,
 				'evidence_name'  => $ev_nombre,
+				'reviewer_name'  => $reviewer_name,
 				'comment'        => $comment,
 			),
 		)
@@ -3242,7 +3290,7 @@ function gnf_rest_admin_users() {
 }
 
 function gnf_rest_admin_stats( WP_REST_Request $request ) {
-	$anio = (int) ( $request->get_param( 'year' ) ?: gnf_get_active_year() );
+	$anio = gnf_rest_get_active_panel_year();
 
 	$stats = function_exists( 'gnf_get_admin_stats_summary' ) ? gnf_get_admin_stats_summary( $anio ) : array();
 
@@ -3356,7 +3404,7 @@ function gnf_rest_admin_reject_user( WP_REST_Request $request ) {
 }
 
 function gnf_rest_admin_centros( WP_REST_Request $request ) {
-	$anio         = (int) ( $request->get_param( 'year' ) ?: gnf_get_active_year() );
+	$anio         = gnf_rest_get_active_panel_year();
 	$region       = (int) ( $request->get_param( 'region' ) ?: 0 );
 	$search       = sanitize_text_field( $request->get_param( 's' ) ?? '' );
 	$estado       = sanitize_key( (string) ( $request->get_param( 'estado' ) ?? '' ) );
@@ -3416,7 +3464,7 @@ function gnf_rest_admin_centros( WP_REST_Request $request ) {
 }
 
 function gnf_rest_admin_retos( WP_REST_Request $request ) {
-	$anio = (int) ( $request->get_param( 'year' ) ?: gnf_get_active_year() );
+	$anio = gnf_rest_get_active_panel_year();
 
 	if ( function_exists( 'gnf_get_retos_for_admin' ) ) {
 		$retos_data = gnf_get_retos_for_admin( $anio );
@@ -3447,7 +3495,7 @@ function gnf_rest_admin_retos( WP_REST_Request $request ) {
 }
 
 function gnf_rest_admin_reports( WP_REST_Request $request ) {
-	$anio = (int) ( $request->get_param( 'year' ) ?: gnf_get_active_year() );
+	$anio = gnf_rest_get_active_panel_year();
 	$centro_ids = gnf_get_centros_with_matricula( $anio );
 	$counts     = gnf_rest_get_entry_counts_by_centro( $centro_ids, $anio );
 	$centros    = array();
@@ -3619,7 +3667,7 @@ function gnf_rest_comite_centro_detail( WP_REST_Request $request ) {
 
 function gnf_rest_comite_validate( WP_REST_Request $request ) {
 	$centro_id = (int) $request->get_param( 'id' );
-	$anio      = (int) ( $request->get_param( 'year' ) ?: gnf_get_active_year() );
+	$anio      = gnf_rest_get_active_panel_year();
 	$action    = sanitize_key( (string) ( $request->get_param( 'action' ) ?: 'validar' ) );
 	$notes     = sanitize_textarea_field( (string) ( $request->get_param( 'notes' ) ?: $request->get_param( 'nota' ) ?: '' ) );
 	$user      = wp_get_current_user();
@@ -3684,7 +3732,7 @@ function gnf_rest_comite_validate( WP_REST_Request $request ) {
 
 function gnf_rest_comite_observation( WP_REST_Request $request ) {
 	$centro_id   = (int) $request->get_param( 'id' );
-	$anio        = (int) ( $request->get_param( 'year' ) ?: gnf_get_active_year() );
+	$anio        = gnf_rest_get_active_panel_year();
 	$observation = sanitize_textarea_field( (string) ( $request->get_param( 'observation' ) ?: $request->get_param( 'nota' ) ?: '' ) );
 	$user        = wp_get_current_user();
 	$post        = get_post( $centro_id );
@@ -3725,7 +3773,7 @@ function gnf_rest_comite_observation( WP_REST_Request $request ) {
 }
 
 function gnf_rest_comite_historial( WP_REST_Request $request ) {
-	$anio   = (int) ( $request->get_param( 'year' ) ?: gnf_get_active_year() );
+	$anio   = gnf_rest_get_active_panel_year();
 	$region = 0;
 	$user   = wp_get_current_user();
 

@@ -168,6 +168,24 @@ function gnf_get_centros_matriculados_for_export( $region_ids, $circuito, $anio 
 	return get_posts( $args );
 }
 
+function gnf_get_centro_export_region_name( $centro_id ) {
+	$terms = wp_get_object_terms( $centro_id, 'gn_region' );
+	if ( is_wp_error( $terms ) || empty( $terms ) ) {
+		return '';
+	}
+
+	return (string) $terms[0]->name;
+}
+
+function gnf_get_centros_export_filename( $prefix, $region_id, $circuito, $anio ) {
+	$scope = $region_id ? 'region-' . absint( $region_id ) : 'dre';
+	if ( '' !== $circuito ) {
+		$scope .= '-circuito-' . sanitize_title( $circuito );
+	}
+
+	return sprintf( '%s-%s-%d.csv', sanitize_title( $prefix ), $scope, absint( $anio ) );
+}
+
 /**
  * Exporta CSV con listado de centros matriculados (una fila por centro).
  *
@@ -185,19 +203,18 @@ function gnf_export_centros_csv( $region_id = null, $anio = null, $circuito = ''
 	$scope   = gnf_get_centros_export_scope( $region_id, $circuito );
 	$centros = gnf_get_centros_matriculados_for_export( $scope['region_ids'], $scope['circuito'], $anio );
 
-	$filename = 'centros-matriculados-' . ( $region_id ? 'region-' . $region_id . '-' : '' ) . $anio . '.csv';
+	$filename = gnf_get_centros_export_filename( 'centros-matriculados', $region_id, $scope['circuito'], $anio );
 	header( 'Content-Type: text/csv; charset=utf-8' );
 	header( 'Content-Disposition: attachment; filename=' . $filename );
 
 	$output = fopen( 'php://output', 'w' );
 	fprintf( $output, chr( 0xEF ) . chr( 0xBB ) . chr( 0xBF ) ); // BOM UTF-8.
-	fputcsv( $output, array( 'Centro Educativo', 'Código MEP', 'Dirección Regional', 'Retos Seleccionados', 'Año' ) );
+	fputcsv( $output, array( 'Centro Educativo', 'Código MEP', 'Dirección Regional', 'Circuito', 'Retos Seleccionados', 'Año' ) );
 
 	foreach ( $centros as $centro ) {
 		$codigo     = get_post_meta( $centro->ID, 'codigo_mep', true );
-		$region_meta = get_post_meta( $centro->ID, 'region', true );
-		$region_term = $region_meta ? get_term( (int) $region_meta, 'gn_region' ) : null;
-		$region_name = ( $region_term && ! is_wp_error( $region_term ) ) ? $region_term->name : '';
+		$region_name = gnf_get_centro_export_region_name( $centro->ID );
+		$circuito    = function_exists( 'gnf_normalize_circuito' ) ? gnf_normalize_circuito( get_post_meta( $centro->ID, 'circuito', true ) ) : (string) get_post_meta( $centro->ID, 'circuito', true );
 		$retos_ids  = gnf_get_centro_retos_seleccionados( $centro->ID, $anio );
 		$num_retos  = count( $retos_ids );
 
@@ -205,6 +222,7 @@ function gnf_export_centros_csv( $region_id = null, $anio = null, $circuito = ''
 			$centro->post_title,
 			$codigo ?: '',
 			$region_name,
+			$circuito,
 			$num_retos,
 			$anio,
 		) );
@@ -233,20 +251,26 @@ function gnf_export_centros_matriculados_simple_csv( $region_id = null, $anio = 
 	$scope   = gnf_get_centros_export_scope( $region_id, $circuito );
 	$centros = gnf_get_centros_matriculados_for_export( $scope['region_ids'], $scope['circuito'], $anio );
 
-	$filename = 'centros-matriculados-dre-' . $anio . '.csv';
+	$filename = gnf_get_centros_export_filename( 'inscritos', $region_id, $scope['circuito'], $anio );
 	header( 'Content-Type: text/csv; charset=utf-8' );
 	header( 'Content-Disposition: attachment; filename=' . $filename );
 
 	$output = fopen( 'php://output', 'w' );
 	fprintf( $output, chr( 0xEF ) . chr( 0xBB ) . chr( 0xBF ) );
-	fputcsv( $output, array( 'Centro Educativo', 'Código MEP' ) );
+	fputcsv( $output, array( 'Centro Educativo', 'Código MEP', 'Dirección Regional', 'Circuito', 'Retos Seleccionados', 'Año' ) );
 
 	foreach ( $centros as $centro ) {
+		$circuito_centro = function_exists( 'gnf_normalize_circuito' ) ? gnf_normalize_circuito( get_post_meta( $centro->ID, 'circuito', true ) ) : (string) get_post_meta( $centro->ID, 'circuito', true );
+		$retos_ids       = gnf_get_centro_retos_seleccionados( $centro->ID, $anio );
 		fputcsv(
 			$output,
 			array(
 				$centro->post_title,
 				get_post_meta( $centro->ID, 'codigo_mep', true ) ?: '',
+				gnf_get_centro_export_region_name( $centro->ID ),
+				$circuito_centro,
+				count( $retos_ids ),
+				$anio,
 			)
 		);
 	}

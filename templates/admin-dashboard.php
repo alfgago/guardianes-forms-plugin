@@ -89,7 +89,7 @@ $icons = array(
 					<span class="gnf-sidebar__icon"><?php echo $icons['download']; ?></span>
 					Exportar CSV
 				</a>
-				<a href="<?php echo esc_url(admin_url('edit.php?post_type=centro_educativo')); ?>" class="gnf-sidebar__link">
+				<a href="<?php echo esc_url(admin_url('edit.php?post_type=centro_educativo')); ?>" class="gnf-sidebar__link gnf-new-centro-action--disabled">
 					<span class="gnf-sidebar__icon"><?php echo $icons['plus']; ?></span>
 					Nuevo Centro
 				</a>
@@ -687,7 +687,7 @@ $icons = array(
 							if (!empty($_GET['region'])) $export_centros_url = add_query_arg('region', absint($_GET['region']), $export_centros_url);
 							?>
 							<a href="<?php echo esc_url($export_centros_url); ?>" class="gnf-btn gnf-btn--ghost"><?php echo $icons['download']; ?> Exportar matriculados</a>
-							<a href="<?php echo esc_url(admin_url('post-new.php?post_type=centro_educativo')); ?>" class="gnf-btn"><?php echo $icons['plus']; ?> Nuevo Centro</a>
+							<a href="<?php echo esc_url(admin_url('post-new.php?post_type=centro_educativo')); ?>" class="gnf-btn gnf-new-centro-action--disabled"><?php echo $icons['plus']; ?> Nuevo Centro</a>
 						</div>
 					</div>
 

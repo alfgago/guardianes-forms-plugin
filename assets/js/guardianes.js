@@ -279,6 +279,8 @@
 	}
 
 	function initPasswordToggles() {
+		const eyeIcon = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"></path><circle cx="12" cy="12" r="3"></circle></svg>';
+		const eyeOffIcon = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m2 2 20 20"></path><path d="M6.71 6.71C3.93 8.24 2 12 2 12s3.5 7 10 7c1.67 0 3.12-.45 4.32-1.1"></path><path d="M19.29 17.29C22.07 15.76 22 12 22 12s-3.5-7-10-7c-1.67 0-3.12.45-4.32 1.1"></path><path d="M9.88 9.88a3 3 0 0 0 4.24 4.24"></path></svg>';
 		document.querySelectorAll('input[type="password"]').forEach(function (input) {
 			if (input.dataset.gnfPasswordToggle === '1' || !input.parentNode) return;
 			input.dataset.gnfPasswordToggle = '1';
@@ -297,7 +299,7 @@
 			button.className = 'gnf-password-toggle';
 			button.setAttribute('aria-label', 'Mostrar contrasena');
 			button.title = 'Mostrar contrasena';
-			button.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"></path><circle cx="12" cy="12" r="3"></circle></svg>';
+			button.innerHTML = eyeIcon;
 			Object.assign(button.style, {
 				position: 'absolute',
 				top: '50%',
@@ -323,6 +325,7 @@
 				input.type = show ? 'text' : 'password';
 				button.setAttribute('aria-label', show ? 'Ocultar contrasena' : 'Mostrar contrasena');
 				button.title = show ? 'Ocultar contrasena' : 'Mostrar contrasena';
+				button.innerHTML = show ? eyeOffIcon : eyeIcon;
 			});
 
 			wrapper.appendChild(button);

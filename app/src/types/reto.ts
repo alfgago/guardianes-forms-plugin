@@ -47,6 +47,7 @@ export interface Evidencia {
   estado?: 'pendiente' | 'aprobada' | 'rechazada' | null;
   supervisor_comment?: string | null;
   reviewed_by?: number | null;
+  reviewed_by_name?: string | null;
   reviewed_at?: string | null;
   replaced?: boolean;
   photo_date?: string | null;

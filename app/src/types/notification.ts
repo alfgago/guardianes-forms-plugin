@@ -35,6 +35,7 @@ export interface NotificationEvidenceItem {
   puntos?: number | null;
   supervisorComment?: string | null;
   reviewedBy?: number | null;
+  reviewedByName?: string | null;
   reviewedAt?: string | null;
   photoDate?: string | null;
   requiresYearValidation?: boolean;

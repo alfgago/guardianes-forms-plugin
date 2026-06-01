@@ -12,15 +12,19 @@ export const useYearStore = create<YearState>((set) => ({
   activeYear: new Date().getFullYear(),
   selectedYear: new Date().getFullYear(),
   availableYears: [new Date().getFullYear()],
-  setSelectedYear: (year) => set({ selectedYear: year }),
-  init: (activeYear, availableYears, selectedYear) => {
-    const years = availableYears && availableYears.length > 0 ? availableYears : [activeYear];
-    const resolvedYear = selectedYear && years.includes(selectedYear) ? selectedYear : activeYear;
+  setSelectedYear: () => {
+    set((state) => ({
+      selectedYear: state.activeYear,
+      availableYears: [state.activeYear],
+    }));
+  },
+  init: (activeYear) => {
+    const resolvedYear = activeYear || new Date().getFullYear();
 
     set({
-      activeYear,
+      activeYear: resolvedYear,
       selectedYear: resolvedYear,
-      availableYears: years,
+      availableYears: [resolvedYear],
     });
   },
 }));

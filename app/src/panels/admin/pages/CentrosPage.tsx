@@ -177,7 +177,7 @@ export function CentrosPage({ onViewCentro }: CentrosPageProps) {
           <h2 style={{ marginBottom: 'var(--gnf-space-2)' }}>Centros Educativos</h2>
           <p style={{ color: 'var(--gnf-muted)', marginBottom: 0 }}>Por defecto se muestran los centros ya registrados por alguna cuenta docente.</p>
         </div>
-        <Button icon={<Plus size={16} />} onClick={openCreateModal}>
+        <Button className="gnf-new-centro-action--disabled" icon={<Plus size={16} />} onClick={openCreateModal}>
           Nuevo centro
         </Button>
       </div>

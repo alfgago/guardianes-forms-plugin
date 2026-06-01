@@ -137,7 +137,17 @@ export function DashboardPage({ onViewCentro }: DashboardPageProps) {
     : circuito || region
       ? 'No hay centros para los filtros actuales.'
       : 'No hay centros con matrícula activa.';
-  const exportUrl = useMemo(() => {
+  const dreExportUrl = useMemo(() => {
+    const url = new URL(adminPostUrl, window.location.origin);
+    url.searchParams.set('action', 'gnf_export_centros_matriculados_simple_csv');
+    url.searchParams.set('year', String(year));
+    if (selectedRegion) {
+      url.searchParams.set('region', String(selectedRegion));
+    }
+    return url.toString();
+  }, [adminPostUrl, selectedRegion, year]);
+
+  const circuitoExportUrl = useMemo(() => {
     const url = new URL(adminPostUrl, window.location.origin);
     url.searchParams.set('action', 'gnf_export_centros_matriculados_simple_csv');
     url.searchParams.set('year', String(year));
@@ -149,6 +159,9 @@ export function DashboardPage({ onViewCentro }: DashboardPageProps) {
     }
     return url.toString();
   }, [adminPostUrl, circuito, selectedRegion, year]);
+
+  const primaryExportLabel = isComite ? 'Descargar DRE' : 'Descargar circuito';
+  const showCircuitExport = isComite && !!circuito;
 
   if (loadingStats) return <Spinner />;
 
@@ -162,26 +175,50 @@ export function DashboardPage({ onViewCentro }: DashboardPageProps) {
           <h2>Escritorio</h2>
           <p style={{ color: 'var(--gnf-muted)' }}>Año {year}{regionSummary ? ` | ${regionSummary}` : ''}</p>
         </div>
-        <a
-          href={exportUrl}
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: 8,
-            padding: '10px 16px',
-            borderRadius: 'var(--gnf-radius)',
-            border: '1px solid var(--gnf-forest)',
-            color: 'var(--gnf-forest)',
-            fontWeight: 600,
-            textDecoration: 'none',
-            background: 'transparent',
-            whiteSpace: 'nowrap',
-          }}
-        >
-          <Download size={16} />
-          Descargar lista
-        </a>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+          <a
+            href={isComite ? dreExportUrl : circuitoExportUrl}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 8,
+              padding: '10px 16px',
+              borderRadius: 'var(--gnf-radius)',
+              border: '1px solid var(--gnf-forest)',
+              color: 'var(--gnf-forest)',
+              fontWeight: 600,
+              textDecoration: 'none',
+              background: 'transparent',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            <Download size={16} />
+            {primaryExportLabel}
+          </a>
+          {showCircuitExport && (
+            <a
+              href={circuitoExportUrl}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 8,
+                padding: '10px 16px',
+                borderRadius: 'var(--gnf-radius)',
+                border: '1px solid var(--gnf-border)',
+                color: 'var(--gnf-text)',
+                fontWeight: 600,
+                textDecoration: 'none',
+                background: '#fff',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              <Download size={16} />
+              Descargar circuito
+            </a>
+          )}
+        </div>
       </div>
 
       {stats && (

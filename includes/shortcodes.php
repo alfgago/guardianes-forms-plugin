@@ -8,15 +8,11 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 function gnf_get_shortcode_selected_year() {
-	$available_years = function_exists( 'gnf_get_available_years' ) ? gnf_get_available_years() : array( (int) gmdate( 'Y' ) );
-	$selected_year   = isset( $_GET['year'] ) ? absint( $_GET['year'] ) : ( function_exists( 'gnf_get_active_year' ) ? gnf_get_active_year() : (int) gmdate( 'Y' ) );
-
-	if ( ! in_array( $selected_year, $available_years, true ) ) {
-		$selected_year = function_exists( 'gnf_get_active_year' ) ? gnf_get_active_year() : (int) $available_years[0];
-	}
+	$selected_year = function_exists( 'gnf_get_active_year' ) ? gnf_get_active_year() : (int) gmdate( 'Y' );
+	$selected_year = function_exists( 'gnf_normalize_year' ) ? gnf_normalize_year( $selected_year ) : absint( $selected_year );
 
 	return array(
-		'availableYears' => $available_years,
+		'availableYears' => array( $selected_year ),
 		'selectedYear'   => $selected_year,
 	);
 }

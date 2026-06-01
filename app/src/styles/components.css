@@ -14,6 +14,11 @@
   overflow: visible;
 }
 
+.gnf-auth-register-tab--disabled,
+.gnf-new-centro-action--disabled {
+  display: none !important;
+}
+
 /* Panel shell */
 .gnf-shell {
   display: flex;
