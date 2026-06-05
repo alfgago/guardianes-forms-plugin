@@ -44,6 +44,8 @@ function gnf_asset_version( $relative_path ) {
  * Carga todos los archivos necesarios.
  */
 require_once 'includes/helpers.php';
+require_once 'includes/merge-centros-logic.php';
+require_once 'includes/merge-centros.php';
 require_once 'includes/migrations/center-annual-data.php';
 require_once 'includes/impersonate.php';
 require_once 'includes/roles.php';
@@ -69,6 +71,10 @@ require_once 'includes/shortcodes.php';
 require_once 'includes/registros.php';
 require_once 'includes/react-loader.php';
 require_once 'includes/rest-api.php';
+
+if ( defined( 'WP_CLI' ) && WP_CLI ) {
+	require_once 'includes/cli/class-gnf-merge-centros-command.php';
+}
 
 /**
  * Devuelve el path de la request actual.
@@ -551,6 +557,7 @@ function gnf_handle_reset_db()
 		wp_die('Sin permisos.');
 	}
 	check_admin_referer('gnf_reset_db_nonce');
+	gnf_guard_danger_tool('reset_db');
 
 	// Capturar toda la salida para mostrarla al final.
 	ob_start();
@@ -736,6 +743,7 @@ function gnf_handle_reseed_retos()
 		wp_die('Sin permisos.');
 	}
 	check_admin_referer('gnf_reseed_retos_nonce');
+	gnf_guard_danger_tool('reseed_retos');
 
 	ob_start();
 
