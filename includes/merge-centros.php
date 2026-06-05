@@ -8,6 +8,15 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+/** Lanza excepcion si una escritura de $wpdb fallo (devolvio false). */
+function gnf_merge_db_or_throw( $result, $context ) {
+	global $wpdb;
+	if ( false === $result ) {
+		throw new \RuntimeException( $context . ': ' . ( $wpdb->last_error ? $wpdb->last_error : 'wpdb write failed' ) );
+	}
+	return $result;
+}
+
 /**
  * Detecta grupos de centros duplicados (mismo codigo MEP + region + circuito + nombre).
  *
@@ -31,7 +40,7 @@ function gnf_merge_find_duplicate_groups() {
 		}
 		$codigo   = get_post_meta( $id, 'codigo_mep', true );
 		$circuito = get_post_meta( $id, 'circuito', true );
-		$terms    = wp_get_object_terms( $id, 'gn_region', array( 'fields' => 'ids' ) );
+		$terms    = wp_get_object_terms( $id, 'gn_region', array( 'fields' => 'ids', 'orderby' => 'term_id' ) );
 		$region   = ( ! is_wp_error( $terms ) && ! empty( $terms ) ) ? (int) $terms[0] : 0;
 		$key      = gnf_merge_centro_key( $codigo, $region, $circuito, get_the_title( $id ) );
 		if ( null === $key ) {
@@ -80,7 +89,9 @@ function gnf_merge_new_stats( $canonical_id, $dup_id ) {
 }
 
 /**
- * Fusiona un duplicado en el canonical. Devuelve stats. Si $dry_run, no escribe nada.
+ * Fusiona un duplicado en el canonical (solo escrituras transaccionales de BD).
+ * NO manda a papelera ni registra auditoria: eso lo hace gnf_merge_post_commit
+ * DESPUES del COMMIT. Devuelve stats. Si $dry_run, no escribe nada.
  */
 function gnf_merge_centros_pair( $canonical_id, $dup_id, $dry_run = true ) {
 	$canonical_id = (int) $canonical_id;
@@ -114,7 +125,7 @@ function gnf_merge_entries( $canonical_id, $dup_id, $dry_run, &$stats ) {
 		if ( ! $existing ) {
 			$stats['entries_moved']++;
 			if ( ! $dry_run ) {
-				$wpdb->update( $table, array( 'centro_id' => $canonical_id ), array( 'id' => $d['id'] ), array( '%d' ), array( '%d' ) );
+				gnf_merge_db_or_throw( $wpdb->update( $table, array( 'centro_id' => $canonical_id ), array( 'id' => $d['id'] ), array( '%d' ), array( '%d' ) ), 'repoint entry ' . $d['id'] );
 			}
 			continue;
 		}
@@ -136,10 +147,10 @@ function gnf_merge_entries( $canonical_id, $dup_id, $dry_run, &$stats ) {
 
 		if ( ! $dry_run ) {
 			if ( $dup_wins ) {
-				$wpdb->delete( $table, array( 'id' => $existing['id'] ), array( '%d' ) );
-				$wpdb->update( $table, array( 'centro_id' => $canonical_id ), array( 'id' => $d['id'] ), array( '%d' ), array( '%d' ) );
+				gnf_merge_db_or_throw( $wpdb->delete( $table, array( 'id' => $existing['id'] ), array( '%d' ) ), 'delete canonical entry ' . $existing['id'] );
+				gnf_merge_db_or_throw( $wpdb->update( $table, array( 'centro_id' => $canonical_id ), array( 'id' => $d['id'] ), array( '%d' ), array( '%d' ) ), 'repoint entry ' . $d['id'] );
 			} else {
-				$wpdb->delete( $table, array( 'id' => $d['id'] ), array( '%d' ) );
+				gnf_merge_db_or_throw( $wpdb->delete( $table, array( 'id' => $d['id'] ), array( '%d' ) ), 'delete dup entry ' . $d['id'] );
 			}
 		}
 	}
@@ -158,7 +169,7 @@ function gnf_merge_matriculas( $canonical_id, $dup_id, $dry_run, &$stats ) {
 		if ( ! $existing ) {
 			$stats['matriculas_moved']++;
 			if ( ! $dry_run ) {
-				$wpdb->update( $table, array( 'centro_id' => $canonical_id ), array( 'id' => $d['id'] ), array( '%d' ), array( '%d' ) );
+				gnf_merge_db_or_throw( $wpdb->update( $table, array( 'centro_id' => $canonical_id ), array( 'id' => $d['id'] ), array( '%d' ), array( '%d' ) ), 'repoint matricula ' . $d['id'] );
 			}
 			continue;
 		}
@@ -176,23 +187,23 @@ function gnf_merge_matriculas( $canonical_id, $dup_id, $dry_run, &$stats ) {
 
 		if ( ! $dry_run ) {
 			if ( $dup_wins ) {
-				$wpdb->delete( $table, array( 'id' => $existing['id'] ), array( '%d' ) );
-				$wpdb->update(
+				gnf_merge_db_or_throw( $wpdb->delete( $table, array( 'id' => $existing['id'] ), array( '%d' ) ), 'delete canonical matricula ' . $existing['id'] );
+				gnf_merge_db_or_throw( $wpdb->update(
 					$table,
 					array( 'centro_id' => $canonical_id, 'retos_seleccionados' => wp_json_encode( $union ), 'meta_estrellas' => $estrellas ),
 					array( 'id' => $d['id'] ),
 					array( '%d', '%s', '%d' ),
 					array( '%d' )
-				);
+				), 'repoint matricula ' . $d['id'] );
 			} else {
-				$wpdb->update(
+				gnf_merge_db_or_throw( $wpdb->update(
 					$table,
 					array( 'retos_seleccionados' => wp_json_encode( $union ), 'meta_estrellas' => $estrellas ),
 					array( 'id' => $existing['id'] ),
 					array( '%s', '%d' ),
 					array( '%d' )
-				);
-				$wpdb->delete( $table, array( 'id' => $d['id'] ), array( '%d' ) );
+				), 'update canonical matricula ' . $existing['id'] );
+				gnf_merge_db_or_throw( $wpdb->delete( $table, array( 'id' => $d['id'] ), array( '%d' ) ), 'delete dup matricula ' . $d['id'] );
 			}
 		}
 	}
@@ -212,14 +223,14 @@ function gnf_merge_simple_refs( $canonical_id, $dup_id, $dry_run, &$stats ) {
 		return;
 	}
 
-	$wpdb->query( $wpdb->prepare( "UPDATE {$notif} SET relacion_id = %d WHERE relacion_tipo = 'centro' AND relacion_id = %d", $canonical_id, $dup_id ) ); // phpcs:ignore
-	$wpdb->query( $wpdb->prepare( "UPDATE {$audit} SET centro_id = %d WHERE centro_id = %d", $canonical_id, $dup_id ) ); // phpcs:ignore
+	gnf_merge_db_or_throw( $wpdb->query( $wpdb->prepare( "UPDATE {$notif} SET relacion_id = %d WHERE relacion_tipo = 'centro' AND relacion_id = %d", $canonical_id, $dup_id ) ), 'repoint notifs' ); // phpcs:ignore
+	gnf_merge_db_or_throw( $wpdb->query( $wpdb->prepare( "UPDATE {$audit} SET centro_id = %d WHERE centro_id = %d", $canonical_id, $dup_id ) ), 'repoint audit' ); // phpcs:ignore
 	foreach ( array( 'centro_educativo_id', 'centro_solicitado', 'gnf_centro_id' ) as $mk ) {
-		$wpdb->query( $wpdb->prepare( "UPDATE {$wpdb->usermeta} SET meta_value = %s WHERE meta_key = %s AND meta_value = %s", (string) $canonical_id, $mk, (string) $dup_id ) ); // phpcs:ignore
+		gnf_merge_db_or_throw( $wpdb->query( $wpdb->prepare( "UPDATE {$wpdb->usermeta} SET meta_value = %s WHERE meta_key = %s AND meta_value = %s", (string) $canonical_id, $mk, (string) $dup_id ) ), 'repoint usermeta ' . $mk ); // phpcs:ignore
 	}
 }
 
-/** Mergea datos anuales ACF: copia años faltantes, une retos_seleccionados en años compartidos. */
+/** Mergea datos anuales ACF: copia años faltantes, une retos_seleccionados y toma el max de estrellas en años compartidos. */
 function gnf_merge_annual_data( $canonical_id, $dup_id, $dry_run, &$stats ) {
 	$dup_rows = function_exists( 'gnf_get_centro_anual_rows' ) ? gnf_get_centro_anual_rows( $dup_id ) : array();
 
@@ -247,6 +258,12 @@ function gnf_merge_annual_data( $canonical_id, $dup_id, $dry_run, &$stats ) {
 				isset( $row['retos_seleccionados'] ) ? $row['retos_seleccionados'] : array()
 			);
 			gnf_set_centro_anual_field( $canonical_id, 'retos_seleccionados', $union, $anio );
+
+			$max_estrellas = max(
+				(int) ( isset( $can_row['meta_estrellas'] ) ? $can_row['meta_estrellas'] : 0 ),
+				(int) ( isset( $row['meta_estrellas'] ) ? $row['meta_estrellas'] : 0 )
+			);
+			gnf_set_centro_anual_field( $canonical_id, 'meta_estrellas', $max_estrellas, $anio );
 		}
 	}
 }
@@ -269,7 +286,7 @@ function gnf_merge_backfill_meta( $canonical_id, $dup_id, $dry_run, &$stats ) {
 	}
 }
 
-/** Recalcula puntajes, limpia caches, manda el duplicado a papelera, registra el evento. */
+/** Recalcula puntajes del canonical y limpia caches (escrituras dentro de la transaccion). */
 function gnf_merge_finalize( $canonical_id, $dup_id, $dry_run, &$stats ) {
 	if ( $dry_run ) {
 		return;
@@ -284,7 +301,13 @@ function gnf_merge_finalize( $canonical_id, $dup_id, $dry_run, &$stats ) {
 		delete_transient( 'gnf_total_' . $dup_id . '_' . $anio );
 		delete_transient( 'gnf_aprobados_' . $dup_id . '_' . $anio );
 	}
+}
 
+/**
+ * Pasos irreversibles que deben correr DESPUES del COMMIT: marca el duplicado,
+ * lo manda a papelera y registra el evento de auditoria. Solo en ejecucion real.
+ */
+function gnf_merge_post_commit( $canonical_id, $dup_id, $stats ) {
 	update_post_meta( $dup_id, 'gnf_merged_into', $canonical_id );
 	update_post_meta( $dup_id, 'gnf_merged_at', current_time( 'mysql' ) );
 	wp_trash_post( $dup_id );

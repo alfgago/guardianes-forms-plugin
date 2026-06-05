@@ -24,7 +24,7 @@ class GNF_Merge_Centros_Command {
 	 * : Limita al grupo que contiene ese centro.
 	 *
 	 * [--canonical=<id>]
-	 * : Fuerza cual ID es el correcto dentro del grupo afectado.
+	 * : Fuerza cual ID es el correcto. Requiere un filtro que deje un solo grupo.
 	 *
 	 * [--limit=<n>]
 	 * : Procesa como maximo N grupos.
@@ -59,6 +59,10 @@ class GNF_Merge_Centros_Command {
 			return;
 		}
 
+		if ( isset( $assoc_args['canonical'] ) && count( $groups ) !== 1 ) {
+			WP_CLI::error( '--canonical requiere un filtro (--centro/--codigo) que seleccione exactamente un grupo.' );
+		}
+
 		$total_groups = 0;
 		$total_dups   = 0;
 
@@ -83,6 +87,7 @@ class GNF_Merge_Centros_Command {
 					$stats = gnf_merge_centros_pair( $canonical, $dup, $dry_run );
 					if ( $execute ) {
 						$wpdb->query( 'COMMIT' );
+						gnf_merge_post_commit( $canonical, $dup, $stats );
 					}
 					$total_dups++;
 					WP_CLI::log( sprintf(
