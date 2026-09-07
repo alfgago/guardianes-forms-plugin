@@ -1,12 +1,20 @@
 import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { CheckCircle2, FileText, Upload, XCircle } from 'lucide-react';
+import { CheckCircle2, FileText, PencilLine, Upload, XCircle } from 'lucide-react';
 import { supervisorApi } from '@/api/supervisor';
 import { EvidenceViewer } from '@/components/domain/EvidenceViewer';
 import { Button } from '@/components/ui/Button';
+import { Select } from '@/components/ui/Select';
 import { Textarea } from '@/components/ui/Textarea';
 import { useToast } from '@/components/ui/Toast';
 import type { Evidencia, RetoEntry, RetoEntryResponse } from '@/types';
+import {
+  formatEvidenceOriginalDate,
+  getEvidenceOriginalDate,
+  getEvidenceReviewStatus,
+  getRejectionReasonLabel,
+  REJECTION_REASON_OPTIONS,
+} from '@/utils/evidenceReview';
 
 interface EntryReviewCardProps {
   entry: RetoEntry & { retoTitulo: string; retoColor: string; retoIconUrl?: string };
@@ -214,33 +222,26 @@ function EvidenceReviewItem({
   evidenceIndex: number;
   fieldPuntos: number;
 }) {
-  const [comment, setComment] = useState(evidence.supervisor_comment ?? '');
-  const [showRejectForm, setShowRejectForm] = useState(false);
+  const [reviewComment, setReviewComment] = useState('');
+  const [rejectReason, setRejectReason] = useState('');
+  const [reviewMode, setReviewMode] = useState<'aprobar' | 'rechazar' | 'editar' | null>(null);
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
   const effectivePuntos = evidence.puntos ?? fieldPuntos;
   const hasPuntos = effectivePuntos != null && effectivePuntos > 0;
-  const estado = evidence.estado ?? (evidence.requires_year_validation ? 'rechazada' : 'pendiente');
+  const estado = getEvidenceReviewStatus(evidence);
   const isRejected = estado === 'rechazada';
   const isApproved = estado === 'aprobada';
+  const isReviewed = isApproved || isRejected;
   const imgUrl = evidence.ruta || evidence.url || '';
   const isImage = (evidence.tipo ?? evidence.type) === 'imagen';
   const nombre = evidence.nombre ?? evidence.filename ?? 'Archivo';
 
-  const photoDate = evidence.photo_date
-    ? new Date(`${evidence.photo_date}T00:00:00`).toLocaleDateString('es-CR', {
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric',
-      })
-    : null;
-  const exifYearMatch = !photoDate ? evidence.supervisor_comment?.match(/\((\d{4})\)/) : null;
-  const fallbackYear = exifYearMatch?.[1]
-    ? exifYearMatch[1]
-    : (evidence.exifYear ? String(evidence.exifYear) : null);
-  const dateDisplay = photoDate ?? (fallbackYear ? `Ano ${fallbackYear}` : null);
-  const isAutoRejected = isRejected && (evidence.reviewed_by === 0 || evidence.reviewed_by === null);
+  const originalDate = getEvidenceOriginalDate(evidence);
+  const dateDisplay = formatEvidenceOriginalDate(originalDate);
+  const isAutoRejected = isRejected && evidence.reviewed_by === 0;
+  const reviewReasonLabel = getRejectionReasonLabel(evidence.review_reason);
   const reviewerName = evidence.reviewed_by_name?.trim();
   const reviewedDate = evidence.reviewed_at
     ? new Date(evidence.reviewed_at).toLocaleDateString('es-CR')
@@ -253,16 +254,47 @@ function EvidenceReviewItem({
     mutationFn: (action: 'aprobar' | 'rechazar') =>
       supervisorApi.reviewEvidence(entryId, evidenceIndex, {
         action,
-        comment: action === 'rechazar' ? comment : '',
+        comment: reviewComment.trim(),
+        reviewReason: action === 'rechazar' ? rejectReason : undefined,
       }),
     onSuccess: (_, action) => {
       toast('success', action === 'aprobar' ? 'Evidencia aprobada.' : 'Evidencia rechazada.');
       queryClient.invalidateQueries({ queryKey: ['supervisor-centro'] });
       queryClient.invalidateQueries({ queryKey: ['supervisor-centros'] });
-      setShowRejectForm(false);
+      setReviewComment('');
+      setRejectReason('');
+      setReviewMode(null);
     },
     onError: (err: any) => toast('error', err?.message || 'Error al procesar.'),
   });
+
+  const closeReviewForm = () => {
+    setReviewComment('');
+    setRejectReason('');
+    setReviewMode(null);
+  };
+
+  const openApproveForm = () => {
+    setReviewComment(evidence.supervisor_comment ?? '');
+    setRejectReason('');
+    setReviewMode('aprobar');
+  };
+
+  const openRejectForm = () => {
+    setReviewComment(evidence.supervisor_comment ?? '');
+    setRejectReason(evidence.review_reason ?? '');
+    setReviewMode('rechazar');
+  };
+
+  const openEditCommentForm = () => {
+    setReviewComment(evidence.supervisor_comment ?? '');
+    setRejectReason(evidence.review_reason ?? '');
+    setReviewMode('editar');
+  };
+
+  const submitEditedComment = () => {
+    mutation.mutate(isRejected ? 'rechazar' : 'aprobar');
+  };
 
   if (entryId === 0 || !hasPuntos) {
     return (
@@ -320,6 +352,14 @@ function EvidenceReviewItem({
               Abrir archivo
             </a>
           )}
+          <span style={{ fontSize: '0.75rem', color: 'var(--gnf-muted)' }}>
+            Fecha original del archivo: {dateDisplay}
+          </span>
+          {evidence.requires_year_validation && (
+            <span style={{ fontSize: '0.75rem', color: '#b45309' }}>
+              La fecha original del archivo no coincide con el año activo.
+            </span>
+          )}
         </div>
       </div>
     );
@@ -331,6 +371,10 @@ function EvidenceReviewItem({
     : isRejected
       ? 'rgba(239, 107, 74, 0.04)'
       : 'var(--gnf-white)';
+  const showApprovalCommentForm = reviewMode === 'aprobar' || (reviewMode === 'editar' && !isRejected);
+  const showRejectionCommentForm = reviewMode === 'rechazar' || (reviewMode === 'editar' && isRejected);
+  const canApprove = !isApproved;
+  const canReject = !isRejected;
 
   return (
     <div
@@ -450,19 +494,23 @@ function EvidenceReviewItem({
           </div>
         )}
 
-        {dateDisplay && (
-          <div
-            style={{
-              fontSize: '0.75rem',
-              color: isRejected ? 'var(--gnf-coral)' : 'var(--gnf-muted)',
-              marginBottom: 4,
-            }}
-          >
-            Fecha de la foto: {dateDisplay}
+        <div
+          style={{
+            fontSize: '0.75rem',
+            color: evidence.requires_year_validation ? '#b45309' : 'var(--gnf-muted)',
+            marginBottom: 4,
+          }}
+        >
+          Fecha original del archivo: {dateDisplay}
+        </div>
+
+        {evidence.requires_year_validation && (
+          <div style={{ fontSize: '0.75rem', color: '#b45309', marginBottom: 6 }}>
+            La fecha original del archivo no coincide con el año activo.
           </div>
         )}
 
-        {isRejected && evidence.supervisor_comment && !isAutoRejected && (
+        {!isAutoRejected && (reviewReasonLabel || evidence.supervisor_comment) && (
           <div
             style={{
               fontSize: '0.8125rem',
@@ -474,7 +522,14 @@ function EvidenceReviewItem({
               color: 'var(--gnf-gray-700)',
             }}
           >
-            {evidence.supervisor_comment}
+            {reviewReasonLabel && (
+              <div>
+                <strong>Motivo:</strong> {reviewReasonLabel}
+              </div>
+            )}
+            {evidence.supervisor_comment && (
+              <div>{evidence.supervisor_comment}</div>
+            )}
           </div>
         )}
 
@@ -485,35 +540,94 @@ function EvidenceReviewItem({
         )}
 
         <div style={{ display: 'flex', gap: 'var(--gnf-space-2)', flexWrap: 'wrap', alignItems: 'center' }}>
-          <Button
-            size="sm"
-            icon={<CheckCircle2 size={14} />}
-            disabled={isApproved || mutation.isPending}
-            loading={mutation.isPending && mutation.variables === 'aprobar'}
-            onClick={() => mutation.mutate('aprobar')}
-            style={{ fontSize: '0.75rem', padding: '4px 10px' }}
-          >
-            Aprobar
-          </Button>
+          {reviewMode === null && (
+            <>
+              {canApprove && (
+                <Button
+                  size="sm"
+                  icon={<CheckCircle2 size={14} />}
+                  disabled={mutation.isPending}
+                  onClick={openApproveForm}
+                  style={{ fontSize: '0.75rem', padding: '4px 10px' }}
+                >
+                  Aprobar
+                </Button>
+              )}
 
-          {!showRejectForm ? (
-            <Button
-              variant="danger"
-              size="sm"
-              icon={<XCircle size={14} />}
-              disabled={mutation.isPending}
-              onClick={() => setShowRejectForm(true)}
-              style={{ fontSize: '0.75rem', padding: '4px 10px' }}
-            >
-              Rechazar
-            </Button>
-          ) : (
+              {canReject && (
+                <Button
+                  variant="danger"
+                  size="sm"
+                  icon={<XCircle size={14} />}
+                  disabled={mutation.isPending}
+                  onClick={openRejectForm}
+                  style={{ fontSize: '0.75rem', padding: '4px 10px' }}
+                >
+                  Rechazar
+                </Button>
+              )}
+
+              {isReviewed && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  icon={<PencilLine size={14} />}
+                  onClick={openEditCommentForm}
+                  style={{ fontSize: '0.75rem', padding: '4px 10px' }}
+                >
+                  Editar comentario
+                </Button>
+              )}
+            </>
+          )}
+
+          {showApprovalCommentForm && (
             <div style={{ width: '100%', marginTop: 'var(--gnf-space-2)' }}>
               <Textarea
                 label=""
-                value={comment}
-                onChange={(event) => setComment(event.target.value)}
-                placeholder="Motivo del rechazo (requerido)..."
+                value={reviewComment}
+                onChange={(event) => setReviewComment(event.target.value)}
+                placeholder="Comentario opcional para el centro educativo..."
+                rows={2}
+                style={{ fontSize: '0.8125rem' }}
+              />
+              <div style={{ display: 'flex', gap: 'var(--gnf-space-2)', marginTop: 4 }}>
+                <Button
+                  size="sm"
+                  loading={mutation.isPending && mutation.variables === 'aprobar'}
+                  onClick={reviewMode === 'editar' ? submitEditedComment : () => mutation.mutate('aprobar')}
+                  disabled={mutation.isPending}
+                  style={{ fontSize: '0.75rem' }}
+                >
+                  {reviewMode === 'editar' ? 'Guardar comentario' : 'Guardar aprobación'}
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={closeReviewForm}
+                  style={{ fontSize: '0.75rem' }}
+                >
+                  Cancelar
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {showRejectionCommentForm && (
+            <div style={{ width: '100%', marginTop: 'var(--gnf-space-2)' }}>
+              <Select
+                label=""
+                value={rejectReason}
+                onChange={(event) => setRejectReason(event.target.value)}
+                options={[...REJECTION_REASON_OPTIONS]}
+                placeholder="Selecciona el tipo de situación"
+                style={{ marginBottom: 'var(--gnf-space-2)' }}
+              />
+              <Textarea
+                label=""
+                value={reviewComment}
+                onChange={(event) => setReviewComment(event.target.value)}
+                placeholder="Anotación adicional..."
                 rows={2}
                 style={{ fontSize: '0.8125rem' }}
               />
@@ -521,17 +635,17 @@ function EvidenceReviewItem({
                 <Button
                   variant="danger"
                   size="sm"
-                  loading={mutation.isPending}
-                  onClick={() => mutation.mutate('rechazar')}
-                  disabled={!comment.trim()}
+                  loading={mutation.isPending && mutation.variables === 'rechazar'}
+                  onClick={reviewMode === 'editar' ? submitEditedComment : () => mutation.mutate('rechazar')}
+                  disabled={!rejectReason || mutation.isPending}
                   style={{ fontSize: '0.75rem' }}
                 >
-                  Enviar nota
+                  {reviewMode === 'editar' ? 'Guardar comentario' : 'Guardar rechazo'}
                 </Button>
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => setShowRejectForm(false)}
+                  onClick={closeReviewForm}
                   style={{ fontSize: '0.75rem' }}
                 >
                   Cancelar

@@ -48,6 +48,8 @@ export function DashboardPage({ onViewCentro }: DashboardPageProps) {
   const [search, setSearch] = useState('');
 
   const isComite = !!user?.roles.includes('comite_bae');
+  const assignedCircuito = user?.circuito || '';
+  const effectiveCircuito = assignedCircuito || circuito;
   const assignedRegionIds = useMemo(() => {
     if (user?.regionIds?.length) {
       return user.regionIds;
@@ -99,6 +101,12 @@ export function DashboardPage({ onViewCentro }: DashboardPageProps) {
     }
   }, [circuito, circuitos]);
 
+  useEffect(() => {
+    if (assignedCircuito && circuito) {
+      setCircuito('');
+    }
+  }, [assignedCircuito, circuito]);
+
   const { data: circuitoCentros, isLoading: loadingCircuitoCentros } = useQuery({
     queryKey: ['supervisor-centros', year, selectedRegion ?? 'all', circuito || 'all'],
     queryFn: () => supervisorApi.getCentros(year, circuito || undefined, selectedRegion),
@@ -119,6 +127,8 @@ export function DashboardPage({ onViewCentro }: DashboardPageProps) {
       || (centro.codigoMep ?? '').toLowerCase().includes(query)
       || (centro.regionName ?? '').toLowerCase().includes(query)
       || (centro.circuito ?? '').toLowerCase().includes(query)
+      || (centro.tipoCentroEducativoLabel ?? centro.tipoCentroEducativo ?? '').toLowerCase().includes(query)
+      || (centro.tipologiaLabel ?? centro.tipologia ?? '').toLowerCase().includes(query)
     ));
   }, [centrosBase, search]);
 
@@ -134,7 +144,7 @@ export function DashboardPage({ onViewCentro }: DashboardPageProps) {
 
   const emptyMessage = search.trim()
     ? 'No hay centros que coincidan con la búsqueda.'
-    : circuito || region
+    : effectiveCircuito || region
       ? 'No hay centros para los filtros actuales.'
       : 'No hay centros con matrícula activa.';
   const dreExportUrl = useMemo(() => {
@@ -154,14 +164,14 @@ export function DashboardPage({ onViewCentro }: DashboardPageProps) {
     if (selectedRegion) {
       url.searchParams.set('region', String(selectedRegion));
     }
-    if (circuito) {
-      url.searchParams.set('circuito', circuito);
+    if (effectiveCircuito) {
+      url.searchParams.set('circuito', effectiveCircuito);
     }
     return url.toString();
-  }, [adminPostUrl, circuito, selectedRegion, year]);
+  }, [adminPostUrl, effectiveCircuito, selectedRegion, year]);
 
   const primaryExportLabel = isComite ? 'Descargar DRE' : 'Descargar circuito';
-  const showCircuitExport = isComite && !!circuito;
+  const showCircuitExport = isComite && !!effectiveCircuito;
 
   if (loadingStats) return <Spinner />;
 
@@ -236,7 +246,7 @@ export function DashboardPage({ onViewCentro }: DashboardPageProps) {
           <p style={{ margin: 0, color: 'var(--gnf-muted)', fontSize: '0.875rem' }}>
             {[
               regionSummary ? `Región: ${regionSummary}` : '',
-              circuito ? `Circuito ${circuito}` : '',
+              effectiveCircuito ? `Circuito ${effectiveCircuito}` : '',
               search.trim() ? `Búsqueda: "${search.trim()}"` : '',
             ].filter(Boolean).join(' • ') || 'Vista general de los centros asignados.'}
           </p>
@@ -264,7 +274,7 @@ export function DashboardPage({ onViewCentro }: DashboardPageProps) {
             />
           </div>
 
-          {circuitos.length > 0 && (
+          {!assignedCircuito && circuitos.length > 0 && (
             <FilterField label="Circuito" minWidth={200}>
               <CircuitoFilter circuitos={circuitos} value={circuito} onChange={setCircuito} />
             </FilterField>

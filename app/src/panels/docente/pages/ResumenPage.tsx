@@ -6,6 +6,9 @@ import { Alert } from '@/components/ui/Alert';
 import { CentroCard } from '@/components/domain/CentroCard';
 import { ProgressHero } from '../components/ProgressHero';
 import { RetoGrid } from '../components/RetoGrid';
+import { Button } from '@/components/ui/Button';
+import { Download } from 'lucide-react';
+import { AwardSummary } from '@/components/domain/AwardSummary';
 import type { RetoWithEntry } from '@/types';
 
 interface ResumenPageProps {
@@ -54,8 +57,6 @@ export function ResumenPage({ onFillForm, onReopen, onViewFeedback }: ResumenPag
 
       <div style={{ marginTop: 'var(--gnf-space-6)' }}>
         <ProgressHero
-          metaEstrellas={dashboard.metaEstrellas}
-          estrellaFinal={dashboard.estrellaFinal}
           anio={year}
           retosCount={dashboard.retosCount}
           aprobados={dashboard.aprobados}
@@ -65,6 +66,20 @@ export function ResumenPage({ onFillForm, onReopen, onViewFeedback }: ResumenPag
           puntajeTotal={dashboard.puntajeTotal}
         />
       </div>
+
+      <AwardSummary award={dashboard.award} year={year} />
+
+      {dashboard.reportPdfUrl && (
+        <div style={{ display: 'flex', justifyContent: 'flex-end', margin: 'var(--gnf-space-5) 0' }}>
+          <Button
+            variant="outline"
+            icon={<Download size={16} />}
+            onClick={() => { window.location.href = dashboard.reportPdfUrl ?? ''; }}
+          >
+            {dashboard.reportPdfStatus === 'final' ? 'Descargar reporte final PDF' : 'Descargar borrador PDF'}
+          </Button>
+        </div>
+      )}
 
       <h3 style={{ marginBottom: 'var(--gnf-space-4)' }}>Retos de mi centro educativo</h3>
       <RetoGrid

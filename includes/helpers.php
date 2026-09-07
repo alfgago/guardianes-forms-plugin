@@ -9,6 +9,59 @@ if (! defined('ABSPATH')) {
 }
 
 /**
+ * Indica si las herramientas destructivas (reset BD, reseed, reimport de centros)
+ * pueden ejecutarse en este entorno.
+ *
+ * Por defecto SOLO se permiten fuera de produccion. Para habilitarlas de forma
+ * controlada en produccion (mantenimiento puntual), define en wp-config.php:
+ *     define( 'GNF_ENABLE_DANGER_TOOLS', true );
+ *
+ * Fail-safe: si no se puede determinar el entorno, se asume produccion (bloqueado).
+ *
+ * @return bool
+ */
+function gnf_danger_tools_enabled() {
+	if ( defined( 'GNF_ENABLE_DANGER_TOOLS' ) && GNF_ENABLE_DANGER_TOOLS ) {
+		return true;
+	}
+
+	$env = function_exists( 'wp_get_environment_type' ) ? wp_get_environment_type() : 'production';
+
+	return 'production' !== $env;
+}
+
+/**
+ * Bloquea una herramienta destructiva en produccion antes de que ejecute nada.
+ *
+ * Registra el intento bloqueado en el audit log y termina la request con 403.
+ * En dev/staging (o con GNF_ENABLE_DANGER_TOOLS) no hace nada y deja continuar.
+ *
+ * @param string $tool_key Identificador de la herramienta, para el log.
+ * @return void
+ */
+function gnf_guard_danger_tool( $tool_key ) {
+	if ( gnf_danger_tools_enabled() ) {
+		return;
+	}
+
+	if ( function_exists( 'gnf_log_audit_event' ) ) {
+		gnf_log_audit_event(
+			'danger_tool_blocked',
+			array(
+				'message' => 'Intento bloqueado de herramienta destructiva en produccion: ' . sanitize_key( $tool_key ),
+				'meta'    => array( 'tool' => sanitize_key( $tool_key ) ),
+			)
+		);
+	}
+
+	wp_die(
+		esc_html__( 'Esta herramienta esta deshabilitada en produccion para proteger los datos. Para habilitarla temporalmente en un entorno controlado, define la constante GNF_ENABLE_DANGER_TOOLS en wp-config.php.', 'guardianes-formularios' ),
+		esc_html__( 'Herramienta deshabilitada', 'guardianes-formularios' ),
+		array( 'response' => 403, 'back_link' => true )
+	);
+}
+
+/**
  * Obtiene valor desde ACF Options o opciÃ³n normal.
  */
 function gnf_get_option($key, $default = '')
@@ -187,6 +240,9 @@ function gnf_get_reto_canonical_slug($title)
 	}
 	if (false !== strpos($normalized, 'compost') || false !== strpos($normalized, 'organico')) {
 		return 'gestion-de-organicos';
+	}
+	if (false !== strpos($normalized, 'eco club') || false !== strpos($normalized, 'ecoclub')) {
+		return 'eco-clubes';
 	}
 	if (false !== strpos($normalized, 'artistico') || false !== strpos($normalized, 'mural')) {
 		return 'artistico-eco-murales';
@@ -771,6 +827,9 @@ function gnf_set_centro_anual_data($centro_id, $anio, $data)
 	if (function_exists('update_field')) {
 		update_field('centro_datos_anuales', array_values($rows), $centro_id);
 	}
+	if ( function_exists( 'gnf_clear_impact_cache' ) ) {
+		gnf_clear_impact_cache( $anio );
+	}
 
 	return $current;
 }
@@ -1060,6 +1119,52 @@ function gnf_get_user_region_names( $user_id ) {
 }
 
 /**
+ * Indica si una Direccion Regional esta activa para opciones publicas/asignables.
+ *
+ * @param int $term_id ID del termino gn_region.
+ * @return bool
+ */
+function gnf_is_region_active( $term_id ) {
+	$term_id = absint( $term_id );
+	if ( ! $term_id ) {
+		return false;
+	}
+
+	return '1' === (string) get_term_meta( $term_id, 'gnf_dre_activa', true );
+}
+
+/**
+ * Devuelve DRE activas para formularios de asignacion, preservando asignadas.
+ *
+ * @param int[] $include_ids IDs que deben aparecer aunque esten inactivos.
+ * @return WP_Term[]
+ */
+function gnf_get_assignable_region_terms( $include_ids = array() ) {
+	$include_ids = array_values( array_filter( array_map( 'absint', (array) $include_ids ) ) );
+	$terms       = get_terms(
+		array(
+			'taxonomy'   => 'gn_region',
+			'hide_empty' => false,
+			'orderby'    => 'name',
+			'order'      => 'ASC',
+		)
+	);
+
+	if ( is_wp_error( $terms ) || empty( $terms ) ) {
+		return array();
+	}
+
+	return array_values(
+		array_filter(
+			$terms,
+			static function ( $term ) use ( $include_ids ) {
+				return gnf_is_region_active( $term->term_id ) || in_array( (int) $term->term_id, $include_ids, true );
+			}
+		)
+	);
+}
+
+/**
  * Normaliza circuitos numericos a dos digitos.
  *
  * @param mixed $value Valor crudo.
@@ -1076,6 +1181,49 @@ function gnf_normalize_circuito( $value ) {
 	}
 
 	return $circuito;
+}
+
+/**
+ * Devuelve los circuitos disponibles para una Direccion Regional.
+ *
+ * @param int          $region_id ID de la DRE. Cero incluye todas.
+ * @param string|array $include   Circuitos que deben preservarse en el selector.
+ * @return string[]
+ */
+function gnf_get_region_circuitos( $region_id = 0, $include = array() ) {
+	$region_id = absint( $region_id );
+	$args      = array(
+		'post_type'      => 'centro_educativo',
+		'post_status'    => 'publish',
+		'posts_per_page' => -1,
+		'fields'         => 'ids',
+		'meta_query'     => array(
+			array(
+				'key'     => 'circuito',
+				'compare' => 'EXISTS',
+			),
+		),
+	);
+
+	if ( $region_id ) {
+		$args['tax_query'] = array(
+			array(
+				'taxonomy' => 'gn_region',
+				'field'    => 'term_id',
+				'terms'    => array( $region_id ),
+			),
+		);
+	}
+
+	$circuitos = array_map( 'gnf_normalize_circuito', (array) $include );
+	foreach ( (array) get_posts( $args ) as $centro_id ) {
+		$circuitos[] = gnf_normalize_circuito( get_post_meta( $centro_id, 'circuito', true ) );
+	}
+
+	$circuitos = array_values( array_unique( array_filter( $circuitos, 'strlen' ) ) );
+	sort( $circuitos, SORT_NATURAL );
+
+	return $circuitos;
 }
 
 /**
@@ -1868,8 +2016,9 @@ function gnf_build_reto_entry_responses( $entry, $anio = null ) {
 	$entry_data   = ! empty( $entry->data ) ? json_decode( $entry->data, true ) : array();
 	$raw_values   = is_array( $entry_data['__raw_values__'] ?? null ) ? $entry_data['__raw_values__'] : array();
 	$evidencias   = ! empty( $entry->evidencias ) ? json_decode( $entry->evidencias, true ) : array();
+	$evidencias   = gnf_enrich_evidencias( is_array( $evidencias ) ? $evidencias : array(), (int) $entry->reto_id, $anio );
 
-	return gnf_build_reto_form_responses( (int) $entry->reto_id, $anio, $raw_values, is_array( $evidencias ) ? $evidencias : array() );
+	return gnf_build_reto_form_responses( (int) $entry->reto_id, $anio, $raw_values, $evidencias );
 }
 
 /**
@@ -1902,13 +2051,16 @@ function gnf_enrich_evidencias( $evidencias, $reto_id, $anio = null ) {
 	$field_points = gnf_get_reto_field_points( $reto_id, $anio );
 	foreach ( $evidencias as &$ev ) {
 		$fid = (int) ( $ev['field_id'] ?? 0 );
+		if ( function_exists( 'gnf_apply_evidence_original_date' ) ) {
+			$ev = gnf_apply_evidence_original_date( $ev, $anio );
+		}
 		// Backfill puntos from config if missing.
 		if ( ! array_key_exists( 'puntos', $ev ) || null === $ev['puntos'] ) {
 			$ev['puntos'] = isset( $field_points[ $fid ] ) ? absint( $field_points[ $fid ]['puntos'] ) : null;
 		}
 		// Backfill estado if missing.
 		if ( ! array_key_exists( 'estado', $ev ) ) {
-			if ( ! empty( $ev['requires_year_validation'] ) ) {
+			if ( function_exists( 'gnf_evidence_has_verifiable_date_issue' ) && gnf_evidence_has_verifiable_date_issue( $ev ) ) {
 				$ev['estado']            = 'rechazada';
 				$ev['supervisor_comment'] = $ev['warning'] ?? 'Rechazada: fecha EXIF no coincide con el año activo.';
 				$ev['reviewed_by']        = 0;
@@ -1922,6 +2074,9 @@ function gnf_enrich_evidencias( $evidencias, $reto_id, $anio = null ) {
 		if ( ! array_key_exists( 'supervisor_comment', $ev ) ) {
 			$ev['supervisor_comment'] = null;
 		}
+		if ( ! array_key_exists( 'review_reason', $ev ) ) {
+			$ev['review_reason'] = null;
+		}
 		if ( ! array_key_exists( 'reviewed_by', $ev ) ) {
 			$ev['reviewed_by'] = null;
 		}
@@ -1930,19 +2085,6 @@ function gnf_enrich_evidencias( $evidencias, $reto_id, $anio = null ) {
 		}
 		if ( ! array_key_exists( 'reviewed_by_name', $ev ) || ( empty( $ev['reviewed_by_name'] ) && ! empty( $ev['reviewed_by'] ) ) ) {
 			$ev['reviewed_by_name'] = ! empty( $ev['reviewed_by'] ) ? gnf_get_reviewer_display_name( (int) $ev['reviewed_by'] ) : null;
-		}
-		// Backfill photo_date from EXIF for images without it.
-		if ( ! array_key_exists( 'photo_date', $ev ) ) {
-			$tipo = $ev['tipo'] ?? '';
-			if ( 'imagen' === $tipo && ! empty( $ev['path_local'] ) && file_exists( $ev['path_local'] ) ) {
-				if ( ! function_exists( 'wp_read_image_metadata' ) ) {
-					require_once ABSPATH . 'wp-admin/includes/image.php';
-				}
-				$meta = wp_read_image_metadata( $ev['path_local'] );
-				if ( ! empty( $meta['created_timestamp'] ) ) {
-					$ev['photo_date'] = gmdate( 'Y-m-d', $meta['created_timestamp'] );
-				}
-			}
 		}
 	}
 	unset( $ev );
@@ -3404,7 +3546,7 @@ function gnf_render_auth_block($args = array())
 	);
 
 	// Obtener regiones para el selector.
-	$regiones = get_terms(array(
+	$regiones = function_exists( 'gnf_get_assignable_region_terms' ) ? gnf_get_assignable_region_terms() : get_terms(array(
 		'taxonomy'   => 'gn_region',
 		'hide_empty' => false,
 		'orderby'    => 'name',
@@ -4235,8 +4377,9 @@ function gnf_get_supervisor_notificaciones( $user_id, $limit = 50 ) {
 	foreach ( (array) $items as $item ) {
 		$link          = '';
 		$evidence_data = null;
+		$relation_type = (string) $item->relacion_tipo;
 
-		if ( 'reto_entry' === $item->relacion_tipo && $item->relacion_id ) {
+		if ( ( 'reto_entry' === $relation_type || 0 === strpos( $relation_type, 'reto_entry_evidence:' ) ) && $item->relacion_id ) {
 			$entry = $wpdb->get_row( $wpdb->prepare(
 				"SELECT centro_id, reto_id, anio, evidencias FROM {$wpdb->prefix}gn_reto_entries WHERE id = %d",
 				$item->relacion_id
@@ -4269,6 +4412,7 @@ function gnf_get_supervisor_notificaciones( $user_id, $limit = 50 ) {
 								'puntos'             => $ev['puntos'] ?? null,
 								'estado'             => $ev['estado'] ?? null,
 								'supervisor_comment' => $ev['supervisor_comment'] ?? null,
+								'review_reason'      => $ev['review_reason'] ?? null,
 								'reviewed_by'        => $ev['reviewed_by'] ?? null,
 								'reviewed_by_name'   => $ev['reviewed_by_name'] ?? ( ! empty( $ev['reviewed_by'] ) ? gnf_get_reviewer_display_name( (int) $ev['reviewed_by'] ) : null ),
 								'reviewed_at'        => $ev['reviewed_at'] ?? null,
@@ -4343,6 +4487,15 @@ function gnf_build_notification_evidence_items( $item, $entry ) {
 		(int) $entry->reto_id,
 		(int) $entry->anio
 	);
+	$has_evidence_selector = function_exists( 'gnf_filter_notification_evidences' );
+	if ( $has_evidence_selector ) {
+		$evidencias = gnf_filter_notification_evidences(
+			(string) $item->tipo,
+			(string) ( $item->relacion_tipo ?? '' ),
+			(string) $item->mensaje,
+			$evidencias
+		);
+	}
 	$responses = gnf_build_reto_entry_responses( $entry, (int) $entry->anio );
 
 	$labels_by_field = array();
@@ -4368,22 +4521,17 @@ function gnf_build_notification_evidence_items( $item, $entry ) {
 		}
 
 		$file_name = (string) ( $evidencia['nombre'] ?? $evidencia['filename'] ?? '' );
-		$current_status = (string) ( $evidencia['estado'] ?? ( ! empty( $evidencia['requires_year_validation'] ) ? 'rechazada' : 'pendiente' ) );
-		$comment        = (string) ( $evidencia['supervisor_comment'] ?? '' );
-		$mentions_file  = gnf_notification_message_mentions_evidence( (string) $item->mensaje, $file_name );
-		$mentions_note  = '' !== $comment && false !== strpos( (string) $item->mensaje, $comment );
-		$show_rejected  = in_array( (string) $item->tipo, array( 'evidencia_rechazada', 'correccion', 'invalid_photo_date' ), true )
-			&& ( 'rechazada' === $current_status || ! empty( $evidencia['requires_year_validation'] ) );
-		$show_approved  = 'evidencia_aprobada' === (string) $item->tipo && 'aprobada' === $current_status;
+		$has_date_issue = function_exists( 'gnf_evidence_has_verifiable_date_issue' ) && gnf_evidence_has_verifiable_date_issue( $evidencia );
+		$current_status = (string) ( $evidencia['estado'] ?? ( $has_date_issue ? 'rechazada' : 'pendiente' ) );
 
-		if ( ! $mentions_file && ! $mentions_note && ! $show_rejected && ! $show_approved ) {
+		if ( ! $has_evidence_selector && ! gnf_notification_message_mentions_evidence( (string) $item->mensaje, $file_name ) ) {
 			continue;
 		}
 
 		$field_id       = absint( $evidencia['field_id'] ?? 0 );
 		$tipo           = (string) ( $evidencia['tipo'] ?? $evidencia['type'] ?? 'archivo' );
 		$preview_url    = (string) ( $evidencia['ruta'] ?? $evidencia['url'] ?? '' );
-		$is_image       = 'imagen' === $tipo || ( $file_name && preg_match( '/\.(jpe?g|png|gif|webp)$/i', $file_name ) );
+		$is_image       = 'imagen' === $tipo || ( $file_name && preg_match( '/\.(jpe?g|png|gif|webp|heic|heif|tiff?)$/i', $file_name ) );
 		$reviewed_by    = isset( $evidencia['reviewed_by'] ) ? (int) $evidencia['reviewed_by'] : null;
 		$reviewer_name  = (string) ( $evidencia['reviewed_by_name'] ?? '' );
 		if ( '' === $reviewer_name && $reviewed_by ) {
@@ -4401,10 +4549,13 @@ function gnf_build_notification_evidence_items( $item, $entry ) {
 			'estado'                 => $current_status,
 			'puntos'                 => isset( $evidencia['puntos'] ) ? (int) $evidencia['puntos'] : null,
 			'supervisorComment'      => $evidencia['supervisor_comment'] ?? null,
+			'reviewReason'           => $evidencia['review_reason'] ?? null,
 			'reviewedBy'             => $reviewed_by,
 			'reviewedByName'         => $reviewer_name ?: null,
 			'reviewedAt'             => $evidencia['reviewed_at'] ?? null,
 			'photoDate'              => $evidencia['photo_date'] ?? null,
+			'originalDate'           => $evidencia['original_date'] ?? $evidencia['photo_date'] ?? null,
+			'dateSource'             => $evidencia['date_source'] ?? null,
 			'requiresYearValidation' => ! empty( $evidencia['requires_year_validation'] ),
 			'canReview'              => null !== ( $evidencia['puntos'] ?? null ) && 'pendiente' === $current_status,
 		);
@@ -4448,7 +4599,8 @@ function gnf_build_notification_context( $item, $user_id ) {
 	$current_user = wp_get_current_user();
 	$is_docente   = gnf_user_has_role( $current_user, 'docente' );
 
-	if ( 'reto_entry' === $item->relacion_tipo ) {
+	$relation_type = (string) $item->relacion_tipo;
+	if ( 'reto_entry' === $relation_type || 0 === strpos( $relation_type, 'reto_entry_evidence:' ) ) {
 		$table = $wpdb->prefix . 'gn_reto_entries';
 		$entry = $wpdb->get_row(
 			$wpdb->prepare(
@@ -4473,7 +4625,8 @@ function gnf_build_notification_context( $item, $user_id ) {
 			if ( ! empty( $evidencia['replaced'] ) ) {
 				continue;
 			}
-			if ( 'rechazada' === ( $evidencia['estado'] ?? '' ) ) {
+			$has_date_issue = function_exists( 'gnf_evidence_has_verifiable_date_issue' ) && gnf_evidence_has_verifiable_date_issue( $evidencia );
+			if ( 'rechazada' === ( $evidencia['estado'] ?? '' ) || $has_date_issue ) {
 				$context['hasRejectedEvidence'] = true;
 				break;
 			}

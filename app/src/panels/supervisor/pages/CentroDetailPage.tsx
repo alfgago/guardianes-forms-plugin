@@ -5,10 +5,10 @@ import { Spinner } from '@/components/ui/Spinner';
 import { Alert } from '@/components/ui/Alert';
 import { Button } from '@/components/ui/Button';
 import { CentroCard } from '@/components/domain/CentroCard';
-import { StarRating } from '@/components/ui/StarRating';
 import { EntryReviewCard } from '../components/EntryReviewCard';
 import { StatusBadge } from '@/components/domain/StatusBadge';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Download } from 'lucide-react';
+import { AwardSummary } from '@/components/domain/AwardSummary';
 
 interface CentroDetailPageProps {
   centroId: number;
@@ -38,15 +38,23 @@ export function CentroDetailPage({ centroId, onBack }: CentroDetailPageProps) {
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--gnf-space-4)', margin: 'var(--gnf-space-6) 0 var(--gnf-space-4)' }}>
         <div>
-          <span style={{ fontSize: '0.875rem', color: 'var(--gnf-muted)' }}>Galardón actual:</span>
-          <StarRating rating={centro.annual.estrellaFinal} size={16} />
-        </div>
-        <div>
           <span style={{ fontSize: '0.875rem', color: 'var(--gnf-muted)' }}>
             {centro.annual.puntajeTotal} pts
           </span>
         </div>
+        {centro.annual.reportPdfUrl && (
+          <Button
+            variant="outline"
+            size="sm"
+            icon={<Download size={16} />}
+            onClick={() => { window.location.href = centro.annual.reportPdfUrl ?? ''; }}
+          >
+            {centro.annual.reportPdfStatus === 'final' ? 'Descargar reporte final PDF' : 'Descargar borrador PDF'}
+          </Button>
+        )}
       </div>
+
+      <AwardSummary award={centro.annual.award} year={year} />
 
       <h3 style={{ marginBottom: 'var(--gnf-space-4)' }}>Retos ({entries.length})</h3>
       {entries.map((entry) => (

@@ -18,8 +18,8 @@ export function SupervisorRegisterForm() {
   const [regionId, setRegionId] = useState('');
 
   const { data: regions } = useQuery({
-    queryKey: ['regions'],
-    queryFn: () => get<Region[]>('/regions'),
+    queryKey: ['regions', 'active'],
+    queryFn: () => get<Region[]>('/regions', { active: 1 }),
   });
 
   const mutation = useMutation({
@@ -57,7 +57,7 @@ export function SupervisorRegisterForm() {
 
       <Input label="Nombre completo" value={nombre} onChange={(e) => setNombre(e.target.value)} required />
       <Input label="Correo electronico" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
-      <PasswordInput label="Contrasena" value={password} onChange={(e) => setPassword(e.target.value)} required />
+      <PasswordInput label="Contraseña" value={password} onChange={(e) => setPassword(e.target.value)} required />
 
       <Select
         label="Tipo de cuenta"

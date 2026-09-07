@@ -28,7 +28,7 @@ export function ForgotPasswordForm({ onBack }: ForgotPasswordFormProps) {
         mutation.mutate();
       }}
     >
-      <h2 style={{ marginBottom: 'var(--gnf-space-4)', textAlign: 'center' }}>Recuperar contrasena</h2>
+      <h2 style={{ marginBottom: 'var(--gnf-space-4)', textAlign: 'center' }}>Recuperar contraseña</h2>
       <p style={{ color: 'var(--gnf-muted)', fontSize: '0.9375rem', marginBottom: 'var(--gnf-space-5)' }}>
         Ingresa tu correo o usuario y te enviaremos un enlace para recuperar el acceso.
       </p>

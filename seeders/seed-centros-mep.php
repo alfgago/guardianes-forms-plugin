@@ -342,7 +342,9 @@ function gnf_import_single_centro_record( $data, $line_ref, $dry_run, &$cache ) 
 
 	if ( $existing_id ) {
 		$centro_id = (int) $existing_id;
-		if ( ! isset( $record['title'] ) || $record['title'] !== $nombre ) {
+		// Nunca sobreescribir el nombre con un valor vacio: una fila sin nombre
+		// (CSV/JSON malformado) borraria el post_title de un centro existente.
+		if ( '' !== $nombre && ( ! isset( $record['title'] ) || $record['title'] !== $nombre ) ) {
 			wp_update_post(
 				array(
 					'ID'         => $centro_id,

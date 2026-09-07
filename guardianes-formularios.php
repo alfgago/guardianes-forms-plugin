@@ -20,6 +20,11 @@ define('GNF_APP_LOGO_URL', 'https://movimientoguardianes.org/wp-content/uploads/
 define('GNF_AUTH_LOGO_URL', 'https://movimientoguardianes.org/wp-content/uploads/2026/03/Screenshot-2026-03-11-at-2.58.57-PM.png');
 define('GNF_LOGO_URL', GNF_APP_LOGO_URL);
 
+$gnf_vendor_autoload = __DIR__ . '/vendor/autoload.php';
+if ( file_exists( $gnf_vendor_autoload ) ) {
+	require_once $gnf_vendor_autoload;
+}
+
 /**
  * Versiona assets del plugin por timestamp del archivo.
  *
@@ -43,7 +48,13 @@ function gnf_asset_version( $relative_path ) {
 /**
  * Carga todos los archivos necesarios.
  */
+require_once 'includes/evidence-dates.php';
+require_once 'includes/evidence-review.php';
+require_once 'includes/evidence-notifications.php';
 require_once 'includes/helpers.php';
+require_once 'includes/feature-rollout.php';
+require_once 'includes/award-rules.php';
+require_once 'includes/impact-metrics.php';
 require_once 'includes/merge-centros-logic.php';
 require_once 'includes/merge-centros.php';
 require_once 'includes/migrations/center-annual-data.php';
@@ -66,10 +77,14 @@ require_once 'includes/comite-panel.php';
 require_once 'includes/wizard.php';
 require_once 'includes/admin-menu.php';
 require_once 'includes/admin-users.php';
+require_once 'includes/xlsx-writer.php';
+require_once 'includes/centros-export.php';
 require_once 'includes/reports.php';
+require_once 'includes/report-pdf.php';
 require_once 'includes/shortcodes.php';
 require_once 'includes/registros.php';
 require_once 'includes/react-loader.php';
+require_once 'includes/feedback.php';
 require_once 'includes/rest-api.php';
 
 if ( defined( 'WP_CLI' ) && WP_CLI ) {

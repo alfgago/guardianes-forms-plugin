@@ -1,5 +1,5 @@
 import { get, post } from './client';
-import type { Reto, RetoEntry, RetoWithEntry } from '@/types';
+import type { AwardBundle, Reto, RetoEntry, RetoWithEntry } from '@/types';
 
 interface DocenteDashboard {
   centro: {
@@ -20,6 +20,9 @@ interface DocenteDashboard {
   enProgreso: number;
   tieneMatricula: boolean;
   allRetosComplete: boolean;
+  reportPdfUrl?: string;
+  reportPdfStatus?: 'draft' | 'final';
+  award?: AwardBundle;
 }
 
 interface WizardStep {
@@ -57,6 +60,13 @@ export interface AutosaveFieldPayload {
   type: string;
   name: string;
   value: string | string[];
+  fileMetadata?: EvidenceFileMetadata[];
+}
+
+export interface EvidenceFileMetadata {
+  name: string;
+  date: string;
+  source: 'browser_file_metadata';
 }
 
 export interface RetoFormResponse {

@@ -33,6 +33,42 @@ interface Dre {
   enabled: boolean;
 }
 
+export interface ImpactMetric {
+  key: string;
+  title: string;
+  source: 'center' | 'entry' | 'response';
+  operation: string;
+  unit: string;
+  reto: string;
+  field: string;
+  public: boolean;
+  available: boolean;
+}
+
+export interface ImpactScope {
+  id: string;
+  label: string;
+  values: Record<string, number>;
+  regionId?: number;
+  regionName?: string;
+  circuito?: string;
+}
+
+export interface ImpactReport {
+  year: number;
+  mode: 'active' | 'approved';
+  generatedAt: string;
+  rollout?: {
+    mode: 'off' | 'pilot' | 'all';
+    label: string;
+    pilotCenterCount: number;
+  };
+  catalog: ImpactMetric[];
+  total: ImpactScope;
+  regions: Record<string, ImpactScope>;
+  circuits: Record<string, ImpactScope>;
+}
+
 interface AuditLog {
   id: number;
   event_key: string;
@@ -62,6 +98,7 @@ interface UpdateUserPayload {
   centroId?: number;
   regionId?: number;
   regionIds?: number[];
+  circuito?: string;
 }
 
 interface GetCentrosParams {
@@ -97,6 +134,10 @@ export const adminApi = {
     return put<PendingUser>(`/admin/users/${userId}`, data);
   },
 
+  getCircuitos(region?: number) {
+    return get<string[]>('/admin/circuitos', { region });
+  },
+
   getCentros({ year, region, search, estado, registration = 'registered' }: GetCentrosParams) {
     return get<CentroWithStats[]>('/admin/centros', { year, region, s: search, estado, registration });
   },
@@ -119,6 +160,10 @@ export const adminApi = {
 
   getReports(year: number) {
     return get<ReportData>('/admin/reports', { year });
+  },
+
+  getImpact(year: number) {
+    return get<ImpactReport>('/admin/impact', { year });
   },
 
   getDres() {

@@ -1,10 +1,7 @@
 import { ProgressBar } from '@/components/ui/ProgressBar';
-import { StarRating } from '@/components/ui/StarRating';
 import { formatPercentage } from '@/utils/formatters';
 
 interface ProgressHeroProps {
-  metaEstrellas: number;
-  estrellaFinal: number;
   anio: number;
   retosCount: number;
   aprobados: number;
@@ -15,7 +12,6 @@ interface ProgressHeroProps {
 }
 
 export function ProgressHero({
-  estrellaFinal,
   anio,
   retosCount,
   aprobados,
@@ -67,26 +63,6 @@ export function ProgressHero({
           </p>
         </div>
 
-        <div
-          style={{
-            minWidth: 210,
-            padding: 'var(--gnf-space-4)',
-            borderRadius: 'var(--gnf-radius)',
-            background: 'rgba(255,255,255,0.12)',
-            backdropFilter: 'blur(10px)',
-          }}
-        >
-          <small style={{ opacity: 0.8, display: 'block', marginBottom: 'var(--gnf-space-2)' }}>
-            Reconocimiento final estimado
-          </small>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 'var(--gnf-space-3)' }}>
-            <strong style={{ fontSize: '1.25rem' }}>{estrellaFinal} estrellas</strong>
-            <StarRating rating={estrellaFinal} size={18} />
-          </div>
-          <small style={{ opacity: 0.76, display: 'block', marginTop: 'var(--gnf-space-2)' }}>
-            La asignación definitiva se confirma al cierre y después de la revisión anual.
-          </small>
-        </div>
       </div>
 
       <div

@@ -185,7 +185,7 @@ function gnf_build_centros_payload() {
 	);
 	$claimed_set = array_flip( array_map( 'intval', (array) $claimed_ids ) );
 
-	// Get active region term IDs (skip if gnf_dre_activa === '0').
+	// Get active region term IDs.
 	$all_regions = get_terms( array( 'taxonomy' => 'gn_region', 'hide_empty' => false ) );
 	if ( is_wp_error( $all_regions ) || empty( $all_regions ) ) {
 		return array();
@@ -193,8 +193,7 @@ function gnf_build_centros_payload() {
 	$region_names = array();
 	$active_ids   = array();
 	foreach ( (array) $all_regions as $term ) {
-		$active = get_term_meta( $term->term_id, 'gnf_dre_activa', true );
-		if ( '0' === $active ) {
+		if ( function_exists( 'gnf_is_region_active' ) && ! gnf_is_region_active( $term->term_id ) ) {
 			continue;
 		}
 		$region_names[ $term->term_id ] = $term->name;
@@ -287,15 +286,25 @@ function gnf_render_react_panel( $panel, $data = array() ) {
 			if ( function_exists( 'gnf_get_user_region_names' ) ) {
 				$user_data['regionNames'] = array_values( array_map( 'strval', gnf_get_user_region_names( $user->ID ) ) );
 			}
+			if ( function_exists( 'gnf_get_user_circuito' ) ) {
+				$user_data['circuito'] = gnf_get_user_circuito( $user->ID );
+			}
 		}
 	}
 
 	$active_year = function_exists( 'gnf_get_active_year' ) ? gnf_get_active_year() : (int) gmdate( 'Y' );
 	$wpforms_runtime_markup = '';
+	$runtime_forms          = array();
 
 	if ( 'docente' === $panel_key && $user->ID && function_exists( 'gnf_user_has_role' ) && gnf_user_has_role( $user, 'docente' ) ) {
-		$wpforms_runtime_markup = gnf_enqueue_wpforms_runtime_for_forms( gnf_collect_docente_wpforms_form_data( $user->ID, $active_year ) );
+		$runtime_forms = gnf_collect_docente_wpforms_form_data( $user->ID, $active_year );
 	}
+
+	$feedback_panel_allowed = in_array( $panel_key, array( 'docente', 'supervisor' ), true );
+	$feedback_user_allowed  = function_exists( 'gnf_feedback_user_is_allowed' ) && gnf_feedback_user_is_allowed( $user );
+	$feedback_url           = function_exists( 'gnf_get_feedback_page_url' ) ? gnf_get_feedback_page_url() : '';
+	$feedback_enabled       = $feedback_panel_allowed && $feedback_user_allowed && '' !== $feedback_url;
+	$wpforms_runtime_markup = gnf_enqueue_wpforms_runtime_for_forms( $runtime_forms );
 
 	$init_data = array_merge(
 		array(
@@ -307,6 +316,8 @@ function gnf_render_react_panel( $panel, $data = array() ) {
 			'logoUrl'   => defined( 'GNF_APP_LOGO_URL' ) ? GNF_APP_LOGO_URL : GNF_LOGO_URL,
 			'authLogoUrl' => defined( 'GNF_AUTH_LOGO_URL' ) ? GNF_AUTH_LOGO_URL : ( defined( 'GNF_APP_LOGO_URL' ) ? GNF_APP_LOGO_URL : GNF_LOGO_URL ),
 			'user'      => $user_data,
+			'feedbackEnabled' => $feedback_enabled,
+			'feedbackUrl'     => $feedback_enabled ? esc_url_raw( $feedback_url ) : '',
 		),
 		$data
 	);
@@ -314,6 +325,9 @@ function gnf_render_react_panel( $panel, $data = array() ) {
 	// Inject all centros into the auth panel so React filters purely client-side.
 	if ( 'auth' === $panel_key ) {
 		$init_data['centros'] = gnf_build_centros_payload();
+	}
+	if ( 'admin' === $panel_key && function_exists( 'gnf_get_centros_xlsx_export_url' ) ) {
+		$init_data['centrosXlsxExportUrl'] = gnf_get_centros_xlsx_export_url( $active_year );
 	}
 
 	$js_var = '__GNF_' . strtoupper( $panel_key ) . '__';

@@ -41,6 +41,7 @@ export function UsuariosPage() {
     identificacion: '',
     regionId: '',
     regionIds: [] as string[],
+    circuito: '',
   });
   const [selectedCentro, setSelectedCentro] = useState<CentroSearchResult | null>(null);
 
@@ -53,6 +54,41 @@ export function UsuariosPage() {
     queryKey: ['regions'],
     queryFn: () => get<Region[]>('/regions'),
   });
+
+  const { data: assignableRegions } = useQuery({
+    queryKey: ['regions', 'assignable'],
+    queryFn: () => get<Region[]>('/regions', { active: 1 }),
+  });
+
+  const { data: assignableCircuitos } = useQuery({
+    queryKey: ['admin-circuitos', formState.regionId],
+    queryFn: () => adminApi.getCircuitos(formState.regionId ? Number(formState.regionId) : undefined),
+    enabled: editingUser?.role === 'supervisor' && !!formState.regionId,
+  });
+
+  const visibleAssignableRegions = useMemo(() => {
+    const byId = new Map<number, Region>();
+    (assignableRegions ?? []).forEach((item) => byId.set(item.id, item));
+
+    if (editingUser) {
+      const currentIds = editingUser.regionIds?.length
+        ? editingUser.regionIds
+        : editingUser.regionId
+          ? [editingUser.regionId]
+          : [];
+
+      currentIds.forEach((id, index) => {
+        if (!id || byId.has(id)) return;
+        byId.set(id, {
+          id,
+          name: editingUser.regionNames?.[index] ?? editingUser.regionName ?? `Region ${id}`,
+          slug: '',
+        });
+      });
+    }
+
+    return Array.from(byId.values());
+  }, [assignableRegions, editingUser]);
 
   useEffect(() => {
     if (!editingUser) return;
@@ -72,6 +108,7 @@ export function UsuariosPage() {
       identificacion: editingUser.identificacion ?? '',
       regionId: editingUser.regionId ? String(editingUser.regionId) : '',
       regionIds,
+      circuito: editingUser.circuito ?? '',
     });
 
     setSelectedCentro(
@@ -103,6 +140,7 @@ export function UsuariosPage() {
         status: formState.status as 'activo' | 'pendiente',
         regionId: formState.regionId ? Number(formState.regionId) : (regionIds[0] ?? undefined),
         regionIds: editingUser.role === 'comite_bae' ? regionIds : undefined,
+        circuito: editingUser.role === 'supervisor' ? formState.circuito : undefined,
         centroId: editingUser.role === 'docente' ? selectedCentro?.id : undefined,
       });
     },
@@ -117,7 +155,7 @@ export function UsuariosPage() {
   const filteredUsers = useMemo(() => {
     return (users ?? []).filter((user) => {
       const regionLabel = getUserRegionLabel(user);
-      const haystack = [user.name, user.email, user.centroName, regionLabel].join(' ').toLowerCase();
+      const haystack = [user.name, user.email, user.centroName, regionLabel, user.circuito].join(' ').toLowerCase();
       const matchesSearch = !search.trim() || haystack.includes(search.trim().toLowerCase());
       const matchesRole = role === 'all' || user.role === role;
       const matchesStatus = status === 'all' || (user.status ?? 'activo') === status;
@@ -130,14 +168,19 @@ export function UsuariosPage() {
   }, [region, role, search, status, users]);
 
   const docenteCenterSummary = useMemo(() => {
-    const distinctCenters = new Map<number | string, PendingUser>();
-    const pendingCenters = new Set<number | string>();
+    const distinctCenters = new Map<number, PendingUser>();
+    const pendingCenters = new Set<number>();
+    let docentesSinCentro = 0;
     const visibleSupervisors = filteredUsers.filter((user) => user.role === 'supervisor').length;
 
     filteredUsers.forEach((user) => {
       if (user.role !== 'docente') return;
+      if (!user.centroId) {
+        docentesSinCentro++;
+        return;
+      }
 
-      const key = user.centroId ?? `user-${user.id}`;
+      const key = user.centroId;
       if (!distinctCenters.has(key)) {
         distinctCenters.set(key, user);
       }
@@ -160,10 +203,19 @@ export function UsuariosPage() {
     return {
       visibleCenters: distinctCenters.size,
       pendingCenters: pendingCenters.size,
+      docentesSinCentro,
       visibleSupervisors,
       byRegion,
     };
   }, [filteredUsers]);
+
+  const supervisorCircuitOptions = useMemo(() => {
+    const values = new Set(assignableCircuitos ?? []);
+    if (formState.circuito) {
+      values.add(formState.circuito);
+    }
+    return Array.from(values).sort((a, b) => a.localeCompare(b, 'es', { numeric: true })).map((item) => ({ value: item, label: `Circuito ${item}` }));
+  }, [assignableCircuitos, formState.circuito]);
 
   const toggleComiteRegion = (regionId: string, checked: boolean) => {
     setFormState((current) => ({
@@ -244,11 +296,11 @@ export function UsuariosPage() {
       >
         <Card padding="var(--gnf-space-5)">
           <strong style={{ display: 'block', fontSize: '1.5rem', color: 'var(--gnf-ocean-dark)' }}>{docenteCenterSummary.visibleCenters}</strong>
-          <span style={{ color: 'var(--gnf-muted)', fontSize: '0.875rem' }}>Centros educativos visibles</span>
+          <span style={{ color: 'var(--gnf-muted)', fontSize: '0.875rem' }}>Centros asignados</span>
         </Card>
         <Card padding="var(--gnf-space-5)">
-          <strong style={{ display: 'block', fontSize: '1.5rem', color: '#b45309' }}>{docenteCenterSummary.pendingCenters}</strong>
-          <span style={{ color: 'var(--gnf-muted)', fontSize: '0.875rem' }}>Centros pendientes</span>
+          <strong style={{ display: 'block', fontSize: '1.5rem', color: '#b45309' }}>{docenteCenterSummary.docentesSinCentro}</strong>
+          <span style={{ color: 'var(--gnf-muted)', fontSize: '0.875rem' }}>Docentes sin centro</span>
         </Card>
         <Card padding="var(--gnf-space-5)">
           <strong style={{ display: 'block', fontSize: '1.5rem', color: 'var(--gnf-forest)' }}>{docenteCenterSummary.visibleSupervisors}</strong>
@@ -356,7 +408,7 @@ export function UsuariosPage() {
                     setFormState((current) => ({ ...current, regionId: event.target.value }));
                     setSelectedCentro(null);
                   }}
-                  options={(regions ?? []).map((item) => ({ value: String(item.id), label: item.name }))}
+                  options={visibleAssignableRegions.map((item) => ({ value: String(item.id), label: item.name }))}
                   placeholder="Seleccionar region..."
                 />
                 <CentroSearch
@@ -372,13 +424,26 @@ export function UsuariosPage() {
             )}
 
             {editingUser.role === 'supervisor' && (
-              <Select
-                label="Region"
-                value={formState.regionId}
-                onChange={(event) => setFormState((current) => ({ ...current, regionId: event.target.value }))}
-                options={(regions ?? []).map((item) => ({ value: String(item.id), label: item.name }))}
-                placeholder="Seleccionar region..."
-              />
+              <>
+                <Select
+                  label="Region"
+                  value={formState.regionId}
+                  onChange={(event) => setFormState((current) => ({ ...current, regionId: event.target.value, circuito: '' }))}
+                  options={visibleAssignableRegions.map((item) => ({ value: String(item.id), label: item.name }))}
+                  placeholder="Seleccionar region..."
+                />
+                <Select
+                  label="Circuito asignado"
+                  value={formState.circuito}
+                  onChange={(event) => setFormState((current) => ({ ...current, circuito: event.target.value }))}
+                  options={supervisorCircuitOptions}
+                  placeholder="Ver toda la DRE"
+                  disabled={!formState.regionId}
+                />
+                <p style={{ margin: 'calc(var(--gnf-space-4) * -0.5) 0 var(--gnf-space-4)', fontSize: '0.8125rem', color: 'var(--gnf-muted)' }}>
+                  Sin circuito asignado, el supervisor ve toda la DRE.
+                </p>
+              </>
             )}
 
             {editingUser.role === 'comite_bae' && (
@@ -398,7 +463,7 @@ export function UsuariosPage() {
                     background: 'rgba(248, 250, 252, 0.7)',
                   }}
                 >
-                  {(regions ?? []).map((item) => (
+                  {visibleAssignableRegions.map((item) => (
                     <Checkbox
                       key={item.id}
                       label={item.name}

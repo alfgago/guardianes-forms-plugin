@@ -19,7 +19,7 @@ export function ResetPasswordForm({ login, resetKey, onBack }: ResetPasswordForm
   const mutation = useMutation({
     mutationFn: () => {
       if (password !== confirmPassword) {
-        throw new Error('Las contrasenas no coinciden.');
+        throw new Error('Las contraseñas no coinciden.');
       }
 
       return authApi.resetPassword({
@@ -44,13 +44,13 @@ export function ResetPasswordForm({ login, resetKey, onBack }: ResetPasswordForm
         mutation.mutate();
       }}
     >
-      <h2 style={{ marginBottom: 'var(--gnf-space-4)', textAlign: 'center' }}>Crear nueva contrasena</h2>
+      <h2 style={{ marginBottom: 'var(--gnf-space-4)', textAlign: 'center' }}>Crear nueva contraseña</h2>
       <p style={{ color: 'var(--gnf-muted)', fontSize: '0.9375rem', marginBottom: 'var(--gnf-space-5)' }}>
-        Define una nueva contrasena para la cuenta <strong>{login}</strong>.
+        Define una nueva contraseña para la cuenta <strong>{login}</strong>.
       </p>
 
       {mutation.isSuccess && (
-        <Alert variant="success" title="Contrasena actualizada">
+        <Alert variant="success" title="Contraseña actualizada">
           {mutation.data.message}
         </Alert>
       )}
@@ -58,14 +58,14 @@ export function ResetPasswordForm({ login, resetKey, onBack }: ResetPasswordForm
       {mutation.error && <Alert variant="error">{(mutation.error as Error).message}</Alert>}
 
       <PasswordInput
-        label="Nueva contrasena"
+        label="Nueva contraseña"
         value={password}
         onChange={(e) => setPassword(e.target.value)}
         minLength={8}
         required
       />
       <PasswordInput
-        label="Confirmar contrasena"
+        label="Confirmar contraseña"
         value={confirmPassword}
         onChange={(e) => setConfirmPassword(e.target.value)}
         minLength={8}
@@ -77,7 +77,7 @@ export function ResetPasswordForm({ login, resetKey, onBack }: ResetPasswordForm
           Volver
         </Button>
         <Button type="submit" loading={mutation.isPending} icon={<KeyRound size={16} />} style={{ flex: 1 }}>
-          Guardar contrasena
+          Guardar contraseña
         </Button>
       </div>
     </form>

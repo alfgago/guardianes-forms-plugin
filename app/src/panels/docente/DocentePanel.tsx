@@ -9,6 +9,7 @@ import { Modal } from '@/components/ui/Modal';
 import { Alert } from '@/components/ui/Alert';
 import { Spinner } from '@/components/ui/Spinner';
 import { usePanel } from '@/hooks/usePanel';
+import { useInitData } from '@/hooks/useInitData';
 import { useTrackPageView } from '@/hooks/useTrackPageView';
 import { useBootstrapNotifications } from '@/hooks/useBootstrapNotifications';
 import { useYearStore } from '@/stores/useYearStore';
@@ -18,6 +19,7 @@ import { ResumenPage } from './pages/ResumenPage';
 import { FormulariosPage } from './pages/FormulariosPage';
 import { MatriculaPage } from './pages/MatriculaPage';
 import { NotificacionesPage } from '@/panels/supervisor/pages/NotificacionesPage';
+import { FeedbackBubble } from '@/components/domain/FeedbackBubble';
 
 const NAV_ITEMS = [
   { page: 'resumen', label: 'Resumen', icon: <LayoutDashboard size={18} /> },
@@ -28,6 +30,7 @@ const NAV_ITEMS = [
 
 export function DocentePanel() {
   const { page, params, navigate } = usePanel('resumen');
+  const initData = useInitData('docente');
   const year = useYearStore((s) => s.selectedYear);
   const unreadCount = useNotificationStore((s) => s.unreadCount);
   const queryClient = useQueryClient();
@@ -96,7 +99,8 @@ export function DocentePanel() {
   }
 
   return (
-    <PanelShell
+    <>
+      <PanelShell
       title="Panel Centro Educativo"
       subtitle={`Año ${year}`}
       sidebarFooterExtra={<YearSelector />}
@@ -129,6 +133,11 @@ export function DocentePanel() {
       <Modal open={feedbackModal !== null} onClose={() => setFeedbackModal(null)} title="Observacion de revision">
         <p>{feedbackModal}</p>
       </Modal>
-    </PanelShell>
+      </PanelShell>
+      <FeedbackBubble
+        enabled={Boolean(initData.feedbackEnabled)}
+        url={typeof initData.feedbackUrl === 'string' ? initData.feedbackUrl : ''}
+      />
+    </>
   );
 }

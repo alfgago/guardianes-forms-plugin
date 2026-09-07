@@ -29,8 +29,8 @@ export function DocenteRegisterForm() {
   const [centroDependencia, setCentroDependencia] = useState('');
 
   const { data: regions } = useQuery({
-    queryKey: ['regions'],
-    queryFn: () => get<Region[]>('/regions'),
+    queryKey: ['regions', 'active'],
+    queryFn: () => get<Region[]>('/regions', { active: 1 }),
   });
 
   const mutation = useMutation({
@@ -95,7 +95,7 @@ export function DocenteRegisterForm() {
 
       <Input label="Nombre completo" value={nombre} onChange={(e) => setNombre(e.target.value)} required />
       <Input label="Correo electronico institucional" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
-      <PasswordInput label="Contrasena" value={password} onChange={(e) => setPassword(e.target.value)} required />
+      <PasswordInput label="Contraseña" value={password} onChange={(e) => setPassword(e.target.value)} required />
 
       <h3 style={{ margin: 'var(--gnf-space-6) 0 var(--gnf-space-4)', fontSize: '1rem' }}>Centro educativo</h3>
 

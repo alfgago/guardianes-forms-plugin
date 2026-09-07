@@ -577,6 +577,55 @@ function gnf_register_acf_fields()
 			'title'  => 'Guardianes - Configuracion',
 			'fields' => array(
 				array(
+					'key'   => 'field_gnf_rollout_tab',
+					'label' => 'Lanzamiento controlado',
+					'type'  => 'tab',
+				),
+				array(
+					'key'           => 'field_gnf_rollout_awards_mode',
+					'label'         => 'Galardones automatizados',
+					'name'          => 'rollout_awards_mode',
+					'type'          => 'select',
+					'choices'       => array( 'off' => 'Desactivado', 'pilot' => 'Solo centros piloto', 'all' => 'Todos los centros' ),
+					'default_value' => 'off',
+					'ui'            => 1,
+				),
+				array(
+					'key'           => 'field_gnf_rollout_reports_mode',
+					'label'         => 'Reportes PDF por centro',
+					'name'          => 'rollout_reports_mode',
+					'type'          => 'select',
+					'choices'       => array( 'off' => 'Desactivado', 'pilot' => 'Solo centros piloto', 'all' => 'Todos los centros' ),
+					'default_value' => 'off',
+					'ui'            => 1,
+				),
+				array(
+					'key'           => 'field_gnf_rollout_impact_mode',
+					'label'         => 'Indicadores de impacto',
+					'name'          => 'rollout_impact_mode',
+					'type'          => 'select',
+					'choices'       => array( 'off' => 'Desactivado', 'pilot' => 'Solo centros piloto', 'all' => 'Todos los centros' ),
+					'default_value' => 'off',
+					'ui'            => 1,
+					'instructions'  => 'La pagina publica solo muestra indicadores cuando este modo sea Todos los centros.',
+				),
+				array(
+					'key'           => 'field_gnf_pilot_centers',
+					'label'         => 'Centros piloto',
+					'name'          => 'pilot_centers',
+					'type'          => 'relationship',
+					'post_type'     => array( 'centro_educativo' ),
+					'post_status'   => array( 'publish' ),
+					'filters'       => array( 'search' ),
+					'return_format' => 'id',
+					'instructions'  => 'Busca por nombre o codigo MEP. Esta lista se comparte entre las tres funcionalidades.',
+				),
+				array(
+					'key'   => 'field_gnf_general_config_tab',
+					'label' => 'Configuracion general',
+					'type'  => 'tab',
+				),
+				array(
 					'key'           => 'field_gnf_anio_actual',
 					'label'         => 'Año activo',
 					'name'          => 'anio_actual',
@@ -591,6 +640,25 @@ function gnf_register_acf_fields()
 					'type'          => 'url',
 					'placeholder'   => 'https://drive.google.com/...',
 					'instructions'  => 'URL a la carpeta o tabla de Excel en Drive para que los centros suban/consulten registros de agua, energía y residuos. Se muestra en el panel docente (pestaña Matrícula). Corto plazo hasta implementar el formulario en plataforma.',
+				),
+				array(
+					'key'          => 'field_gnf_feedback_page_url',
+					'label'        => 'Pagina de retroalimentacion',
+					'name'         => 'feedback_page_url',
+					'type'         => 'url',
+					'placeholder'  => 'https://movimientoguardianes.org/califica-el-pilotaje-de-innovaciones-pbae/',
+					'instructions' => 'URL de la pagina mostrada en iframe al abrir "Dejanos tu retroalimentacion" en los paneles docente y supervisor. Vacio usa la pagina del pilotaje por defecto.',
+				),
+				array(
+					'key'           => 'field_gnf_public_impact_metrics',
+					'label'         => 'Indicadores de impacto publicos',
+					'name'          => 'public_impact_metrics',
+					'type'          => 'checkbox',
+					'choices'       => function_exists( 'gnf_get_public_impact_metric_choices' ) ? gnf_get_public_impact_metric_choices() : array(),
+					'layout'        => 'vertical',
+					'toggle'        => 1,
+					'return_format' => 'value',
+					'instructions'  => 'Selecciona los datos validados que mostrara el shortcode [gnf_indicadores_impacto].',
 				),
 				array(
 					'key'   => 'field_gnf_rangos_group',
@@ -622,16 +690,6 @@ add_action('acf/init', 'gnf_register_acf_fields');
  */
 function gnf_register_matricula_acf_group()
 {
-	if ( function_exists( 'acf_get_field_groups' ) ) {
-		foreach ( (array) acf_get_field_groups() as $group ) {
-			$group_key   = (string) ( $group['key'] ?? '' );
-			$group_title = (string) ( $group['title'] ?? '' );
-			if ( 'group_gnf_matricula_frontend' === $group_key || 'Guardianes - Matricula Frontend' === $group_title ) {
-				return;
-			}
-		}
-	}
-
 	$json_path = GNF_PATH . 'seeders/acf-matricula-form-group.json';
 	if (! file_exists($json_path)) {
 		return;
@@ -649,6 +707,8 @@ function gnf_register_matricula_acf_group()
 
 	foreach ($groups as $group) {
 		if (is_array($group) && ! empty($group['key'])) {
+			// Este grupo funciona como esquema del formulario React, no como formulario de opciones.
+			$group['location'] = array();
 			acf_add_local_field_group($group);
 		}
 	}

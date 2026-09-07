@@ -8,6 +8,41 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
+ * Obtiene metadatos de fecha enviados junto a un campo de archivos.
+ *
+ * @param array $field    Campo WPForms/REST.
+ * @param int   $field_id ID del campo.
+ * @return array<int,array{date:string,source:string,name:string}>
+ */
+function gnf_get_submitted_evidence_file_metadata( $field, $field_id ) {
+	$raw = $field['file_metadata'] ?? array();
+	if ( empty( $raw ) && isset( $_POST['gnf_evidence_file_metadata'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Missing
+		$posted = json_decode( wp_unslash( (string) $_POST['gnf_evidence_file_metadata'] ), true ); // phpcs:ignore WordPress.Security.NonceVerification.Missing
+		$raw    = is_array( $posted ) ? ( $posted[ (string) $field_id ] ?? array() ) : array();
+	}
+
+	$metadata = array();
+	foreach ( (array) $raw as $item ) {
+		if ( ! is_array( $item ) ) {
+			continue;
+		}
+		$date = function_exists( 'gnf_normalize_evidence_original_date' )
+			? gnf_normalize_evidence_original_date( $item['date'] ?? '' )
+			: '';
+		if ( '' === $date ) {
+			continue;
+		}
+		$metadata[] = array(
+			'date'   => $date,
+			'source' => 'browser_file_metadata',
+			'name'   => sanitize_file_name( (string) ( $item['name'] ?? '' ) ),
+		);
+	}
+
+	return $metadata;
+}
+
+/**
  * Procesa campos de WPForms y mueve archivos a carpeta dedicada.
  * Cada entrada de evidencia incluye 'field_id' para scoring por campo.
  */
@@ -28,7 +63,8 @@ function gnf_collect_evidencias( $fields, $anio, $centro_id, $reto_id ) {
 			continue;
 		}
 
-		$value = $field['value'];
+		$value         = $field['value'];
+		$file_metadata = gnf_get_submitted_evidence_file_metadata( $field, (int) $field_id );
 		if ( empty( $value ) ) {
 			continue;
 		}
@@ -64,7 +100,7 @@ function gnf_collect_evidencias( $fields, $anio, $centro_id, $reto_id ) {
 				$files = array( $trimmed );
 			}
 		}
-		foreach ( $files as $file_path ) {
+		foreach ( $files as $file_index => $file_path ) {
 			$file_path = is_string( $file_path ) ? trim( $file_path ) : '';
 			if ( '' === $file_path ) {
 				continue;
@@ -122,7 +158,7 @@ function gnf_collect_evidencias( $fields, $anio, $centro_id, $reto_id ) {
 
 			$ext  = strtolower( pathinfo( $filename, PATHINFO_EXTENSION ) );
 			$tipo = 'archivo';
-			if ( in_array( $ext, array( 'jpg', 'jpeg', 'png', 'gif' ), true ) ) {
+			if ( in_array( $ext, array( 'jpg', 'jpeg', 'png', 'gif', 'webp', 'heic', 'heif', 'tif', 'tiff' ), true ) ) {
 				$tipo = 'imagen';
 			} elseif ( in_array( $ext, array( 'mp4', 'mov', 'avi' ), true ) ) {
 				$tipo = 'video';
@@ -144,32 +180,31 @@ function gnf_collect_evidencias( $fields, $anio, $centro_id, $reto_id ) {
 				'puntos'             => $field_puntos,
 				'estado'             => $field_puntos !== null ? 'pendiente' : null,
 				'supervisor_comment' => null,
+				'review_reason'      => null,
 				'reviewed_by'        => null,
 				'reviewed_at'        => null,
 			);
 
-			// EXIF date — always store if available. Auto-reject on year mismatch.
-			if ( 'imagen' === $tipo ) {
-				if ( ! function_exists( 'wp_read_image_metadata' ) ) {
-					require_once ABSPATH . 'wp-admin/includes/image.php';
+			$provided_metadata = null;
+			foreach ( $file_metadata as $metadata_item ) {
+				if ( ! empty( $metadata_item['name'] ) && sanitize_file_name( $filename ) === $metadata_item['name'] ) {
+					$provided_metadata = $metadata_item;
+					break;
 				}
-				$metadata      = wp_read_image_metadata( $dest );
-				$has_exif_date = ! empty( $metadata['created_timestamp'] );
-				if ( $has_exif_date ) {
-					$photo_date = gmdate( 'Y-m-d', $metadata['created_timestamp'] );
-					$photo_year = (int) gmdate( 'Y', $metadata['created_timestamp'] );
-					$evidence['photo_date'] = $photo_date;
-					if ( $photo_year !== (int) $anio ) {
-						$evidence['estado']             = 'rechazada';
-						$evidence['supervisor_comment']  = sprintf(
-							'Rechazada automáticamente: la fecha EXIF de la foto (%s) no corresponde al año activo (%d).',
-							$photo_date,
-							$anio
-						);
-						$evidence['reviewed_by']         = 0; // System.
-						$evidence['reviewed_at']         = current_time( 'mysql' );
-					}
-				}
+			}
+			if ( null === $provided_metadata ) {
+				$provided_metadata = $file_metadata[ (int) $file_index ] ?? null;
+			}
+			$evidence          = gnf_apply_evidence_original_date( $evidence, $anio, $provided_metadata );
+			if ( gnf_evidence_has_verifiable_date_issue( $evidence ) ) {
+				$evidence['estado']             = 'rechazada';
+				$evidence['supervisor_comment'] = sprintf(
+					'Rechazada automáticamente: la fecha original de la imagen (%s) no corresponde al año activo (%d).',
+					$evidence['original_date'],
+					$anio
+				);
+				$evidence['reviewed_by'] = 0;
+				$evidence['reviewed_at'] = current_time( 'mysql' );
 			}
 
 			$evidencias[] = $evidence;

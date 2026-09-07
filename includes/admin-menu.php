@@ -258,6 +258,7 @@ function gnf_render_centros_import_tools_card() {
 			Re-importa el catalogo desde <code>escuelas-mep.csv</code> y <code>centros_educativos_2024.json</code>. Los centros existentes se actualizan sin duplicar y el proceso corre por lotes para evitar timeouts.
 			(<?php echo esc_html( $csv_label . $json_label ); ?>)
 		</p>
+		<?php if ( gnf_danger_tools_enabled() ) : ?>
 		<div style="display:flex;gap:12px;flex-wrap:wrap;">
 			<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" style="display:inline;">
 				<?php wp_nonce_field( 'gnf_reimport_centros', 'gnf_reimport_nonce' ); ?>
@@ -274,6 +275,11 @@ function gnf_render_centros_import_tools_card() {
 				</button>
 			</form>
 		</div>
+		<?php else : ?>
+		<div class="notice notice-warning inline" style="margin:0;padding:10px 14px;">
+			<p style="margin:0;">Reimportacion de centros <strong>deshabilitada en produccion</strong> para proteger los datos. Habilitar solo en staging o definiendo <code>GNF_ENABLE_DANGER_TOOLS</code> en <code>wp-config.php</code>.</p>
+		</div>
+		<?php endif; ?>
 		<?php if ( $job_running ) : ?>
 			<p style="margin:10px 0 0;color:#555;">Hay una importacion activa. Deja esta pantalla abierta para ver el progreso.</p>
 		<?php endif; ?>
@@ -332,7 +338,13 @@ function gnf_render_admin_tools() {
 		<?php gnf_render_supervisor_seeder_card(); ?>
 		<?php gnf_render_recalculate_scores_card(); ?>
 		<div style="margin-top:24px;">
-			<?php if ( function_exists( 'gnf_render_reset_tools_card' ) ) { gnf_render_reset_tools_card(); } ?>
+			<?php if ( gnf_danger_tools_enabled() && function_exists( 'gnf_render_reset_tools_card' ) ) : ?>
+				<?php gnf_render_reset_tools_card(); ?>
+			<?php else : ?>
+				<div class="notice notice-warning inline" style="margin:0;padding:10px 14px;">
+					<p style="margin:0;">Reset de BD y reseeds <strong>deshabilitados en produccion</strong> para proteger los datos. Habilitar solo en staging o definiendo <code>GNF_ENABLE_DANGER_TOOLS</code> en <code>wp-config.php</code>.</p>
+				</div>
+			<?php endif; ?>
 		</div>
 	</div>
 	<?php
@@ -965,7 +977,7 @@ function gnf_handle_recalculate_scores() {
 					$changed = true;
 				}
 				if ( ! array_key_exists( 'estado', $ev ) ) {
-					if ( ! empty( $ev['requires_year_validation'] ) ) {
+					if ( function_exists( 'gnf_evidence_has_verifiable_date_issue' ) && gnf_evidence_has_verifiable_date_issue( $ev ) ) {
 						$ev['estado']             = 'rechazada';
 						$ev['supervisor_comment']  = $ev['warning'] ?? 'Rechazada: fecha EXIF no coincide con el año activo.';
 						$ev['reviewed_by']         = 0;
@@ -979,6 +991,10 @@ function gnf_handle_recalculate_scores() {
 				}
 				if ( ! array_key_exists( 'supervisor_comment', $ev ) ) {
 					$ev['supervisor_comment'] = null;
+					$changed = true;
+				}
+				if ( ! array_key_exists( 'review_reason', $ev ) ) {
+					$ev['review_reason'] = null;
 					$changed = true;
 				}
 				if ( ! array_key_exists( 'reviewed_by', $ev ) ) {
@@ -1585,6 +1601,8 @@ function gnf_handle_reimport_centros() {
 		wp_die( 'Sin permisos.' );
 	}
 
+	gnf_guard_danger_tool( 'reimport_centros' );
+
 	$job = gnf_create_centros_import_job( 'reimport' );
 	if ( is_wp_error( $job ) ) {
 		wp_safe_redirect( gnf_get_tools_page_url( array( 'gnf_reimport_error' => 'csv_not_found' ) ) );
@@ -1607,6 +1625,8 @@ function gnf_handle_purge_and_reimport_centros() {
 	if ( ! current_user_can( 'manage_options' ) ) {
 		wp_die( 'Sin permisos.' );
 	}
+
+	gnf_guard_danger_tool( 'purge_reimport_centros' );
 
 	$job = gnf_create_centros_import_job( 'purge_reimport' );
 	if ( is_wp_error( $job ) ) {

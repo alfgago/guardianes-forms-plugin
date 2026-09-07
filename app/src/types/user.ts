@@ -8,6 +8,7 @@ export interface User {
   regionId?: number;
   regionIds?: number[];
   regionNames?: string[];
+  circuito?: string;
   centroId?: number;
   estado?: 'activo' | 'pendiente' | 'rechazado';
 }
@@ -24,6 +25,7 @@ export interface PendingUser {
   centroId?: number;
   regionId?: number;
   regionIds?: number[];
+  circuito?: string;
   registeredAt: string;
   centroName?: string;
   regionName?: string;

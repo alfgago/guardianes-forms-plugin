@@ -587,9 +587,16 @@ function gnf_render_admin_users()
 
 		<div class="gnf-users-header">
 			<h1>👥 Gestión de Usuarios</h1>
-			<a href="<?php echo esc_url(admin_url('admin.php?page=gnf-admin')); ?>" class="gnf-btn gnf-btn--secondary">
-				← Volver al Panel
-			</a>
+			<div class="gnf-actions">
+				<?php if ( function_exists( 'gnf_get_centros_xlsx_export_url' ) ) : ?>
+					<a href="<?php echo esc_url( gnf_get_centros_xlsx_export_url( gnf_get_active_year(), $region_filter ) ); ?>" class="gnf-btn gnf-btn--secondary">
+						Descargar inscritos XLSX
+					</a>
+				<?php endif; ?>
+				<a href="<?php echo esc_url(admin_url('admin.php?page=gnf-admin')); ?>" class="gnf-btn gnf-btn--secondary">
+					← Volver al Panel
+				</a>
+			</div>
 		</div>
 
 		<div class="gnf-quick-stats">
@@ -667,6 +674,7 @@ function gnf_render_admin_users()
 							<th>Rol</th>
 							<th>Estado</th>
 							<th>Región</th>
+							<th>Circuito</th>
 							<th>Centro Educativo</th>
 							<th>Registro</th>
 							<th>Acciones</th>
@@ -685,6 +693,10 @@ function gnf_render_admin_users()
 								}
 							}
 							$region_name = $region_names ? implode(', ', $region_names) : '';
+							$user_circuito = 'supervisor' === $user_role ? gnf_get_user_circuito($user->ID) : '';
+							$circuito_label = 'supervisor' === $user_role
+								? ( $user_circuito ?: 'Toda la DRE' )
+								: ( 'comite_bae' === $user_role ? 'Toda la DRE' : '—' );
 
 							// Obtener centro asociado para docentes.
 							$centro_info = '';
@@ -723,6 +735,7 @@ function gnf_render_admin_users()
 									</span>
 								</td>
 								<td><?php echo esc_html($region_name ?: '—'); ?></td>
+								<td><?php echo esc_html($circuito_label); ?></td>
 								<td><?php echo esc_html($centro_info ?: '—'); ?></td>
 								<td><?php echo esc_html(date_i18n('d/m/Y', strtotime($user->user_registered))); ?></td>
 								<td>
@@ -746,6 +759,19 @@ function gnf_render_admin_users()
 										<a href="<?php echo esc_url(admin_url('admin.php?page=gnf-usuario-editar&user_id=' . $user->ID)); ?>" class="gnf-btn gnf-btn--secondary gnf-btn--small">
 											✎ Editar
 										</a>
+										<?php
+										$view_as_url = 'docente' === $user_role && function_exists( 'gnf_build_impersonate_url' )
+											? gnf_build_impersonate_url(
+												$user->ID,
+												gnf_get_current_admin_return_url( admin_url( 'admin.php?page=gnf-usuarios' ) )
+											)
+											: '';
+										if ( $view_as_url ) :
+											?>
+											<a href="<?php echo esc_url( $view_as_url ); ?>" class="gnf-btn gnf-btn--secondary gnf-btn--small">
+												Entrar como docente
+											</a>
+										<?php endif; ?>
 									</div>
 								</td>
 							</tr>
@@ -889,49 +915,76 @@ function gnf_render_admin_user_edit()
 		$status_key = in_array($user_role, array('supervisor', 'comite_bae'), true)
 			? 'gnf_supervisor_status'
 			: 'gnf_docente_status';
+		$new_region = 'comite_bae' === $user_role ? 0 : absint($_POST['user_region'] ?? 0);
+		$new_circuito = 'supervisor' === $user_role
+			? gnf_normalize_circuito( sanitize_text_field( wp_unslash( $_POST['user_circuito'] ?? '' ) ) )
+			: '';
+		$save_error = '';
 
-		update_user_meta($user_id, $status_key, $new_status);
+		if ( 'supervisor' === $user_role && '' !== $new_circuito ) {
+			$current_region   = gnf_get_user_region( $user_id );
+			$current_circuito = gnf_get_user_circuito( $user_id );
+			$available        = $new_region ? gnf_get_region_circuitos( $new_region ) : array();
+			$is_unchanged     = $new_region === $current_region && $new_circuito === $current_circuito;
 
-		if ('comite_bae' === $user_role) {
-			$region_ids = array_values(array_filter(array_map('absint', (array) ($_POST['user_regions'] ?? array()))));
-			gnf_set_user_regions($user_id, $region_ids);
+			if ( ! $new_region || ( ! in_array( $new_circuito, $available, true ) && ! $is_unchanged ) ) {
+				$save_error = 'Circuito no valido para la Direccion Regional seleccionada.';
+			}
+		}
+
+		if ( $save_error ) {
+			echo '<div class="notice notice-error"><p>' . esc_html( $save_error ) . '</p></div>';
 		} else {
-			$new_region = absint($_POST['user_region'] ?? 0);
-			if (function_exists('gnf_set_user_regions')) {
-				gnf_set_user_regions($user_id, $new_region ? array($new_region) : array());
+			update_user_meta($user_id, $status_key, $new_status);
+
+			if ('comite_bae' === $user_role) {
+				$region_ids = array_values(array_filter(array_map('absint', (array) ($_POST['user_regions'] ?? array()))));
+				gnf_set_user_regions($user_id, $region_ids);
 			} else {
-				update_user_meta($user_id, 'region', $new_region);
-				update_user_meta($user_id, 'gnf_region_id', $new_region);
-				update_user_meta($user_id, 'gnf_region', $new_region);
-			}
-		}
-
-		// Actualizar display name si se proporciona.
-		if (!empty($_POST['display_name'])) {
-			wp_update_user(array(
-				'ID'           => $user_id,
-				'display_name' => sanitize_text_field($_POST['display_name']),
-			));
-		}
-
-		// Actualizar centro asociado para docentes.
-		if ($user_role === 'docente') {
-			$prev_centro_id = gnf_get_centro_for_docente( $user_id );
-			$centro_id      = absint($_POST['centro_asociado'] ?? 0);
-			if ( ! $centro_id ) {
-				gnf_clear_docente_centro_assignment( $user_id, $prev_centro_id );
+				if (function_exists('gnf_set_user_regions')) {
+					gnf_set_user_regions($user_id, $new_region ? array($new_region) : array());
+				} else {
+					update_user_meta($user_id, 'region', $new_region);
+					update_user_meta($user_id, 'gnf_region_id', $new_region);
+					update_user_meta($user_id, 'gnf_region', $new_region);
+				}
 			}
 
-			// Añadir a docentes asociados del centro.
-			if ( $centro_id ) {
-				gnf_sync_docente_centro_assignment( $user_id, $centro_id, array( 'sync_correo_institucional' => true ) );
+			if ( 'supervisor' === $user_role ) {
+				if ( '' !== $new_circuito ) {
+					update_user_meta( $user_id, 'circuito', $new_circuito );
+				} else {
+					delete_user_meta( $user_id, 'circuito' );
+				}
 			}
+
+			// Actualizar display name si se proporciona.
+			if (!empty($_POST['display_name'])) {
+				wp_update_user(array(
+					'ID'           => $user_id,
+					'display_name' => sanitize_text_field($_POST['display_name']),
+				));
+			}
+
+			// Actualizar centro asociado para docentes.
+			if ($user_role === 'docente') {
+				$prev_centro_id = gnf_get_centro_for_docente( $user_id );
+				$centro_id      = absint($_POST['centro_asociado'] ?? 0);
+				if ( ! $centro_id ) {
+					gnf_clear_docente_centro_assignment( $user_id, $prev_centro_id );
+				}
+
+				// Añadir a docentes asociados del centro.
+				if ( $centro_id ) {
+					gnf_sync_docente_centro_assignment( $user_id, $centro_id, array( 'sync_correo_institucional' => true ) );
+				}
+			}
+
+			// Refrescar datos.
+			$user = get_userdata($user_id);
+
+			echo '<div class="notice notice-success is-dismissible"><p>Usuario actualizado correctamente.</p></div>';
 		}
-
-		// Refrescar datos.
-		$user = get_userdata($user_id);
-
-		echo '<div class="notice notice-success is-dismissible"><p>Usuario actualizado correctamente.</p></div>';
 	}
 
 	$user_role   = gnf_admin_users_get_effective_role($user) ?: 'docente';
@@ -941,6 +994,7 @@ function gnf_render_admin_user_edit()
 	$user_status = get_user_meta($user_id, $status_key, true) ?: 'activo';
 	$user_region = gnf_get_user_region( $user_id );
 	$user_region_ids = gnf_admin_users_get_effective_region_ids($user, $user_role);
+	$user_circuito = 'supervisor' === $user_role ? gnf_get_user_circuito( $user_id ) : '';
 	$centro_id   = gnf_get_centro_for_docente( $user_id );
 
 	$role_labels = array(
@@ -951,6 +1005,12 @@ function gnf_render_admin_user_edit()
 	$role_label = $role_labels[$user_role] ?? ucfirst($user_role);
 
 	$regions = get_terms(array('taxonomy' => 'gn_region', 'hide_empty' => false));
+	$assignable_regions = function_exists('gnf_get_assignable_region_terms')
+		? gnf_get_assignable_region_terms($user_region_ids ?: array($user_region))
+		: $regions;
+	$circuitos = 'supervisor' === $user_role
+		? gnf_get_region_circuitos( $user_region, $user_circuito ? array( $user_circuito ) : array() )
+		: array();
 	$centros = get_posts(array('post_type' => 'centro_educativo', 'posts_per_page' => -1, 'post_status' => 'any'));
 
 ?>
@@ -996,8 +1056,8 @@ function gnf_render_admin_user_edit()
 					<div class="gnf-form-group">
 						<label>Direcciones Regionales asignadas</label>
 						<div style="display:grid;gap:8px;max-height:240px;overflow-y:auto;padding:12px;border:1px solid #e5e7eb;border-radius:8px;background:#f8fafc;">
-							<?php if (!is_wp_error($regions) && !empty($regions)) : ?>
-								<?php foreach ($regions as $region) : ?>
+							<?php if (!is_wp_error($assignable_regions) && !empty($assignable_regions)) : ?>
+								<?php foreach ($assignable_regions as $region) : ?>
 									<label style="display:flex;align-items:center;gap:8px;font-weight:400;">
 										<input type="checkbox" name="user_regions[]" value="<?php echo esc_attr($region->term_id); ?>" <?php checked(in_array((int) $region->term_id, $user_region_ids, true)); ?> />
 										<?php echo esc_html($region->name); ?>
@@ -1012,8 +1072,8 @@ function gnf_render_admin_user_edit()
 						<label for="user_region">Dirección Regional</label>
 						<select id="user_region" name="user_region">
 							<option value="">— Sin asignar —</option>
-							<?php if (!is_wp_error($regions) && !empty($regions)) : ?>
-								<?php foreach ($regions as $region) : ?>
+							<?php if (!is_wp_error($assignable_regions) && !empty($assignable_regions)) : ?>
+								<?php foreach ($assignable_regions as $region) : ?>
 									<option value="<?php echo esc_attr($region->term_id); ?>" <?php selected($user_region, $region->term_id); ?>>
 										<?php echo esc_html($region->name); ?>
 									</option>
@@ -1021,6 +1081,23 @@ function gnf_render_admin_user_edit()
 							<?php endif; ?>
 						</select>
 					</div>
+					<?php endif; ?>
+
+					<?php if ('supervisor' === $user_role) : ?>
+						<div class="gnf-form-group">
+							<label for="user_circuito">Circuito asignado</label>
+							<select id="user_circuito" name="user_circuito" <?php disabled( ! $user_region ); ?>>
+								<option value="">Toda la DRE</option>
+								<?php foreach ( $circuitos as $circuito ) : ?>
+									<option value="<?php echo esc_attr( $circuito ); ?>" <?php selected( $user_circuito, $circuito ); ?>>
+										Circuito <?php echo esc_html( $circuito ); ?>
+									</option>
+								<?php endforeach; ?>
+							</select>
+							<p id="gnf-circuito-status" style="margin:6px 0 0;font-size:12px;color:#64748b;" aria-live="polite">
+								<?php echo $user_region ? 'Selecciona un circuito o deja Toda la DRE.' : 'Selecciona primero una Dirección Regional.'; ?>
+							</p>
+						</div>
 					<?php endif; ?>
 
 					<?php if ($user_role === 'docente') : ?>
@@ -1085,6 +1162,71 @@ function gnf_render_admin_user_edit()
 			<?php endif; ?>
 		</div>
 	</div>
+
+	<?php if ( 'supervisor' === $user_role ) : ?>
+	<script>
+	(function () {
+		const regionSelect = document.getElementById('user_region');
+		const circuitoSelect = document.getElementById('user_circuito');
+		const status = document.getElementById('gnf-circuito-status');
+		const endpoint = <?php echo wp_json_encode( rest_url( '/gnf/v1/admin/circuitos' ) ); ?>;
+		const nonce = <?php echo wp_json_encode( wp_create_nonce( 'wp_rest' ) ); ?>;
+
+		if (!regionSelect || !circuitoSelect || !status) {
+			return;
+		}
+
+		function replaceCircuitos(circuitos) {
+			circuitoSelect.replaceChildren();
+			const allRegionOption = document.createElement('option');
+			allRegionOption.value = '';
+			allRegionOption.textContent = 'Toda la DRE';
+			circuitoSelect.appendChild(allRegionOption);
+
+			circuitos.forEach(function (circuito) {
+				const option = document.createElement('option');
+				option.value = String(circuito);
+				option.textContent = 'Circuito ' + String(circuito);
+				circuitoSelect.appendChild(option);
+			});
+		}
+
+		async function loadCircuitos() {
+			const regionId = regionSelect.value;
+			replaceCircuitos([]);
+
+			if (!regionId) {
+				circuitoSelect.disabled = true;
+				status.textContent = 'Selecciona primero una Dirección Regional.';
+				return;
+			}
+
+			circuitoSelect.disabled = true;
+			status.textContent = 'Cargando circuitos...';
+
+			try {
+				const response = await fetch(endpoint + '?region=' + encodeURIComponent(regionId), {
+					credentials: 'same-origin',
+					headers: { 'X-WP-Nonce': nonce }
+				});
+				if (!response.ok) {
+					throw new Error('No se pudieron cargar los circuitos.');
+				}
+
+				const circuitos = await response.json();
+				replaceCircuitos(Array.isArray(circuitos) ? circuitos : []);
+				circuitoSelect.disabled = false;
+				status.textContent = circuitos.length
+					? 'Selecciona un circuito o deja Toda la DRE.'
+					: 'Esta DRE no tiene circuitos disponibles.';
+			} catch (error) {
+				status.textContent = error instanceof Error ? error.message : 'No se pudieron cargar los circuitos.';
+			}
+		}
+
+		regionSelect.addEventListener('change', loadCircuitos);
+	})();
+	</script>
+	<?php endif; ?>
 <?php
 }
-

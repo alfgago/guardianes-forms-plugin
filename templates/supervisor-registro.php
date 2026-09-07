@@ -13,7 +13,7 @@ $msg_error  = isset( $_GET['gnf_err'] ) ? sanitize_text_field( wp_unslash( $_GET
 $msg_notice = isset( $_GET['gnf_msg'] ) ? sanitize_text_field( wp_unslash( $_GET['gnf_msg'] ) ) : '';
 
 // Obtener regiones disponibles.
-$regiones = get_terms( array(
+$regiones = function_exists( 'gnf_get_assignable_region_terms' ) ? gnf_get_assignable_region_terms() : get_terms( array(
 	'taxonomy'   => 'gn_region',
 	'hide_empty' => false,
 	'orderby'    => 'name',

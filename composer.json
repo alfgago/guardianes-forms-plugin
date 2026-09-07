@@ -1,0 +1,18 @@
+{
+  "name": "guardianes/guardianes-formularios",
+  "description": "Plugin de participación y seguimiento para Guardianes de la Naturaleza.",
+  "type": "wordpress-plugin",
+  "license": "proprietary",
+  "require": {
+    "php": ">=7.4",
+    "dompdf/dompdf": "3.1.6",
+    "openspout/openspout": "3.7.4"
+  },
+  "config": {
+    "optimize-autoloader": true,
+    "platform": {
+      "php": "7.4.33"
+    },
+    "sort-packages": true
+  }
+}

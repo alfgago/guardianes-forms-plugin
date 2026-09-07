@@ -56,7 +56,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
           fontFamily: 'var(--gnf-font-body)',
           cursor: disabled || loading ? 'not-allowed' : 'pointer',
           opacity: disabled ? 0.5 : 1,
-          transition: 'all var(--gnf-transition-fast)',
+          transition: 'background-color var(--gnf-transition-fast), color var(--gnf-transition-fast), border-color var(--gnf-transition-fast), opacity var(--gnf-transition-fast), box-shadow var(--gnf-transition-fast)',
           whiteSpace: 'nowrap',
           ...variantStyles[variant],
           ...sizeStyles[size],

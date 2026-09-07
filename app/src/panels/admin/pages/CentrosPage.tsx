@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Plus } from 'lucide-react';
+import { Download, Eye, Plus } from 'lucide-react';
 import { adminApi } from '@/api/admin';
 import { centrosApi } from '@/api/centros';
 import { get } from '@/api/client';
 import { useYearStore } from '@/stores/useYearStore';
+import { useInitData } from '@/hooks/useInitData';
 import { Spinner } from '@/components/ui/Spinner';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
@@ -15,7 +16,6 @@ import { Card } from '@/components/ui/Card';
 import { useToast } from '@/components/ui/Toast';
 import { RegionFilter } from '@/components/domain/RegionFilter';
 import { DataTable, type Column } from '@/components/data/DataTable';
-import { StarRating } from '@/components/ui/StarRating';
 import { StatusBadge } from '@/components/domain/StatusBadge';
 import { useDebounce } from '@/hooks/useDebounce';
 import type { Centro, CentroWithStats, Estado, Region } from '@/types';
@@ -38,10 +38,17 @@ const REGISTRATION_OPTIONS = [
   { value: 'unregistered', label: 'Sin registrar' },
 ];
 
+function getCentroTypeLabel(centro: Pick<Centro, 'tipoCentroEducativo' | 'tipoCentroEducativoLabel' | 'tipologia' | 'tipologiaLabel'>) {
+  const tipo = centro.tipoCentroEducativoLabel || centro.tipoCentroEducativo || 'Sin tipo';
+  const tipologia = centro.tipologiaLabel || centro.tipologia || '';
+  return { tipo, tipologia };
+}
+
 export function CentrosPage({ onViewCentro }: CentrosPageProps) {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const year = useYearStore((state) => state.selectedYear);
+  const initData = useInitData('admin');
   const [search, setSearch] = useState('');
   const [region, setRegion] = useState('');
   const [estado, setEstado] = useState('');
@@ -55,6 +62,11 @@ export function CentrosPage({ onViewCentro }: CentrosPageProps) {
   const { data: regions } = useQuery({
     queryKey: ['regions'],
     queryFn: () => get<Region[]>('/regions'),
+  });
+
+  const { data: activeRegions } = useQuery({
+    queryKey: ['regions', 'active'],
+    queryFn: () => get<Region[]>('/regions', { active: 1 }),
   });
 
   const { data: centros, isLoading } = useQuery({
@@ -79,6 +91,21 @@ export function CentrosPage({ onViewCentro }: CentrosPageProps) {
     if (!editingCentro) return;
     setFormState(editingCentro);
   }, [editingCentro]);
+
+  const visibleFormRegions = useMemo(() => {
+    const byId = new Map<number, Region>();
+    (activeRegions ?? []).forEach((item) => byId.set(item.id, item));
+
+    if (formState.regionId && !byId.has(formState.regionId)) {
+      byId.set(formState.regionId, {
+        id: formState.regionId,
+        name: editingCentro?.regionName ?? `Region ${formState.regionId}`,
+        slug: '',
+      });
+    }
+
+    return Array.from(byId.values());
+  }, [activeRegions, editingCentro?.regionName, formState.regionId]);
 
   const closeCentroModal = () => {
     setEditingCentroId(null);
@@ -130,6 +157,28 @@ export function CentrosPage({ onViewCentro }: CentrosPageProps) {
   });
 
   const currentError = isCreating ? createCentro.error : updateCentro.error;
+  const adminPostUrl = initData.adminPostUrl || '/wp-admin/admin-post.php';
+  const xlsxExportBaseUrl = typeof initData.centrosXlsxExportUrl === 'string' ? initData.centrosXlsxExportUrl : '';
+
+  const csvExportUrl = useMemo(() => {
+    const url = new URL(adminPostUrl, window.location.origin);
+    url.searchParams.set('action', 'gnf_export_centros_diagnostico_csv');
+    url.searchParams.set('year', String(year));
+    if (region) {
+      url.searchParams.set('region', region);
+    }
+    return url.toString();
+  }, [adminPostUrl, region, year]);
+
+  const xlsxExportUrl = useMemo(() => {
+    const url = new URL(xlsxExportBaseUrl || '/wp-admin/admin-post.php', window.location.origin);
+    if (!xlsxExportBaseUrl) url.searchParams.set('action', 'gnf_export_centros_xlsx');
+    url.searchParams.set('year', String(year));
+    if (region) {
+      url.searchParams.set('region', region);
+    }
+    return url.toString();
+  }, [region, xlsxExportBaseUrl, year]);
 
   const centrosByRegion = useMemo(() => {
     const counter = new Map<string, number>();
@@ -148,24 +197,53 @@ export function CentrosPage({ onViewCentro }: CentrosPageProps) {
     { key: 'nombre', header: 'Centro', sortable: true, sortValue: (centro) => centro.nombre, render: (centro) => <strong>{centro.nombre}</strong> },
     { key: 'codigo', header: 'Codigo', render: (centro) => centro.codigoMep || 'Sin codigo' },
     { key: 'region', header: 'Region', render: (centro) => centro.regionName ?? '-' },
+    {
+      key: 'tipoCentro',
+      header: 'Tipo',
+      render: (centro) => {
+        const { tipo, tipologia } = getCentroTypeLabel(centro);
+        return (
+          <div style={{ display: 'grid', gap: 2, fontSize: '0.8125rem' }}>
+            <span>{tipo}</span>
+            {tipologia && <span style={{ color: 'var(--gnf-muted)' }}>{tipologia}</span>}
+          </div>
+        );
+      },
+    },
     { key: 'puntaje', header: 'Puntaje', sortable: true, sortValue: (centro) => centro.annual.puntajeTotal, render: (centro) => `${centro.annual.puntajeTotal} pts` },
-    { key: 'estrella', header: 'Galardon', render: (centro) => <StarRating rating={centro.annual.estrellaFinal} size={14} /> },
     { key: 'estado', header: 'Matricula', render: (centro) => <StatusBadge estado={centro.annual.matriculaEstado as Estado} /> },
     {
       key: 'acciones',
       header: '',
       render: (centro) => (
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={(event) => {
-            event.stopPropagation();
-            setIsCreateModalOpen(false);
-            setEditingCentroId(centro.id);
-          }}
-        >
-          Editar
-        </Button>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+          {centro.canImpersonateDocente && centro.docenteImpersonateUrl && (
+            <Button
+              variant="outline"
+              size="sm"
+              icon={<Eye size={14} />}
+              onClick={(event) => {
+                event.stopPropagation();
+                const url = new URL(centro.docenteImpersonateUrl!, window.location.origin);
+                url.searchParams.set('return_to', window.location.href);
+                window.location.href = url.toString();
+              }}
+            >
+              Entrar como docente
+            </Button>
+          )}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={(event) => {
+              event.stopPropagation();
+              setIsCreateModalOpen(false);
+              setEditingCentroId(centro.id);
+            }}
+          >
+            Editar
+          </Button>
+        </div>
       ),
     },
   ];
@@ -177,9 +255,51 @@ export function CentrosPage({ onViewCentro }: CentrosPageProps) {
           <h2 style={{ marginBottom: 'var(--gnf-space-2)' }}>Centros Educativos</h2>
           <p style={{ color: 'var(--gnf-muted)', marginBottom: 0 }}>Por defecto se muestran los centros ya registrados por alguna cuenta docente.</p>
         </div>
-        <Button className="gnf-new-centro-action--disabled" icon={<Plus size={16} />} onClick={openCreateModal}>
-          Nuevo centro
-        </Button>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+          <Button className="gnf-new-centro-action--disabled" icon={<Plus size={16} />} onClick={openCreateModal}>
+            Nuevo centro
+          </Button>
+          <a
+            href={csvExportUrl}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 8,
+              padding: '10px 16px',
+              borderRadius: 'var(--gnf-radius)',
+              border: '1px solid var(--gnf-border)',
+              color: 'var(--gnf-gray-700)',
+              fontWeight: 600,
+              textDecoration: 'none',
+              background: 'var(--gnf-white)',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            <Download size={16} />
+            Descargar CSV de diagnóstico
+          </a>
+          <a
+            href={xlsxExportUrl}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 8,
+              padding: '10px 16px',
+              borderRadius: 'var(--gnf-radius)',
+              border: '1px solid var(--gnf-forest)',
+              color: 'var(--gnf-forest)',
+              fontWeight: 600,
+              textDecoration: 'none',
+              background: 'transparent',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            <Download size={16} />
+            Descargar inscritos XLSX
+          </a>
+        </div>
       </div>
 
       <div style={{ display: 'flex', gap: 'var(--gnf-space-4)', marginBottom: 'var(--gnf-space-4)', flexWrap: 'wrap', alignItems: 'flex-start' }}>
@@ -286,7 +406,7 @@ export function CentrosPage({ onViewCentro }: CentrosPageProps) {
                 label="Region"
                 value={formState.regionId ? String(formState.regionId) : ''}
                 onChange={(event) => setFormState((current) => ({ ...current, regionId: Number(event.target.value) }))}
-                options={(regions ?? []).map((item) => ({ value: String(item.id), label: item.name }))}
+                options={visibleFormRegions.map((item) => ({ value: String(item.id), label: item.name }))}
                 placeholder="Seleccionar region..."
               />
               <Input label="Circuito" value={formState.circuito ?? ''} onChange={(event) => setFormState((current) => ({ ...current, circuito: event.target.value }))} />
@@ -309,6 +429,11 @@ export function CentrosPage({ onViewCentro }: CentrosPageProps) {
                 label="Tipo de Centro Educativo"
                 value={formState.tipoCentroEducativo ?? ''}
                 onChange={(event) => setFormState((current) => ({ ...current, tipoCentroEducativo: event.target.value }))}
+              />
+              <Input
+                label="Tipologia"
+                value={formState.tipologia ?? ''}
+                onChange={(event) => setFormState((current) => ({ ...current, tipologia: event.target.value }))}
               />
             </div>
 

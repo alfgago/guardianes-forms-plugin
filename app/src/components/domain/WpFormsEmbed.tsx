@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { retosApi, type AutosaveFieldPayload, type ConditionalFieldRule, type ConditionalRule } from '@/api/retos';
+import { retosApi, type AutosaveFieldPayload, type ConditionalFieldRule, type ConditionalRule, type EvidenceFileMetadata } from '@/api/retos';
 import { Spinner } from '@/components/ui/Spinner';
 import { Alert } from '@/components/ui/Alert';
 import { Card } from '@/components/ui/Card';
@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/Button';
 import { EvidenceViewer } from '@/components/domain/EvidenceViewer';
 import { StatusBadge } from '@/components/domain/StatusBadge';
 import { trackClientEvent } from '@/utils/analytics';
+import { formatEvidenceOriginalDate, getEvidenceOriginalDate, getEvidenceReviewStatus, getRejectionReasonLabel } from '@/utils/evidenceReview';
 import type { Evidencia, RetoEntry } from '@/types';
 import { CheckCircle2, ExternalLink, Save } from 'lucide-react';
 
@@ -131,7 +132,27 @@ function getFileUploadValue(fieldEl: HTMLElement): string | string[] {
   return '';
 }
 
-function buildFieldSnapshot(form: HTMLFormElement): Record<string, AutosaveFieldPayload> {
+function formatBrowserFileDate(timestamp: number): string {
+  if (!timestamp) return '';
+  const date = new Date(timestamp);
+  if (Number.isNaN(date.getTime())) return '';
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
+
+function getBrowserFileMetadata(files: File[]): EvidenceFileMetadata[] {
+  return files
+    .map((file) => ({
+      name: file.name,
+      date: formatBrowserFileDate(file.lastModified),
+      source: 'browser_file_metadata' as const,
+    }))
+    .filter((item) => item.date !== '');
+}
+
+function buildFieldSnapshot(
+  form: HTMLFormElement,
+  fileMetadata: Record<string, EvidenceFileMetadata[]> = {},
+): Record<string, AutosaveFieldPayload> {
   const fields = Array.from(form.querySelectorAll<HTMLElement>('.wpforms-field'));
   const payload: Record<string, AutosaveFieldPayload> = {};
 
@@ -165,6 +186,7 @@ function buildFieldSnapshot(form: HTMLFormElement): Record<string, AutosaveField
         type,
         name: getFieldLabel(fieldEl, fieldId),
         value,
+        fileMetadata: fileMetadata[fieldId] ?? [],
       };
       return;
     }
@@ -379,11 +401,11 @@ function extractFieldValues(snapshot: Record<string, AutosaveFieldPayload>) {
 }
 
 function getEvidenceStatus(file: Evidencia) {
-  const estado = file.requires_year_validation ? 'rechazada' : file.estado;
+  const estado = getEvidenceReviewStatus(file);
 
   if (estado === 'rechazada') {
     return {
-      label: 'Observada',
+      label: getRejectionReasonLabel(file.review_reason) || 'Rechazada',
       color: '#b91c1c',
       background: 'rgba(239, 68, 68, 0.10)',
       border: 'rgba(239, 68, 68, 0.28)',
@@ -408,7 +430,7 @@ function getEvidenceStatus(file: Evidencia) {
 }
 
 function getEvidenceFeedback(file: Evidencia) {
-  return (file.supervisor_comment || file.warning || '').trim();
+  return (file.supervisor_comment || (!file.review_reason ? file.warning : '') || '').trim();
 }
 
 /**
@@ -478,6 +500,18 @@ function injectFileUploadPreviews(form: HTMLFormElement, evidencias: Evidencia[]
       meta.textContent = status.label;
       meta.style.cssText = `font-size:0.75rem;font-weight:700;color:${status.color};`;
       textWrap.appendChild(meta);
+
+      const dateMeta = document.createElement('span');
+      dateMeta.textContent = `Fecha original del archivo: ${formatEvidenceOriginalDate(getEvidenceOriginalDate(file))}`;
+      dateMeta.style.cssText = `font-size:0.75rem;line-height:1.35;color:${file.requires_year_validation ? '#b45309' : '#64748b'};`;
+      textWrap.appendChild(dateMeta);
+
+      if (file.requires_year_validation) {
+        const dateWarning = document.createElement('span');
+        dateWarning.textContent = 'La fecha original del archivo no coincide con el año activo.';
+        dateWarning.style.cssText = 'font-size:0.75rem;line-height:1.35;color:#b45309;font-weight:700;';
+        textWrap.appendChild(dateWarning);
+      }
 
       if (feedback) {
         const feedbackEl = document.createElement('span');
@@ -830,6 +864,7 @@ export function WpFormsEmbed({ retoId, year }: WpFormsEmbedProps) {
   const lastSnapshotRef = useRef('');
   const mountedRef = useRef(false);
   const savingRef = useRef(false);
+  const fileMetadataRef = useRef<Record<string, EvidenceFileMetadata[]>>({});
   const dataRef = useRef<Awaited<ReturnType<typeof retosApi.getFormHtml>> | null>(null);
 
   const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
@@ -874,7 +909,7 @@ export function WpFormsEmbed({ retoId, year }: WpFormsEmbedProps) {
       }
 
       console.log(`[GNF] triggerAutosave(${mode}) building snapshot...`);
-      const snapshot = buildFieldSnapshot(form);
+      const snapshot = buildFieldSnapshot(form, fileMetadataRef.current);
       if (mountedRef.current) {
         setFieldValues(extractFieldValues(snapshot));
       }
@@ -981,6 +1016,10 @@ export function WpFormsEmbed({ retoId, year }: WpFormsEmbedProps) {
   // every autosave cycle. This prevents the form from being destroyed
   // and rebuilt mid-interaction (the radio-button-unchecking bug).
   useEffect(() => {
+    fileMetadataRef.current = {};
+  }, [retoId, year]);
+
+  useEffect(() => {
     if (!data?.html || !containerRef.current) return;
 
     const container = containerRef.current;
@@ -1046,7 +1085,7 @@ export function WpFormsEmbed({ retoId, year }: WpFormsEmbedProps) {
     // Initial hydration.
     rehydrateValues();
 
-    const initialSnapshot = buildFieldSnapshot(form);
+    const initialSnapshot = buildFieldSnapshot(form, fileMetadataRef.current);
     setFieldValues(extractFieldValues(initialSnapshot));
     lastSnapshotRef.current = JSON.stringify(initialSnapshot);
 
@@ -1081,11 +1120,25 @@ export function WpFormsEmbed({ retoId, year }: WpFormsEmbedProps) {
 
     // `change` fires when a field loses focus (text) or on click (radio/select/checkbox).
     // This is the ONLY event that triggers autosave (besides file upload detection).
+    const captureFileMetadata = (fieldId: string, files: File[]) => {
+      const incoming = getBrowserFileMetadata(files);
+      if (!incoming.length) return;
+      const existing = fileMetadataRef.current[fieldId] ?? [];
+      const byKey = new Map(existing.map((item) => [`${item.name}|${item.date}`, item]));
+      incoming.forEach((item) => byKey.set(`${item.name}|${item.date}`, item));
+      fileMetadataRef.current[fieldId] = Array.from(byKey.values());
+    };
+
     const handleChange = (event: Event) => {
       const target = event.target;
       applyConditionalVisibility(form, data.conditionalRules ?? []);
 
       if (target instanceof HTMLInputElement && target.type === 'file') {
+        const fieldEl = target.closest<HTMLElement>('.wpforms-field');
+        const fieldId = fieldEl ? getFieldId(fieldEl) : null;
+        if (fieldId) {
+          captureFileMetadata(fieldId, Array.from(target.files ?? []));
+        }
         // File input changes don't mean upload is done — Dropzone uploads async.
         return;
       }
@@ -1156,11 +1209,27 @@ export function WpFormsEmbed({ retoId, year }: WpFormsEmbedProps) {
 
         attachedUploaders.add(el);
         console.log('[GNF] Attached Dropzone listener on field', el.getAttribute('data-field-id'));
+        dz.on('addedfile', (rawFile) => {
+          const file = rawFile as File;
+          const fieldEl = el.closest<HTMLElement>('.wpforms-field');
+          const fieldId = fieldEl ? getFieldId(fieldEl) : null;
+          if (fieldId && file?.name) {
+            captureFileMetadata(fieldId, [file]);
+          }
+        });
         dz.on('success', () => {
           console.log('[GNF] Dropzone success event');
           onFileUploaded();
         });
-        dz.on('removedfile', () => {
+        dz.on('removedfile', (rawFile) => {
+          const file = rawFile as File;
+          const fieldEl = el.closest<HTMLElement>('.wpforms-field');
+          const fieldId = fieldEl ? getFieldId(fieldEl) : null;
+          if (fieldId && file?.name) {
+            fileMetadataRef.current[fieldId] = (fileMetadataRef.current[fieldId] ?? []).filter(
+              (item) => item.name !== file.name,
+            );
+          }
           console.log('[GNF] Dropzone removedfile event');
           onFileUploaded();
         });
@@ -1223,7 +1292,7 @@ export function WpFormsEmbed({ retoId, year }: WpFormsEmbedProps) {
       }
 
       if (!savingRef.current) {
-        const fields = buildFieldSnapshot(form);
+        const fields = buildFieldSnapshot(form, fileMetadataRef.current);
         const serialized = JSON.stringify(fields);
         if (serialized !== lastSnapshotRef.current) {
           lastSnapshotRef.current = serialized;
@@ -1246,6 +1315,9 @@ export function WpFormsEmbed({ retoId, year }: WpFormsEmbedProps) {
 
   const evidenceList = (currentEntry?.evidencias ?? []) as Evidencia[];
   const isEditable = !currentEntry?.estado || !['enviado', 'aprobado'].includes(currentEntry.estado);
+  const hasEvidenceDateMismatch = evidenceList.some(
+    (evidence) => !evidence.replaced && evidence.requires_year_validation,
+  );
 
   const completedFieldIds = useMemo(() => {
     const ids = new Set<string>();
@@ -1418,6 +1490,13 @@ export function WpFormsEmbed({ retoId, year }: WpFormsEmbedProps) {
               {saveStatusLabel}
             </Alert>
           </div>
+          {hasEvidenceDateMismatch && (
+            <div style={{ marginTop: 'var(--gnf-space-3)' }}>
+              <Alert variant="warning" title="Revisa la fecha de la evidencia">
+                La fecha original de uno o más archivos no coincide con el año activo.
+              </Alert>
+            </div>
+          )}
         </div>
 
         <div style={{ padding: 'var(--gnf-space-6)' }}>

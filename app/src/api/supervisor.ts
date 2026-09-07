@@ -27,7 +27,7 @@ export const supervisorApi = {
     return get<SupervisorCentroDetail>(`/supervisor/centros/${centroId}`, { year });
   },
 
-  reviewEvidence(entryId: number, evidenceIndex: number, data: { action: 'aprobar' | 'rechazar'; comment: string }) {
+  reviewEvidence(entryId: number, evidenceIndex: number, data: { action: 'aprobar' | 'rechazar'; comment: string; reviewReason?: string }) {
     return post<{
       success: boolean;
       evidence: Evidencia;

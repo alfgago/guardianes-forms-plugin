@@ -85,3 +85,4 @@ add_shortcode( 'gn_escuela_panel', 'gnf_render_docente_panel_shortcode' );
 add_shortcode( 'gn_supervisor_panel', 'gnf_render_supervisor_panel_shortcode' );
 add_shortcode( 'gn_admin_panel', 'gnf_render_admin_panel_shortcode' );
 add_shortcode( 'gn_comite_panel', 'gnf_render_comite_panel_shortcode' );
+add_shortcode( 'gnf_indicadores_impacto', 'gnf_render_impact_shortcode' );

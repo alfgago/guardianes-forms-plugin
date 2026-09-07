@@ -23,49 +23,25 @@
 		return new Promise((resolve) => {
 			const reader = new FileReader();
 			reader.onload = function (e) {
-				const view = new DataView(e.target.result);
-				if (view.getUint16(0, false) !== 0xffd8) return resolve(null);
-				let offset = 2;
-				const length = view.byteLength;
-				while (offset < length) {
-					if (view.getUint16(offset + 2, false) <= 8) break;
-					const marker = view.getUint16(offset, false);
-					offset += 2;
-					if (marker === 0xffe1) {
-						if (view.getUint32((offset += 2), false) !== 0x45786966) return resolve(null);
-						const little = view.getUint16((offset += 6), false) === 0x4949;
-						offset += view.getUint32(offset + 4, little);
-						const tags = view.getUint16(offset, little);
-						offset += 2;
-						for (let i = 0; i < tags; i++) {
-							if (view.getUint16(offset + i * 12, little) === 0x9003) {
-								offset += i * 12;
-								const valOffset = view.getUint32(offset + 8, little);
-								const start = offset + valOffset + 8;
-								const year = view.getUint16(start, little);
-								return resolve(year);
-							}
-						}
-					} else if ((marker & 0xff00) !== 0xff00) {
-						break;
-					} else {
-						offset += view.getUint16(offset, false);
-					}
-				}
-				return resolve(null);
+				const bytes = new Uint8Array(e.target.result);
+				const text = new TextDecoder('latin1').decode(bytes);
+				const match = text.match(/\b((?:19|20)\d{2}):[01]\d:[0-3]\d(?:[ T][0-2]\d:[0-5]\d:[0-5]\d)?/);
+				return resolve(match ? parseInt(match[1], 10) : null);
+			};
+			reader.onerror = function () {
+				resolve(null);
 			};
 			reader.readAsArrayBuffer(file);
 		});
 	}
 
 	/**
-	 * Comprime imágenes a WebP manteniendo EXIF cuando el navegador lo permite.
+	 * Comprime imágenes manteniendo su formato y EXIF cuando el navegador lo permite.
 	 */
 	async function compressImages(files) {
 		const ic = await ensureCompressor();
 		const options = {
 			maxWidthOrHeight: 1920,
-			fileType: 'image/webp',
 			maxSizeMB: 5,
 			preserveExif: true,
 			useWebWorker: true,
@@ -87,15 +63,61 @@
 		return output;
 	}
 
+	function formatOriginalFileDate(timestamp) {
+		if (!timestamp) return '';
+		const date = new Date(timestamp);
+		if (Number.isNaN(date.getTime())) return '';
+		return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+	}
+
+	function getFileFieldId(input) {
+		const field = input.closest('.wpforms-field');
+		if (field && field.dataset.fieldId) return String(field.dataset.fieldId);
+		const name = input.getAttribute('name') || '';
+		const bracketMatch = name.match(/wpforms\[fields\]\[(\d+)\]/);
+		if (bracketMatch) return bracketMatch[1];
+		const underscoreMatch = name.match(/wpforms_\d+_(\d+)/);
+		return underscoreMatch ? underscoreMatch[1] : '';
+	}
+
+	function storeOriginalFileMetadata(input, files) {
+		const form = input.closest('form');
+		const fieldId = getFileFieldId(input);
+		if (!form || !fieldId) return;
+
+		let hidden = form.querySelector('input[name="gnf_evidence_file_metadata"]');
+		if (!hidden) {
+			hidden = document.createElement('input');
+			hidden.type = 'hidden';
+			hidden.name = 'gnf_evidence_file_metadata';
+			form.appendChild(hidden);
+		}
+
+		let metadata = {};
+		try {
+			metadata = hidden.value ? JSON.parse(hidden.value) : {};
+		} catch (error) {
+			metadata = {};
+		}
+		metadata[fieldId] = files
+			.map((file) => ({
+				name: file.name,
+				date: formatOriginalFileDate(file.lastModified),
+				source: 'browser_file_metadata',
+			}))
+			.filter((item) => item.date);
+		hidden.value = JSON.stringify(metadata);
+	}
+
 	/**
-	 * Inyecta warning si año de foto no coincide.
+	 * Inyecta warning si la fecha original del archivo no coincide.
 	 */
 	function warnIfYearMismatch(results) {
 		const activeYear = parseInt((window.gnfData && window.gnfData.anio) || new Date().getFullYear(), 10);
 		const mismatches = results.filter((r) => r.year && r.year !== activeYear);
 		if (!mismatches.length) return;
 		const years = Array.from(new Set(mismatches.map((r) => r.year))).join(', ');
-		alert(`Advertencia: Se detectaron fotos con año ${years}, fuera del periodo activo (${activeYear}).`);
+		alert(`Advertencia: Se detectaron archivos con fecha del año ${years}, fuera del periodo activo (${activeYear}).`);
 	}
 
 	/**
@@ -105,16 +127,19 @@
 		input.addEventListener('change', async (e) => {
 			const files = Array.from(e.target.files || []);
 			if (!files.length) return;
+			storeOriginalFileMetadata(input, files);
 
 			// Lee años de EXIF.
 			const exifPromises = files.map(async (file) => ({
 				file,
-				year: file.type.startsWith('image/') ? await readExifYear(file) : null,
+				year: file.type.startsWith('image/')
+					? ((await readExifYear(file)) || new Date(file.lastModified).getFullYear())
+					: new Date(file.lastModified).getFullYear(),
 			}));
 			const exifResults = await Promise.all(exifPromises);
 			warnIfYearMismatch(exifResults);
 
-			// Comprime imágenes a WebP.
+			// Comprime imágenes sin forzar una conversión de formato.
 			const compressed = await compressImages(files);
 			const dt = new DataTransfer();
 			compressed.forEach((file) => dt.items.add(file));
@@ -297,8 +322,8 @@
 			const button = document.createElement('button');
 			button.type = 'button';
 			button.className = 'gnf-password-toggle';
-			button.setAttribute('aria-label', 'Mostrar contrasena');
-			button.title = 'Mostrar contrasena';
+			button.setAttribute('aria-label', 'Mostrar contraseña');
+			button.title = 'Mostrar contraseña';
 			button.innerHTML = eyeIcon;
 			Object.assign(button.style, {
 				position: 'absolute',
@@ -323,8 +348,8 @@
 			button.addEventListener('click', function () {
 				const show = input.type === 'password';
 				input.type = show ? 'text' : 'password';
-				button.setAttribute('aria-label', show ? 'Ocultar contrasena' : 'Mostrar contrasena');
-				button.title = show ? 'Ocultar contrasena' : 'Mostrar contrasena';
+				button.setAttribute('aria-label', show ? 'Ocultar contraseña' : 'Mostrar contraseña');
+				button.title = show ? 'Ocultar contraseña' : 'Mostrar contraseña';
 				button.innerHTML = show ? eyeOffIcon : eyeIcon;
 			});
 

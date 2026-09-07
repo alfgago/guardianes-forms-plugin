@@ -500,13 +500,6 @@ export function MatriculaPage() {
         <h3 style={{ marginBottom: 'var(--gnf-space-4)' }}>Participacion y coordinacion</h3>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 'var(--gnf-space-4)' }}>
           <Select
-            label={getFieldLabel('centroUltimoGalardonEstrellas', 'Ultimo galardon obtenido')}
-            value={form.centroUltimoGalardonEstrellas}
-            onChange={(e) => handleField('centroUltimoGalardonEstrellas', e.target.value)}
-            options={getFieldChoices('centroUltimoGalardonEstrellas', data.choiceSets.ultimo_galardon_estrellas)}
-            placeholder="Selecciona una opcion"
-          />
-          <Select
             label={getFieldLabel('centroUltimoAnioParticipacion', 'Ultimo ano de participacion')}
             value={form.centroUltimoAnioParticipacion}
             onChange={(e) => handleField('centroUltimoAnioParticipacion', e.target.value)}

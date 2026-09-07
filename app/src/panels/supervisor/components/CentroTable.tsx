@@ -10,6 +10,12 @@ interface CentroTableProps {
   emptyMessage?: string;
 }
 
+function getCentroTypeLabel(centro: CentroWithStats) {
+  const tipo = centro.tipoCentroEducativoLabel || centro.tipoCentroEducativo || 'Sin tipo';
+  const tipologia = centro.tipologiaLabel || centro.tipologia || '';
+  return { tipo, tipologia };
+}
+
 export function CentroTable({ centros, onViewDetail, emptyMessage = 'No hay centros con matrícula activa.' }: CentroTableProps) {
   const columns: Column<CentroWithStats>[] = [
     {
@@ -41,6 +47,19 @@ export function CentroTable({ centros, onViewDetail, emptyMessage = 'No hay cent
           <span style={{ color: 'var(--gnf-muted)' }}>{c.circuito ? `Circuito ${c.circuito}` : ''}</span>
         </div>
       ),
+    },
+    {
+      key: 'tipoCentro',
+      header: 'Tipo',
+      render: (c) => {
+        const { tipo, tipologia } = getCentroTypeLabel(c);
+        return (
+          <div style={{ display: 'grid', gap: 2, fontSize: '0.8125rem' }}>
+            <span>{tipo}</span>
+            {tipologia && <span style={{ color: 'var(--gnf-muted)' }}>{tipologia}</span>}
+          </div>
+        );
+      },
     },
     {
       key: 'puntaje',

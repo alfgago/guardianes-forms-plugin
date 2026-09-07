@@ -7,6 +7,7 @@ import {
   CheckCircle2,
   ExternalLink,
   FileText,
+  PencilLine,
   MapPin,
   School,
   TriangleAlert,
@@ -19,12 +20,14 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
+import { Select } from '@/components/ui/Select';
 import { Spinner } from '@/components/ui/Spinner';
 import { Textarea } from '@/components/ui/Textarea';
 import { useNotificationStore } from '@/stores/useNotificationStore';
 import { useToast } from '@/components/ui/Toast';
 import { formatDateTime } from '@/utils/formatters';
 import { navigateTo } from '@/utils/url';
+import { formatEvidenceOriginalDate, getRejectionReasonLabel, REJECTION_REASON_OPTIONS } from '@/utils/evidenceReview';
 import type { Notification, NotificationEvidenceItem, NotificationType } from '@/types';
 
 const TYPE_META: Record<NotificationType, { label: string; color: string; bg: string }> = {
@@ -328,19 +331,23 @@ function NotificationEvidenceCard({
   evidence: NotificationEvidenceItem;
   onReviewed: (id: number) => void | Promise<void>;
 }) {
-  const [comment, setComment] = useState(evidence.supervisorComment ?? '');
-  const [showRejectForm, setShowRejectForm] = useState(false);
+  const [reviewComment, setReviewComment] = useState('');
+  const [rejectReason, setRejectReason] = useState('');
+  const [reviewMode, setReviewMode] = useState<'aprobar' | 'rechazar' | 'editar' | null>(null);
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const status = evidence.estado ?? 'pendiente';
   const isApproved = status === 'aprobada';
   const isRejected = status === 'rechazada';
-  const canReview = !!notification.entryId && !!notification.canReview && !!evidence.canReview;
+  const isReviewed = isApproved || isRejected;
+  const canReview = !!notification.entryId && !!notification.canReview && (!!evidence.canReview || isReviewed);
+  const reviewReasonLabel = getRejectionReasonLabel(evidence.reviewReason);
 
   const mutation = useMutation({
     mutationFn: (action: 'aprobar' | 'rechazar') => supervisorApi.reviewEvidence(notification.entryId!, evidence.evidenceIndex, {
       action,
-      comment: action === 'rechazar' ? comment : '',
+      comment: reviewComment.trim(),
+      reviewReason: action === 'rechazar' ? rejectReason : undefined,
     }),
     onSuccess: async (_data, action) => {
       toast('success', action === 'aprobar' ? 'Evidencia aprobada.' : 'Evidencia rechazada.');
@@ -351,12 +358,42 @@ function NotificationEvidenceCard({
       if (!notification.leido) {
         await onReviewed(notification.id);
       }
-      setShowRejectForm(false);
+      setReviewComment('');
+      setRejectReason('');
+      setReviewMode(null);
     },
     onError: (error: Error) => {
       toast('error', error.message || 'No se pudo actualizar la evidencia.');
     },
   });
+
+  const closeReviewForm = () => {
+    setReviewComment('');
+    setRejectReason('');
+    setReviewMode(null);
+  };
+
+  const openApproveForm = () => {
+    setReviewComment(evidence.supervisorComment ?? '');
+    setRejectReason('');
+    setReviewMode('aprobar');
+  };
+
+  const openRejectForm = () => {
+    setReviewComment(evidence.supervisorComment ?? '');
+    setRejectReason(evidence.reviewReason ?? '');
+    setReviewMode('rechazar');
+  };
+
+  const openEditCommentForm = () => {
+    setReviewComment(evidence.supervisorComment ?? '');
+    setRejectReason(evidence.reviewReason ?? '');
+    setReviewMode('editar');
+  };
+
+  const submitEditedComment = () => {
+    mutation.mutate(isRejected ? 'rechazar' : 'aprobar');
+  };
 
   const statusColor = isApproved ? '#166534' : isRejected ? '#b91c1c' : '#b45309';
   const statusBg = isApproved ? 'rgba(34, 197, 94, 0.12)' : isRejected ? 'rgba(239, 68, 68, 0.12)' : 'rgba(245, 158, 11, 0.14)';
@@ -365,6 +402,10 @@ function NotificationEvidenceCard({
   const reviewMeta = evidence.reviewedBy !== 0 && (reviewedByName || evidence.reviewedAt)
     ? `${reviewedByName ? `Revisado por ${reviewedByName}` : 'Revisado'}${evidence.reviewedAt ? ` el ${formatDateTime(evidence.reviewedAt)}` : ''}`
     : '';
+  const showApprovalCommentForm = reviewMode === 'aprobar' || (reviewMode === 'editar' && !isRejected);
+  const showRejectionCommentForm = reviewMode === 'rechazar' || (reviewMode === 'editar' && isRejected);
+  const canApprove = !isApproved;
+  const canReject = !isRejected;
 
   return (
     <div
@@ -461,11 +502,13 @@ function NotificationEvidenceCard({
                 )}
               </span>
             )}
-            {evidence.photoDate && <span>Fecha de la foto: {formatPhotoDate(evidence.photoDate)}</span>}
+            <span>
+              Fecha original del archivo: {formatEvidenceOriginalDate(evidence.originalDate ?? evidence.photoDate)}
+            </span>
             {reviewMeta && <span>{reviewMeta}</span>}
           </div>
 
-          {evidence.supervisorComment && (
+          {(reviewReasonLabel || evidence.supervisorComment) && (
             <div
               style={{
                 padding: '10px 12px',
@@ -475,14 +518,19 @@ function NotificationEvidenceCard({
                 color: 'var(--gnf-gray-700)',
               }}
             >
-              {evidence.supervisorComment}
+              {reviewReasonLabel && (
+                <div>
+                  <strong>Motivo:</strong> {reviewReasonLabel}
+                </div>
+              )}
+              {evidence.supervisorComment && <div>{evidence.supervisorComment}</div>}
             </div>
           )}
 
           {evidence.requiresYearValidation && (
             <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: '0.8125rem', color: '#b45309' }}>
               <TriangleAlert size={14} />
-              La fecha de la foto no coincide con el año activo.
+              La fecha original del archivo no coincide con el año activo.
             </div>
           )}
         </div>
@@ -490,74 +538,112 @@ function NotificationEvidenceCard({
 
       {canReview && (
         <div style={{ display: 'grid', gap: 'var(--gnf-space-2)' }}>
-          <div style={{ display: 'flex', gap: 'var(--gnf-space-2)', flexWrap: 'wrap' }}>
-            <Button
-              size="sm"
-              disabled={isApproved || mutation.isPending}
-              loading={mutation.isPending && mutation.variables === 'aprobar'}
-              onClick={() => mutation.mutate('aprobar')}
-            >
-              Aprobar
-            </Button>
+          {reviewMode === null && (
+            <div style={{ display: 'flex', gap: 'var(--gnf-space-2)', flexWrap: 'wrap' }}>
+              {canApprove && (
+                <Button
+                  size="sm"
+                  icon={<CheckCircle2 size={14} />}
+                  disabled={mutation.isPending}
+                  onClick={openApproveForm}
+                >
+                  Aprobar
+                </Button>
+              )}
+              {canReject && (
+                <Button
+                  variant="danger"
+                  size="sm"
+                  icon={<XCircle size={14} />}
+                  disabled={mutation.isPending}
+                  onClick={openRejectForm}
+                >
+                  Rechazar
+                </Button>
+              )}
+              {isReviewed && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  icon={<PencilLine size={14} />}
+                  onClick={openEditCommentForm}
+                >
+                  Editar comentario
+                </Button>
+              )}
+            </div>
+          )}
 
-            {!showRejectForm ? (
-              <Button
-                variant="danger"
-                size="sm"
-                icon={<XCircle size={14} />}
-                disabled={mutation.isPending}
-                onClick={() => setShowRejectForm(true)}
-              >
-                Rechazar
-              </Button>
-            ) : (
-              <Button variant="ghost" size="sm" onClick={() => setShowRejectForm(false)}>
-                Cancelar nota
-              </Button>
-            )}
-          </div>
-
-          {showRejectForm && (
+          {showApprovalCommentForm && (
             <div style={{ paddingTop: 'var(--gnf-space-1)' }}>
               <Textarea
                 label=""
-                value={comment}
-                onChange={(event) => setComment(event.target.value)}
-                placeholder="Explica qué debe corregirse..."
+                value={reviewComment}
+                onChange={(event) => setReviewComment(event.target.value)}
+                placeholder="Comentario opcional para el centro educativo..."
                 rows={2}
                 style={{ marginBottom: 'var(--gnf-space-2)' }}
               />
-              <Button
-                variant="danger"
-                size="sm"
-                loading={mutation.isPending && mutation.variables === 'rechazar'}
-                disabled={!comment.trim()}
-                onClick={() => mutation.mutate('rechazar')}
-              >
-                Enviar nota
-              </Button>
+              <div style={{ display: 'flex', gap: 'var(--gnf-space-2)', flexWrap: 'wrap' }}>
+                <Button
+                  size="sm"
+                  loading={mutation.isPending && mutation.variables === 'aprobar'}
+                  disabled={mutation.isPending}
+                  onClick={reviewMode === 'editar' ? submitEditedComment : () => mutation.mutate('aprobar')}
+                >
+                  {reviewMode === 'editar' ? 'Guardar comentario' : 'Guardar aprobación'}
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={closeReviewForm}
+                >
+                  Cancelar
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {showRejectionCommentForm && (
+            <div style={{ paddingTop: 'var(--gnf-space-1)' }}>
+              <Select
+                label=""
+                value={rejectReason}
+                onChange={(event) => setRejectReason(event.target.value)}
+                options={[...REJECTION_REASON_OPTIONS]}
+                placeholder="Selecciona el tipo de situación"
+                style={{ marginBottom: 'var(--gnf-space-2)' }}
+              />
+              <Textarea
+                label=""
+                value={reviewComment}
+                onChange={(event) => setReviewComment(event.target.value)}
+                placeholder="Anotación adicional..."
+                rows={2}
+                style={{ marginBottom: 'var(--gnf-space-2)' }}
+              />
+              <div style={{ display: 'flex', gap: 'var(--gnf-space-2)', flexWrap: 'wrap' }}>
+                <Button
+                  variant="danger"
+                  size="sm"
+                  loading={mutation.isPending && mutation.variables === 'rechazar'}
+                  disabled={!rejectReason || mutation.isPending}
+                  onClick={reviewMode === 'editar' ? submitEditedComment : () => mutation.mutate('rechazar')}
+                >
+                  {reviewMode === 'editar' ? 'Guardar comentario' : 'Guardar rechazo'}
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={closeReviewForm}
+                >
+                  Cancelar
+                </Button>
+              </div>
             </div>
           )}
         </div>
       )}
     </div>
   );
-}
-
-function formatPhotoDate(photoDate: string) {
-  if (!photoDate) {
-    return '';
-  }
-
-  const normalized = /^\d{4}-\d{2}-\d{2}$/.test(photoDate) ? `${photoDate}T00:00:00` : photoDate;
-  const date = new Date(normalized);
-  if (Number.isNaN(date.getTime())) {
-    return photoDate;
-  }
-
-  return date.toLocaleDateString('es-CR', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-  });
 }

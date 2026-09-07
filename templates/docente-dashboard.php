@@ -110,7 +110,7 @@ if ('otro' === $centro_ultimo_anio) {
 $centro_profile_choices = gnf_get_centro_profile_choice_sets();
 $centro_provincias      = gnf_get_cr_provinces();
 $centro_cantones_map    = gnf_get_cr_province_canton_map();
-$centro_regions         = get_terms(array(
+$centro_regions         = function_exists('gnf_get_assignable_region_terms') ? gnf_get_assignable_region_terms(array($region_term)) : get_terms(array(
 	'taxonomy'   => 'gn_region',
 	'hide_empty' => false,
 	'orderby'    => 'name',

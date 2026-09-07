@@ -58,11 +58,8 @@ function gnf_ajax_search_centros() {
 	$output = array();
 	foreach ( $results as $row ) {
 		// Filtrar por DRE activa: solo mostrar centros cuya región esté activa.
-		if ( $row->region ) {
-			$dre_activa = get_term_meta( (int) $row->region, 'gnf_dre_activa', true );
-			if ( '' !== $dre_activa && ! $dre_activa ) {
-				continue; // DRE desactivada, saltar este centro.
-			}
+		if ( $row->region && function_exists( 'gnf_is_region_active' ) && ! gnf_is_region_active( (int) $row->region ) ) {
+			continue; // DRE desactivada, saltar este centro.
 		}
 
 		// Obtener nombre de la region.
@@ -116,6 +113,10 @@ function gnf_ajax_get_all_centros() {
 		$codigo_mep = get_post_meta( $centro->ID, 'codigo_mep', true );
 		$region     = get_post_meta( $centro->ID, 'region', true );
 		$circuito   = function_exists( 'gnf_normalize_circuito' ) ? gnf_normalize_circuito( get_post_meta( $centro->ID, 'circuito', true ) ) : get_post_meta( $centro->ID, 'circuito', true );
+
+		if ( $region && function_exists( 'gnf_is_region_active' ) && ! gnf_is_region_active( (int) $region ) ) {
+			continue;
+		}
 
 		$region_name = '';
 		if ( $region ) {

@@ -405,6 +405,10 @@ class GNF_WPForms_Seeder
                 'size'     => 'large',
             );
 
+            if (! empty($pregunta['gnf_metric_key'])) {
+                $field['gnf_metric_key'] = sanitize_key($pregunta['gnf_metric_key']);
+            }
+
             // Procesar opciones para radio, select, checkbox.
             $choice_types = array('radio', 'select', 'checkbox', 'seleccion_unica', 'radio_si_no');
             if (! empty($raw_choices) && in_array($type, $choice_types, true)) {

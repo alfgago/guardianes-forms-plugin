@@ -13,6 +13,219 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 define( 'GNF_IMPERSONATE_COOKIE', 'gnf_impersonate_from' );
+define( 'GNF_IMPERSONATE_RETURN_COOKIE', 'gnf_impersonate_return' );
+
+/**
+ * Obtiene el primer docente activo de cada centro solicitado.
+ *
+ * @param int[] $centro_ids IDs de centros.
+ * @return array<int,int> Centro ID => usuario ID.
+ */
+function gnf_get_primary_docentes_for_centros( $centro_ids ) {
+	global $wpdb;
+
+	$centro_ids = array_values( array_unique( array_filter( array_map( 'absint', (array) $centro_ids ) ) ) );
+	$centro_ids = array_values(
+		array_filter(
+			$centro_ids,
+			static function ( $centro_id ) {
+				return 'centro_educativo' === get_post_type( $centro_id );
+			}
+		)
+	);
+	if ( ! $centro_ids ) {
+		return array();
+	}
+
+	update_meta_cache( 'post', $centro_ids );
+	$by_centro      = array();
+	$id_placeholders = implode( ',', array_fill( 0, count( $centro_ids ), '%d' ) );
+	$meta_keys       = array( 'centro_educativo_id', 'centro_solicitado', 'gnf_centro_id' );
+	$key_placeholders = implode( ',', array_fill( 0, count( $meta_keys ), '%s' ) );
+	$user_rows       = $wpdb->get_results(
+		$wpdb->prepare(
+			"SELECT user_id, meta_value FROM {$wpdb->usermeta} WHERE meta_key IN ({$key_placeholders}) AND CAST(meta_value AS UNSIGNED) IN ({$id_placeholders})",
+			array_merge( $meta_keys, $centro_ids )
+		),
+		ARRAY_A
+	);
+	foreach ( (array) $user_rows as $row ) {
+		$centro_id = absint( $row['meta_value'] ?? 0 );
+		$user_id   = absint( $row['user_id'] ?? 0 );
+		if ( $centro_id && $user_id ) {
+			$by_centro[ $centro_id ][] = $user_id;
+		}
+	}
+
+	foreach ( $centro_ids as $centro_id ) {
+		$associated = get_post_meta( $centro_id, 'docentes_asociados', true );
+		$associated = maybe_unserialize( $associated );
+		if ( ! is_array( $associated ) ) {
+			$associated = '' !== trim( (string) $associated ) ? array( $associated ) : array();
+		}
+		$by_centro[ $centro_id ] = array_values(
+			array_unique(
+				array_filter(
+					array_map(
+						'absint',
+						array_merge( $by_centro[ $centro_id ] ?? array(), $associated )
+					)
+				)
+			)
+		);
+		sort( $by_centro[ $centro_id ], SORT_NUMERIC );
+	}
+
+	$all_user_ids = array();
+	foreach ( $by_centro as $user_ids ) {
+		$all_user_ids = array_merge( $all_user_ids, $user_ids );
+	}
+	$all_user_ids = array_values( array_unique( array_filter( array_map( 'absint', $all_user_ids ) ) ) );
+	if ( $all_user_ids && function_exists( 'cache_users' ) ) {
+		cache_users( $all_user_ids );
+		update_meta_cache( 'user', $all_user_ids );
+	}
+
+	$primary = array();
+	foreach ( $centro_ids as $centro_id ) {
+		foreach ( $by_centro[ $centro_id ] as $user_id ) {
+			$user = get_userdata( $user_id );
+			if ( ! $user instanceof WP_User || ! in_array( 'docente', (array) $user->roles, true ) ) {
+				continue;
+			}
+			if ( function_exists( 'gnf_get_docente_estado' ) && 'activo' !== gnf_get_docente_estado( $user_id ) ) {
+				continue;
+			}
+
+			$primary[ $centro_id ] = $user_id;
+			break;
+		}
+	}
+
+	return $primary;
+}
+
+/**
+ * Obtiene el primer docente activo asociado a un centro.
+ *
+ * @param int $centro_id ID del centro.
+ * @return int
+ */
+function gnf_get_primary_docente_for_centro( $centro_id ) {
+	$centro_id = absint( $centro_id );
+	$primary   = gnf_get_primary_docentes_for_centros( array( $centro_id ) );
+	return absint( $primary[ $centro_id ] ?? 0 );
+}
+
+/**
+ * Construye una URL administrativa firmada para impersonar un usuario.
+ *
+ * @param int    $target_user_id Usuario destino.
+ * @param string $return_url     URL administrativa de retorno.
+ * @return string
+ */
+function gnf_build_impersonate_url( $target_user_id, $return_url = '' ) {
+	$target_user_id = absint( $target_user_id );
+	if ( ! current_user_can( 'manage_options' ) || ! $target_user_id || get_current_user_id() === $target_user_id ) {
+		return '';
+	}
+	if ( ! get_userdata( $target_user_id ) || user_can( $target_user_id, 'manage_options' ) ) {
+		return '';
+	}
+
+	$args = array(
+		'action'  => 'gnf_impersonate',
+		'user_id' => $target_user_id,
+	);
+	if ( $return_url ) {
+		$args['return_to'] = wp_validate_redirect( $return_url, admin_url() );
+	}
+
+	return wp_nonce_url(
+		add_query_arg( $args, admin_url( 'admin-post.php' ) ),
+		'gnf_impersonate'
+	);
+}
+
+/**
+ * Construye la URL para entrar al panel docente de un centro.
+ *
+ * @param int    $centro_id  ID del centro.
+ * @param string $return_url URL administrativa de retorno.
+ * @return string
+ */
+function gnf_build_centro_docente_impersonate_url( $centro_id, $return_url = '' ) {
+	$user_id = gnf_get_primary_docente_for_centro( $centro_id );
+	return $user_id ? gnf_build_impersonate_url( $user_id, $return_url ) : '';
+}
+
+/**
+ * Reconstruye la URL administrativa actual conservando sus filtros.
+ *
+ * @param string $fallback URL alternativa.
+ * @return string
+ */
+function gnf_get_current_admin_return_url( $fallback = '' ) {
+	$fallback    = $fallback ? wp_validate_redirect( $fallback, admin_url() ) : admin_url();
+	$request_uri = isset( $_SERVER['REQUEST_URI'] ) ? wp_unslash( $_SERVER['REQUEST_URI'] ) : '';
+	$parts       = $request_uri ? wp_parse_url( $request_uri ) : array();
+	$filename    = isset( $parts['path'] ) ? basename( (string) $parts['path'] ) : '';
+	if ( ! $filename || ! preg_match( '/^[a-z0-9-]+\.php$/i', $filename ) ) {
+		return $fallback;
+	}
+
+	$url = admin_url( $filename );
+	if ( ! empty( $parts['query'] ) ) {
+		$url .= '?' . (string) $parts['query'];
+	}
+	return wp_validate_redirect( esc_url_raw( $url ), $fallback );
+}
+
+/**
+ * Guarda una URL de retorno firmada para la sesión de impersonación.
+ *
+ * @param int    $original_user_id Administrador original.
+ * @param string $return_url       URL de retorno.
+ * @return void
+ */
+function gnf_set_impersonate_return_cookie( $original_user_id, $return_url ) {
+	$payload = base64_encode(
+		wp_json_encode(
+			array(
+				'user_id' => absint( $original_user_id ),
+				'url'     => wp_validate_redirect( $return_url, admin_url() ),
+			)
+		)
+	);
+	$value = $payload . '|' . wp_hash( 'gnf_impersonate_return_' . $payload );
+	setcookie( GNF_IMPERSONATE_RETURN_COOKIE, $value, 0, COOKIEPATH, COOKIE_DOMAIN, is_ssl(), true );
+	$_COOKIE[ GNF_IMPERSONATE_RETURN_COOKIE ] = $value;
+}
+
+/**
+ * Lee y valida la URL de retorno de la sesión de impersonación.
+ *
+ * @param int $original_user_id Administrador original esperado.
+ * @return string
+ */
+function gnf_get_impersonate_return_url( $original_user_id = 0 ) {
+	if ( empty( $_COOKIE[ GNF_IMPERSONATE_RETURN_COOKIE ] ) ) {
+		return admin_url();
+	}
+
+	$parts = explode( '|', sanitize_text_field( wp_unslash( $_COOKIE[ GNF_IMPERSONATE_RETURN_COOKIE ] ) ), 2 );
+	if ( 2 !== count( $parts ) || ! hash_equals( wp_hash( 'gnf_impersonate_return_' . $parts[0] ), $parts[1] ) ) {
+		return admin_url();
+	}
+
+	$decoded = base64_decode( $parts[0], true );
+	$data    = $decoded ? json_decode( $decoded, true ) : null;
+	if ( ! is_array( $data ) || absint( $data['user_id'] ?? 0 ) !== absint( $original_user_id ) ) {
+		return admin_url();
+	}
+
+	return wp_validate_redirect( (string) ( $data['url'] ?? '' ), admin_url() );
+}
 
 /**
  * Retorna true si hay una sesión de impersonation activa.
@@ -89,6 +302,10 @@ function gnf_handle_impersonate_start() {
 	$signature = wp_hash( 'gnf_impersonate_' . $original_id );
 	$cookie_value = $original_id . '|' . $signature;
 	setcookie( GNF_IMPERSONATE_COOKIE, $cookie_value, 0, COOKIEPATH, COOKIE_DOMAIN, is_ssl(), true );
+	$return_url = isset( $_GET['return_to'] )
+		? wp_validate_redirect( esc_url_raw( wp_unslash( $_GET['return_to'] ) ), admin_url() )
+		: admin_url();
+	gnf_set_impersonate_return_cookie( $original_id, $return_url );
 
 	// Cambiar sesión al usuario target.
 	wp_clear_auth_cookie();
@@ -115,6 +332,8 @@ function gnf_handle_impersonate_stop() {
 		exit;
 	}
 
+	check_admin_referer( 'gnf_impersonate' );
+
 	$original_id = gnf_get_impersonate_original_user();
 	if ( ! $original_id || ! get_userdata( $original_id ) ) {
 		// Limpiar cookie corrupta y redirigir.
@@ -122,6 +341,7 @@ function gnf_handle_impersonate_stop() {
 		wp_safe_redirect( home_url() );
 		exit;
 	}
+	$return_url = gnf_get_impersonate_return_url( $original_id );
 
 	// Restaurar sesión original.
 	gnf_clear_impersonate_cookie();
@@ -137,7 +357,7 @@ function gnf_handle_impersonate_stop() {
 	);
 
 	// Redirigir al panel admin.
-	wp_safe_redirect( admin_url() );
+	wp_safe_redirect( $return_url );
 	exit;
 }
 add_action( 'admin_post_gnf_impersonate_stop',        'gnf_handle_impersonate_stop' );
@@ -148,7 +368,9 @@ add_action( 'admin_post_nopriv_gnf_impersonate_stop', 'gnf_handle_impersonate_st
  */
 function gnf_clear_impersonate_cookie() {
 	setcookie( GNF_IMPERSONATE_COOKIE, '', time() - 3600, COOKIEPATH, COOKIE_DOMAIN, is_ssl(), true );
+	setcookie( GNF_IMPERSONATE_RETURN_COOKIE, '', time() - 3600, COOKIEPATH, COOKIE_DOMAIN, is_ssl(), true );
 	unset( $_COOKIE[ GNF_IMPERSONATE_COOKIE ] );
+	unset( $_COOKIE[ GNF_IMPERSONATE_RETURN_COOKIE ] );
 }
 
 /**

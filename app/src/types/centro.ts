@@ -15,7 +15,50 @@ export interface Centro {
   dependencia?: string;
   jornada?: string;
   tipologia?: string;
+  tipologiaLabel?: string;
   tipoCentroEducativo?: string;
+  tipoCentroEducativoLabel?: string;
+}
+
+export interface AwardRequirement {
+  key: string;
+  label: string;
+  met: boolean;
+}
+
+export interface AwardRecognition {
+  key: string;
+  label: string;
+  achieved: boolean;
+  requirements: AwardRequirement[];
+  missing: string[];
+}
+
+export interface AwardResult {
+  rubricKey: 'small' | 'general';
+  rubricLabel: string;
+  thresholds: Record<string, number>;
+  score: number;
+  scoreStars: number;
+  stars: number;
+  baseEligible: boolean;
+  missingRequired: string[];
+  awards: Record<string, AwardRecognition>;
+  mode?: 'projected' | 'validated';
+  generatedAt?: string;
+  centroId?: number;
+  year?: number;
+}
+
+export interface AwardBundle {
+  projected: AwardResult;
+  validated: AwardResult;
+  rollout?: {
+    mode: 'off' | 'pilot' | 'all';
+    label: string;
+    pilotCenterCount: number;
+  };
+  ruleVersion?: string;
 }
 
 export interface CentroAnnualData {
@@ -27,6 +70,9 @@ export interface CentroAnnualData {
   retosSeleccionados: number[];
   comiteEstudiantes?: number;
   matriculaEstado: string;
+  reportPdfUrl?: string;
+  reportPdfStatus?: 'draft' | 'final';
+  award?: AwardBundle;
 }
 
 export interface CentroWithStats extends Centro {
@@ -42,6 +88,8 @@ export interface CentroWithStats extends Centro {
   evTotal: number;
   validado?: boolean;
   comiteStatus?: string;
+  canImpersonateDocente?: boolean;
+  docenteImpersonateUrl?: string;
 }
 
 export interface CentroSearchResult {

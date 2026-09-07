@@ -14,9 +14,165 @@
   overflow: visible;
 }
 
+.gnf-password-input__toggle {
+  position: relative !important;
+  z-index: 2;
+  width: 34px !important;
+  height: 34px !important;
+  min-width: 34px !important;
+  min-height: 34px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 0 !important;
+  border: 0 none !important;
+  border-radius: var(--gnf-radius-sm) !important;
+  background: transparent !important;
+  color: var(--gnf-ocean-dark) !important;
+  box-shadow: none !important;
+  cursor: pointer !important;
+  line-height: 1 !important;
+}
+
+.gnf-password-input__toggle:hover {
+  background: var(--gnf-sky) !important;
+  color: var(--gnf-forest-dark) !important;
+}
+
+.gnf-password-input__toggle:focus-visible {
+  outline: 2px solid var(--gnf-ocean) !important;
+  outline-offset: 2px !important;
+}
+
+.gnf-password-input__toggle svg,
+.gnf-password-toggle svg {
+  width: 18px !important;
+  height: 18px !important;
+  display: block !important;
+  fill: none !important;
+  stroke: currentColor !important;
+  stroke-width: 2 !important;
+  stroke-linecap: round !important;
+  stroke-linejoin: round !important;
+  overflow: visible !important;
+}
+
 .gnf-auth-register-tab--disabled,
 .gnf-new-centro-action--disabled {
   display: none !important;
+}
+
+.gnf-feedback-bubble {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  z-index: 8500;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 46px;
+  max-width: calc(100vw - 40px);
+  padding: 10px 16px;
+  border: 1px solid var(--gnf-forest-dark);
+  border-radius: 23px;
+  background: var(--gnf-forest);
+  color: var(--gnf-white);
+  box-shadow: var(--gnf-shadow-lg);
+  cursor: pointer;
+  font: inherit;
+  font-weight: 600;
+}
+
+.gnf-feedback-bubble:hover {
+  background: var(--gnf-forest-dark);
+}
+
+.gnf-feedback-bubble:focus-visible {
+  outline: 3px solid rgba(30, 95, 138, 0.3);
+  outline-offset: 3px;
+}
+
+.gnf-feedback-bubble svg,
+.gnf-feedback-success svg {
+  display: block !important;
+  fill: none !important;
+  stroke: currentColor !important;
+  stroke-width: 2 !important;
+  stroke-linecap: round !important;
+  stroke-linejoin: round !important;
+}
+
+.gnf-feedback-bubble--impersonating {
+  bottom: 104px;
+}
+
+.gnf-feedback-form {
+  min-height: 180px;
+  position: relative;
+}
+
+.gnf-feedback-frame {
+  display: block;
+  width: 100%;
+  border: 0;
+  transition: opacity 150ms ease-out;
+}
+
+.gnf-feedback-frame-loading {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+}
+
+.gnf-feedback-success {
+  min-height: 220px;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: var(--gnf-space-4);
+  color: var(--gnf-forest-dark);
+  text-align: center;
+}
+
+.gnf-feedback-success strong {
+  font-size: 1.125rem;
+}
+
+.gnf-feedback-success svg {
+  animation: gnf-feedback-check 420ms ease-out both;
+}
+
+@keyframes gnf-feedback-check {
+  from {
+    opacity: 0;
+    transform: scale(0.65);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@media (max-width: 640px) {
+  .gnf-feedback-bubble {
+    width: 48px;
+    height: 48px;
+    min-height: 48px;
+    padding: 0;
+    border-radius: 50%;
+  }
+
+  .gnf-feedback-bubble span {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gnf-feedback-success svg {
+    animation: none;
+  }
 }
 
 /* Panel shell */
@@ -325,7 +481,7 @@
 
 .gnf-ev-item {
   position: relative;
-  width: 90px;
+  width: 130px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -398,11 +554,27 @@
 }
 
 .gnf-ev-name--truncate {
-  max-width: 90px;
+  max-width: 130px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   word-break: normal;
+}
+
+.gnf-ev-date {
+  display: block;
+  margin-top: 3px;
+  max-width: 130px;
+  font-size: 0.625rem;
+  line-height: 1.35;
+  color: var(--gnf-muted);
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+
+.gnf-ev-date--warning {
+  color: #b45309;
+  font-weight: 700;
 }
 
 .gnf-ev-remove {
@@ -500,6 +672,18 @@
 
 .gnf-ev-lightbox__close:hover {
   background: var(--gnf-white);
+}
+
+.gnf-modal-dialog {
+  animation: gnf-fade-in 200ms ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gnf-modal-dialog,
+  .gnf-page-enter,
+  .gnf-skeleton {
+    animation: none;
+  }
 }
 
 /* Responsive */

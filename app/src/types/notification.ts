@@ -34,10 +34,13 @@ export interface NotificationEvidenceItem {
   estado?: 'pendiente' | 'aprobada' | 'rechazada' | string;
   puntos?: number | null;
   supervisorComment?: string | null;
+  reviewReason?: string | null;
   reviewedBy?: number | null;
   reviewedByName?: string | null;
   reviewedAt?: string | null;
   photoDate?: string | null;
+  originalDate?: string | null;
+  dateSource?: string | null;
   requiresYearValidation?: boolean;
   canReview?: boolean;
 }

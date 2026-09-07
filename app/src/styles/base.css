@@ -81,6 +81,24 @@ button, input, select, textarea {
   animation: gnf-fade-in var(--gnf-transition-slow) ease-out;
 }
 
+.gnf-impact-row {
+  display: grid;
+  grid-template-columns: minmax(130px, 260px) minmax(100px, 1fr) 72px;
+  gap: 12px;
+  align-items: center;
+}
+
+@media (max-width: 560px) {
+  .gnf-impact-row {
+    grid-template-columns: minmax(0, 1fr) 64px;
+  }
+
+  .gnf-impact-row > :nth-child(2) {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+}
+
 /* Toast animation */
 @keyframes gnf-slide-in-right {
   from { transform: translateX(100%); opacity: 0; }

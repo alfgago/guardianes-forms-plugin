@@ -81,11 +81,12 @@ function gnf_render_admin_panel() {
 			$data['regiones_dre'] = array();
 			if ( ! is_wp_error( $regiones_dre ) ) {
 				foreach ( $regiones_dre as $reg ) {
-					$activa = get_term_meta( $reg->term_id, 'gnf_dre_activa', true );
 					$data['regiones_dre'][] = array(
 						'term_id' => $reg->term_id,
 						'name'    => $reg->name,
-						'activa'  => ( '' === $activa ) ? true : (bool) $activa, // Por defecto activa.
+						'activa'  => function_exists( 'gnf_is_region_active' )
+							? gnf_is_region_active( $reg->term_id )
+							: '1' === (string) get_term_meta( $reg->term_id, 'gnf_dre_activa', true ),
 					);
 				}
 			}

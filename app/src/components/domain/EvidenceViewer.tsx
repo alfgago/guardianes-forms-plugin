@@ -1,11 +1,14 @@
 import { useCallback, useEffect, useState } from 'react';
 import { FileText, X } from 'lucide-react';
 import type { Evidencia } from '@/types';
+import { formatEvidenceOriginalDate, getEvidenceOriginalDate } from '@/utils/evidenceReview';
 
 interface NormalizedEvidence {
   url: string;
   filename: string;
   isImage: boolean;
+  dateDisplay: string;
+  requiresYearValidation: boolean;
 }
 
 interface EvidenceViewerProps {
@@ -17,7 +20,13 @@ function normalize(ev: Evidencia): NormalizedEvidence {
   const url = ev.url ?? ev.ruta ?? '';
   const filename = ev.filename ?? ev.nombre ?? 'Evidencia';
   const tipo = ev.type ?? ev.tipo ?? 'documento';
-  return { url, filename, isImage: tipo === 'imagen' };
+  return {
+    url,
+    filename,
+    isImage: tipo === 'imagen',
+    dateDisplay: formatEvidenceOriginalDate(getEvidenceOriginalDate(ev)),
+    requiresYearValidation: Boolean(ev.requires_year_validation),
+  };
 }
 
 export function EvidenceViewer({ evidencias, onRemove }: EvidenceViewerProps) {
@@ -79,6 +88,9 @@ export function EvidenceViewer({ evidencias, onRemove }: EvidenceViewerProps) {
 
             <span className={`gnf-ev-name ${item.isImage ? 'gnf-ev-name--truncate' : ''}`}>
               {item.filename}
+            </span>
+            <span className={`gnf-ev-date ${item.requiresYearValidation ? 'gnf-ev-date--warning' : ''}`}>
+              Fecha: {item.dateDisplay}
             </span>
           </div>
         ))}

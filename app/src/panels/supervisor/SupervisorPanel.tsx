@@ -6,6 +6,7 @@ import { Card } from '@/components/ui/Card';
 import { NotificationBell } from '@/components/domain/NotificationBell';
 import { YearSelector } from '@/components/domain/YearSelector';
 import { usePanel } from '@/hooks/usePanel';
+import { useInitData } from '@/hooks/useInitData';
 import { useTrackPageView } from '@/hooks/useTrackPageView';
 import { useBootstrapNotifications } from '@/hooks/useBootstrapNotifications';
 import { useAuthStore } from '@/stores/useAuthStore';
@@ -15,6 +16,7 @@ import type { User } from '@/types';
 import { DashboardPage } from './pages/DashboardPage';
 import { CentroDetailPage } from './pages/CentroDetailPage';
 import { NotificacionesPage } from './pages/NotificacionesPage';
+import { FeedbackBubble } from '@/components/domain/FeedbackBubble';
 
 const NAV_ITEMS = [
   { page: 'dashboard', label: 'Escritorio', icon: <LayoutDashboard size={18} /> },
@@ -157,10 +159,21 @@ function ActiveSupervisorPanel() {
 
 export function SupervisorPanel() {
   const user = useAuthStore((s) => s.user);
+  const initData = useInitData('supervisor');
 
   if (user?.estado === 'pendiente' || user?.estado === 'rechazado') {
     return <SupervisorPendingPanel user={user} />;
   }
 
-  return <ActiveSupervisorPanel />;
+  return (
+    <>
+      <ActiveSupervisorPanel />
+      <FeedbackBubble
+        enabled={Boolean(initData.feedbackEnabled)
+          && Boolean(user?.roles.includes('supervisor'))
+          && !Boolean(user?.roles.includes('comite_bae'))}
+        url={typeof initData.feedbackUrl === 'string' ? initData.feedbackUrl : ''}
+      />
+    </>
+  );
 }

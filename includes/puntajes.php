@@ -58,7 +58,7 @@ function gnf_calcular_puntaje_por_campos( $entry_row ) {
 		}
 
 		$all_file_fields[ $field_id ] = true;
-		$estado = ! empty( $ev['requires_year_validation'] ) ? 'rechazada' : (string) ( $ev['estado'] ?? 'pendiente' );
+		$estado = (string) ( $ev['estado'] ?? 'pendiente' );
 		if ( empty( $ev['replaced'] ) && 'rechazada' !== $estado ) {
 			$files_by_field[ $field_id ] = true;
 		}
@@ -143,6 +143,9 @@ function gnf_refresh_reto_entry_score( $entry_row, $refresh_centro = true ) {
 
 	if ( $refresh_centro && ! empty( $entry_row->centro_id ) && ! empty( $entry_row->anio ) ) {
 		gnf_recalcular_puntaje_centro( (int) $entry_row->centro_id, (int) $entry_row->anio );
+		if ( function_exists( 'gnf_clear_impact_cache' ) ) {
+			gnf_clear_impact_cache( (int) $entry_row->anio );
+		}
 		if ( function_exists( 'gnf_clear_admin_stats_cache' ) ) {
 			gnf_clear_admin_stats_cache( (int) $entry_row->anio );
 		}
@@ -230,7 +233,13 @@ function gnf_recalcular_puntaje_centro( $centro_id, $anio = null ) {
 		)
 	);
 
-	$estrella = gnf_calcular_estrella_por_puntaje( $total );
+	$award    = function_exists( 'gnf_get_center_award_result' ) && 2026 === (int) $anio
+		? gnf_get_center_award_result( $centro_id, $anio, 'projected' )
+		: array();
+	if ( function_exists( 'gnf_get_center_award_result' ) && 2026 === (int) $anio ) {
+		gnf_get_center_award_result( $centro_id, $anio, 'validated' );
+	}
+	$estrella = isset( $award['stars'] ) ? (int) $award['stars'] : gnf_calcular_estrella_por_puntaje( $total );
 	gnf_set_centro_score( $centro_id, $anio, $total, $estrella );
 
 	set_transient( 'gnf_total_' . $centro_id . '_' . $anio, $total, DAY_IN_SECONDS );

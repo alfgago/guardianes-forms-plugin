@@ -64,6 +64,7 @@ export function PendingUsersSection({ users, onEdit }: PendingUsersSectionProps)
               {(user.regionNames?.length || user.regionName) && (
                 <> | Región: {(user.regionNames?.length ? user.regionNames.join(', ') : user.regionName)}</>
               )}
+              {user.circuito && <> | Circuito: {user.circuito}</>}
             </div>
           </div>
 
@@ -102,10 +103,12 @@ export function PendingUsersSection({ users, onEdit }: PendingUsersSectionProps)
                 size="sm"
                 icon={<Eye size={14} />}
                 onClick={() => {
-                  window.location.href = user.impersonateUrl!;
+                  const url = new URL(user.impersonateUrl!, window.location.origin);
+                  url.searchParams.set('return_to', window.location.href);
+                  window.location.href = url.toString();
                 }}
               >
-                Ver como
+                {user.role === 'docente' ? 'Entrar como docente' : 'Ver como'}
               </Button>
             )}
           </div>

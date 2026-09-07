@@ -52,7 +52,7 @@ export function LoginForm({ onForgotPassword }: LoginFormProps) {
           autoComplete="username"
         />
         <PasswordInput
-          label="Contrasena"
+          label="Contraseña"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           required
@@ -72,7 +72,7 @@ export function LoginForm({ onForgotPassword }: LoginFormProps) {
               cursor: 'pointer',
             }}
           >
-            Olvide mi contrasena
+            Olvidé mi contraseña
           </button>
         </div>
       </div>

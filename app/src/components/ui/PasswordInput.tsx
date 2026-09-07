@@ -6,32 +6,22 @@ type PasswordInputProps = Omit<ComponentPropsWithoutRef<typeof Input>, 'type' | 
 
 export function PasswordInput(props: PasswordInputProps) {
   const [showPassword, setShowPassword] = useState(false);
-  const label = showPassword ? 'Ocultar contrasena' : 'Mostrar contrasena';
+  const label = showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña';
 
   return (
     <Input
       {...props}
+      data-gnf-password-toggle="1"
       type={showPassword ? 'text' : 'password'}
       rightElement={
         <button
           type="button"
+          className="gnf-password-input__toggle"
           aria-label={label}
           aria-pressed={showPassword}
           title={label}
           onMouseDown={(event) => event.preventDefault()}
           onClick={() => setShowPassword((current) => !current)}
-          style={{
-            width: 32,
-            height: 32,
-            display: 'inline-flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            border: 'none',
-            borderRadius: 'var(--gnf-radius-sm)',
-            background: 'transparent',
-            color: 'var(--gnf-ocean-dark)',
-            cursor: 'pointer',
-          }}
         >
           {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
         </button>

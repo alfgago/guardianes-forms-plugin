@@ -46,11 +46,15 @@ export interface Evidencia {
   puntos?: number | null;
   estado?: 'pendiente' | 'aprobada' | 'rechazada' | null;
   supervisor_comment?: string | null;
+  review_reason?: string | null;
   reviewed_by?: number | null;
   reviewed_by_name?: string | null;
   reviewed_at?: string | null;
   replaced?: boolean;
   photo_date?: string | null;
+  original_date?: string | null;
+  date_source?: 'image_metadata' | 'pdf_metadata' | 'embedded_metadata' | 'browser_file_metadata' | 'legacy_photo_date' | 'unavailable' | string;
+  date_year_mismatch?: boolean;
   // Legacy fields (may exist in old data)
   requires_year_validation?: boolean;
   warning?: string;

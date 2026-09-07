@@ -395,14 +395,16 @@ function gnf_render_matricula_form( $args = array() ) {
 		);
 	}
 
-	$regiones = get_terms(
-		array(
-			'taxonomy'   => 'gn_region',
-			'hide_empty' => false,
-			'orderby'    => 'name',
-			'order'      => 'ASC',
-		)
-	);
+	$regiones = function_exists( 'gnf_get_assignable_region_terms' )
+		? gnf_get_assignable_region_terms( array( $prefill['centro_region'] ) )
+		: get_terms(
+			array(
+				'taxonomy'   => 'gn_region',
+				'hide_empty' => false,
+				'orderby'    => 'name',
+				'order'      => 'ASC',
+			)
+		);
 
 	$current_url = esc_url_raw( remove_query_arg( array( 'gnf_msg', 'gnf_err' ) ) );
 
