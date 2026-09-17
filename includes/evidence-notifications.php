@@ -9,6 +9,24 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+function gnf_user_receives_only_rejections( $user_id ) {
+	$user = get_userdata( $user_id );
+	return $user && in_array( 'docente', (array) $user->roles, true )
+		&& ! array_intersect( array( 'administrator', 'supervisor', 'comite_bae', 'dre' ), (array) $user->roles );
+}
+
+function gnf_docente_notification_is_actionable( $type, $evidences ) {
+	if ( ! in_array( $type, array( 'evidencia_rechazada', 'invalid_photo_date', 'correccion' ), true ) ) {
+		return false;
+	}
+	foreach ( (array) $evidences as $evidence ) {
+		if ( empty( $evidence['replaced'] ) && 'rechazada' === ( $evidence['estado'] ?? '' ) ) {
+			return true;
+		}
+	}
+	return false;
+}
+
 /**
  * Crea una clave estable a partir de los datos persistentes del archivo.
  *

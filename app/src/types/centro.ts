@@ -51,6 +51,7 @@ export interface AwardResult {
 }
 
 export interface AwardBundle {
+  assigned?: AssignedAward | null;
   projected: AwardResult;
   validated: AwardResult;
   rollout?: {
@@ -59,6 +60,12 @@ export interface AwardBundle {
     pilotCenterCount: number;
   };
   ruleVersion?: string;
+}
+
+export interface AssignedAward {
+  result: AwardResult;
+  assignedAt: string;
+  assignedBy: number;
 }
 
 export interface CentroAnnualData {

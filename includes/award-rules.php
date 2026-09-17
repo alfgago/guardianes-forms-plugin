@@ -359,6 +359,31 @@ function gnf_award_validated_entry_score( $entry ) {
 /**
  * Construye y persiste el resultado vigente de un centro.
  */
+function gnf_award_required_fields_met( $fields, $evidences, $mode ) {
+	$required = array();
+	foreach ( (array) $fields as $field ) {
+		$label = gnf_award_normalize_text( $field['label'] ?? '' );
+		if ( isset( $field['id'] ) && 'file-upload' === ( $field['type'] ?? '' )
+			&& preg_match( '/\brequisito\b/', $label )
+			&& false === strpos( $label, 'si lo tienen' ) && false === strpos( $label, 'opcional' ) ) {
+			$required[ (int) $field['id'] ] = false;
+		}
+	}
+	if ( ! $required ) {
+		return false;
+	}
+	foreach ( (array) $evidences as $evidence ) {
+		if ( ! is_array( $evidence ) || ! isset( $evidence['field_id'] ) ) {
+			continue;
+		}
+		$id = (int) $evidence['field_id'];
+		if ( array_key_exists( $id, $required ) && gnf_award_evidence_qualifies( $evidence, $mode ) ) {
+			$required[ $id ] = true;
+		}
+	}
+	return ! in_array( false, $required, true );
+}
+
 function gnf_get_center_award_result( $centro_id, $anio, $mode = 'projected' ) {
 	global $wpdb;
 	$centro_id = absint( $centro_id );
@@ -392,6 +417,17 @@ function gnf_get_center_award_result( $centro_id, $anio, $mode = 'projected' ) {
 		'electricidad' => $has_entry( 'electricidad' ),
 		'residuos'     => $has_entry( 'residuos' ),
 	);
+	foreach ( $required as $slug => $met ) {
+		if ( ! isset( $by_slug[ $slug ] ) ) {
+			continue;
+		}
+		$base_entry = $by_slug[ $slug ];
+		$form_id = gnf_get_reto_form_id_for_year( (int) $base_entry->reto_id, $anio );
+		$form = gnf_get_wpforms_form_definition( $form_id );
+		$evidences = json_decode( (string) $base_entry->evidencias, true );
+		$evidences = gnf_enrich_evidencias( (array) $evidences, (int) $base_entry->reto_id, $anio );
+		$required[ $slug ] = gnf_award_required_fields_met( $form['fields'] ?? array(), $evidences, $mode );
+	}
 	$criteria = array(
 		'eco_gira'                        => $has_entry( 'eco-gira' ),
 		'eco_emprendimiento'              => $has_entry( 'eco-emprendimiento' ),
@@ -450,6 +486,61 @@ function gnf_get_stored_center_award_result( $centro_id, $anio, $mode = 'project
 	return is_array( $result ) ? $result : array();
 }
 
+function gnf_award_result_fingerprint( $result ) {
+	unset( $result['generatedAt'] );
+	return hash( 'sha256', json_encode( $result ) );
+}
+
+/** Assigned results remain separate from the dynamically calculated score. */
+function gnf_get_assigned_center_award( $centro_id, $anio ) {
+	$key = '_gnf_award_assigned_' . (int) $anio;
+	$assigned = get_post_meta( $centro_id, $key, true );
+	if ( ! is_array( $assigned ) || empty( $assigned['result'] ) ) {
+		return array();
+	}
+	$current = gnf_get_center_award_result( $centro_id, $anio, 'validated' );
+	if ( gnf_award_result_fingerprint( $current ) !== gnf_award_result_fingerprint( $assigned['result'] ) ) {
+		delete_post_meta( $centro_id, $key );
+		gnf_log_audit_event( 'award_assignment_invalidated', array( 'centro_id' => $centro_id, 'anio' => $anio, 'message' => 'El resultado validado cambió; requiere nueva asignación.' ) );
+		return array();
+	}
+	return $assigned;
+}
+
+function gnf_rest_admin_assign_award( WP_REST_Request $request ) {
+	if ( ! current_user_can( 'manage_options' ) ) {
+		return new WP_Error( 'forbidden', 'No tienes permisos para asignar galardones.', array( 'status' => 403 ) );
+	}
+	$centro_id = absint( $request->get_param( 'id' ) );
+	$anio = gnf_normalize_year( $request->get_param( 'year' ) );
+	$action = (string) $request->get_param( 'action' );
+	if ( 'centro_educativo' !== get_post_type( $centro_id ) || ! in_array( $action, array( 'assign', 'revoke' ), true ) ) {
+		return new WP_Error( 'invalid_award_request', 'Centro o acción inválida.', array( 'status' => 400 ) );
+	}
+	$key = '_gnf_award_assigned_' . $anio;
+	if ( 'revoke' === $action ) {
+		delete_post_meta( $centro_id, $key );
+		$assigned = null;
+	} else {
+		if ( 2026 !== $anio ) {
+			return new WP_Error( 'unsupported_rubric', 'La rúbrica disponible corresponde a 2026.', array( 'status' => 400 ) );
+		}
+		$result = gnf_get_center_award_result( $centro_id, $anio, 'validated' );
+		if ( empty( $result['baseEligible'] ) || empty( $result['stars'] ) ) {
+			return new WP_Error( 'award_not_eligible', 'El centro aún no cumple los requisitos y puntos validados para un galardón.', array( 'status' => 400 ) );
+		}
+		$assigned = array( 'result' => $result, 'assignedAt' => current_time( 'mysql' ), 'assignedBy' => get_current_user_id() );
+		if ( ! update_post_meta( $centro_id, $key, $assigned ) && get_post_meta( $centro_id, $key, true ) !== $assigned ) {
+			return new WP_Error( 'award_save_failed', 'No se pudo guardar el galardón.', array( 'status' => 500 ) );
+		}
+	}
+	gnf_log_audit_event( 'assign' === $action ? 'admin_assign_award' : 'admin_revoke_award', array(
+		'actor_user_id' => get_current_user_id(), 'centro_id' => $centro_id, 'anio' => $anio, 'panel' => 'admin',
+		'message' => 'assign' === $action ? 'Galardón validado asignado.' : 'Asignación de galardón retirada.',
+	) );
+	return array( 'success' => true, 'assignedAward' => $assigned );
+}
+
 /**
  * Devuelve ambos estados del galardon cuando el rollout permite mostrarlos.
  */
@@ -461,6 +552,7 @@ function gnf_get_center_award_bundle( $centro_id, $anio, $recalculate = true, $a
 	return array(
 		'projected'  => $getter( $centro_id, $anio, 'projected' ),
 		'validated'  => $getter( $centro_id, $anio, 'validated' ),
+		'assigned'   => gnf_get_assigned_center_award( $centro_id, $anio ) ?: null,
 		'rollout'    => function_exists( 'gnf_get_feature_rollout_summary' ) ? gnf_get_feature_rollout_summary( 'awards' ) : array(),
 		'ruleVersion'=> '2026.1',
 	);

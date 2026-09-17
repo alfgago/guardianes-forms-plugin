@@ -6,18 +6,16 @@ import { Alert } from '@/components/ui/Alert';
 import { CentroCard } from '@/components/domain/CentroCard';
 import { ProgressHero } from '../components/ProgressHero';
 import { RetoGrid } from '../components/RetoGrid';
-import { Button } from '@/components/ui/Button';
-import { Download } from 'lucide-react';
-import { AwardSummary } from '@/components/domain/AwardSummary';
 import type { RetoWithEntry } from '@/types';
 
 interface ResumenPageProps {
   onFillForm: (retoId: number) => void;
   onReopen: (retoId: number) => void;
   onViewFeedback: (notes: string) => void;
+  onViewRejected: () => void;
 }
 
-export function ResumenPage({ onFillForm, onReopen, onViewFeedback }: ResumenPageProps) {
+export function ResumenPage({ onFillForm, onReopen, onViewFeedback, onViewRejected }: ResumenPageProps) {
   const year = useYearStore((s) => s.selectedYear);
 
   const { data: dashboard, isLoading: loadingDashboard } = useQuery({
@@ -59,27 +57,14 @@ export function ResumenPage({ onFillForm, onReopen, onViewFeedback }: ResumenPag
         <ProgressHero
           anio={year}
           retosCount={dashboard.retosCount}
-          aprobados={dashboard.aprobados}
-          enviados={dashboard.enviados}
-          correccion={dashboard.correccion}
-          enProgreso={dashboard.enProgreso}
+          evidenceCounts={dashboard.evidenceCounts}
+          assignedAward={dashboard.assignedAward}
+          reportPdfUrl={dashboard.reportPdfUrl}
+          reportPdfStatus={dashboard.reportPdfStatus}
+          onViewRejected={onViewRejected}
           puntajeTotal={dashboard.puntajeTotal}
         />
       </div>
-
-      <AwardSummary award={dashboard.award} year={year} />
-
-      {dashboard.reportPdfUrl && (
-        <div style={{ display: 'flex', justifyContent: 'flex-end', margin: 'var(--gnf-space-5) 0' }}>
-          <Button
-            variant="outline"
-            icon={<Download size={16} />}
-            onClick={() => { window.location.href = dashboard.reportPdfUrl ?? ''; }}
-          >
-            {dashboard.reportPdfStatus === 'final' ? 'Descargar reporte final PDF' : 'Descargar borrador PDF'}
-          </Button>
-        </div>
-      )}
 
       <h3 style={{ marginBottom: 'var(--gnf-space-4)' }}>Retos de mi centro educativo</h3>
       <RetoGrid

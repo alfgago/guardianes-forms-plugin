@@ -1412,6 +1412,9 @@ function gnf_clear_docente_centro_assignment( $user_id, $centro_id = 0 ) {
  */
 function gnf_insert_notification($user_id, $tipo, $mensaje, $relacion_tipo = '', $relacion_id = 0)
 {
+	if ( gnf_user_receives_only_rejections( $user_id ) && ! in_array( $tipo, array( 'evidencia_rechazada', 'invalid_photo_date', 'correccion' ), true ) ) {
+		return;
+	}
 	global $wpdb;
 	$table = $wpdb->prefix . 'gn_notificaciones';
 	$wpdb->insert(
@@ -1443,6 +1446,9 @@ function gnf_insert_notification($user_id, $tipo, $mensaje, $relacion_tipo = '',
  * @return int ID de la notificación afectada.
  */
 function gnf_insert_or_refresh_notification( $user_id, $tipo, $mensaje, $relacion_tipo = '', $relacion_id = 0 ) {
+	if ( gnf_user_receives_only_rejections( $user_id ) && ! in_array( $tipo, array( 'evidencia_rechazada', 'invalid_photo_date', 'correccion' ), true ) ) {
+		return 0;
+	}
 	global $wpdb;
 
 	$table         = $wpdb->prefix . 'gn_notificaciones';

@@ -432,6 +432,16 @@ function gnf_register_rest_routes() {
 		)
 	);
 
+	register_rest_route( $ns, '/admin/centros/(?P<id>\d+)/award', array(
+		'methods' => 'POST', 'callback' => 'gnf_rest_admin_assign_award', 'permission_callback' => 'gnf_rest_is_admin',
+	) );
+	register_rest_route( $ns, '/admin/impact', array(
+		'methods' => 'GET', 'callback' => 'gnf_rest_admin_impact', 'permission_callback' => 'gnf_rest_is_admin',
+	) );
+	register_rest_route( $ns, '/impact', array(
+		'methods' => 'GET', 'callback' => 'gnf_rest_public_impact', 'permission_callback' => '__return_true',
+	) );
+
 	register_rest_route(
 		$ns,
 		'/admin/reports',
@@ -1697,17 +1707,19 @@ function gnf_rest_notifications_list() {
 	global $wpdb;
 	$table   = $wpdb->prefix . 'gn_notificaciones';
 	$user_id = get_current_user_id();
+	$rejections_only = gnf_user_receives_only_rejections( $user_id );
+	$type_filter = $rejections_only ? " AND tipo IN ('evidencia_rechazada', 'invalid_photo_date', 'correccion')" : '';
 
-	$items = $wpdb->get_results(
-		$wpdb->prepare(
-			"SELECT * FROM {$table} WHERE user_id = %d ORDER BY created_at DESC LIMIT 50",
-			$user_id
-		)
-	);
-
-	return array_map(
-		static function ( $item ) use ( $user_id ) {
+	$format = static function ( $item ) use ( $user_id, $rejections_only ) {
 			$context = function_exists( 'gnf_build_notification_context' ) ? gnf_build_notification_context( $item, $user_id ) : array();
+			if ( $rejections_only ) {
+				$context['evidenceItems'] = array_values( array_filter( (array) ( $context['evidenceItems'] ?? array() ), static function ( $evidence ) {
+					return 'rechazada' === ( $evidence['estado'] ?? '' );
+				} ) );
+				if ( ! gnf_docente_notification_is_actionable( $item->tipo, $context['evidenceItems'] ) ) {
+					return null;
+				}
+			}
 
 			return array(
 				'id'                   => (int) $item->id,
@@ -1734,9 +1746,36 @@ function gnf_rest_notifications_list() {
 				'evidenceItems'        => array_values( (array) ( $context['evidenceItems'] ?? array() ) ),
 				'requiresYearValidation' => ! empty( $context['requiresYearValidation'] ),
 			);
-		},
-		$items
-	);
+	};
+	$result = array();
+	$seen = array();
+	$offset = 0;
+	do {
+		$items = $wpdb->get_results( $wpdb->prepare(
+			"SELECT * FROM {$table} WHERE user_id = %d{$type_filter} ORDER BY created_at DESC, id DESC LIMIT 50 OFFSET %d",
+			$user_id, $offset
+		) );
+		foreach ( (array) $items as $item ) {
+			$formatted = $format( $item );
+			if ( ! $formatted ) {
+				continue;
+			}
+			$key = (string) $item->id;
+			if ( $rejections_only && gnf_get_notification_evidence_scope_key( $item->relacion_tipo ) ) {
+				$key = $item->relacion_tipo . ':' . $item->relacion_id;
+			}
+			if ( isset( $seen[ $key ] ) ) {
+				continue;
+			}
+			$seen[ $key ] = true;
+			$result[] = $formatted;
+			if ( count( $result ) >= 50 ) {
+				break;
+			}
+		}
+		$offset += 50;
+	} while ( $rejections_only && count( (array) $items ) === 50 && count( $result ) < 50 );
+	return $result;
 }
 
 function gnf_rest_notification_mark_read( WP_REST_Request $request ) {
@@ -1768,6 +1807,7 @@ function gnf_rest_notifications_mark_all_read() {
 // ═══════════════════════════════════════════════════════════════════════
 
 function gnf_rest_docente_dashboard( WP_REST_Request $request ) {
+	global $wpdb;
 	$user_id   = get_current_user_id();
 	$anio      = gnf_rest_get_active_panel_year();
 	$centro_id = gnf_get_centro_for_docente( $user_id );
@@ -1780,27 +1820,17 @@ function gnf_rest_docente_dashboard( WP_REST_Request $request ) {
 	$terms  = wp_get_object_terms( $centro_id, 'gn_region' );
 
 	$retos_sel  = gnf_get_centro_retos_seleccionados( $centro_id, $anio );
-	$entries    = gnf_get_user_reto_entries( $user_id, $anio );
+	$entries    = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}gn_reto_entries WHERE centro_id = %d AND anio = %d", $centro_id, $anio ) );
 	$puntaje    = gnf_get_centro_puntaje_total( $centro_id, $anio );
-	$estrella   = gnf_get_centro_estrella_final( $centro_id, $anio );
 	$meta       = gnf_get_centro_meta_estrellas( $centro_id, $anio );
 	$matricula_estado = function_exists( 'gnf_get_centro_matricula_estado' )
 		? gnf_get_centro_matricula_estado( $centro_id, $anio )
 		: ( ! empty( $retos_sel ) ? 'pendiente' : 'no_iniciado' );
 
-	$counts = array( 'aprobados' => 0, 'enviados' => 0, 'correccion' => 0, 'en_progreso' => 0 );
-	foreach ( $entries as $e ) {
-		if ( isset( $counts[ $e->estado ] ) ) {
-			$counts[ $e->estado ]++;
-		}
-		if ( $e->estado === 'en_progreso' || $e->estado === 'no_iniciado' || $e->estado === 'completo' ) {
-			$counts['en_progreso']++;
-		}
-	}
-
-	$all_complete = ! empty( $retos_sel ) && $counts['aprobados'] >= count( $retos_sel );
+	$counts = gnf_summarize_docente_entries( $entries, $retos_sel );
+	$all_complete = $counts['allComplete'];
 	$award_enabled = ! function_exists( 'gnf_feature_is_enabled_for_center' ) || gnf_feature_is_enabled_for_center( 'awards', $centro_id, false );
-	$award         = $award_enabled && function_exists( 'gnf_get_center_award_bundle' ) ? gnf_get_center_award_bundle( $centro_id, $anio, true, false ) : array();
+	$assigned_award = $award_enabled ? gnf_get_assigned_center_award( $centro_id, $anio ) : array();
 
 	return array(
 		'centro'           => array(
@@ -1813,7 +1843,8 @@ function gnf_rest_docente_dashboard( WP_REST_Request $request ) {
 		'docenteEstado'    => gnf_get_docente_estado( $user_id ),
 		'metaEstrellas'    => $meta,
 		'puntajeTotal'     => $puntaje,
-		'estrellaFinal'    => $estrella,
+		'estrellaFinal'    => (int) ( $assigned_award['result']['stars'] ?? 0 ),
+		'evidenceCounts'   => $counts['evidenceCounts'],
 		'retosCount'       => count( $retos_sel ),
 		'aprobados'        => $counts['aprobados'],
 		'enviados'         => $counts['enviados'],
@@ -1821,7 +1852,7 @@ function gnf_rest_docente_dashboard( WP_REST_Request $request ) {
 		'enProgreso'       => $counts['en_progreso'],
 		'tieneMatricula'   => 'no_iniciado' !== $matricula_estado,
 		'allRetosComplete' => $all_complete,
-		'award'             => $award,
+		'assignedAward'     => $assigned_award ?: null,
 		'reportPdfUrl'      => function_exists( 'gnf_get_center_report_download_url' ) ? gnf_get_center_report_download_url( $centro_id, $anio ) : '',
 		'reportPdfStatus'   => $all_complete ? 'final' : 'draft',
 	);
@@ -2476,6 +2507,8 @@ function gnf_rest_docente_form_html( WP_REST_Request $request ) {
 	}
 
 	$html = do_shortcode( '[wpforms id="' . $form_id . '"]' );
+	$form_definition = gnf_get_wpforms_form_definition( $form_id );
+	$required_field_ids = gnf_required_evidence_field_ids( gnf_get_reto_canonical_slug( get_the_title( $reto_id ) ), $form_definition['fields'] ?? array() );
 	if ( function_exists( 'gnf_feature_is_enabled_for_center' ) && ! gnf_feature_is_enabled_for_center( 'impact', $centro_id, false ) ) {
 		$field_ids = function_exists( 'gnf_get_created_impact_field_ids' ) ? gnf_get_created_impact_field_ids( $form_id, $reto_id, $anio ) : array();
 		$html      = gnf_impact_field_visibility_css( $form_id, $field_ids ) . $html;
@@ -2484,6 +2517,7 @@ function gnf_rest_docente_form_html( WP_REST_Request $request ) {
 		'html'        => $html,
 		'formId'      => (int) $form_id,
 		'fieldPoints' => $field_points,
+		'requiredEvidenceFieldIds' => $required_field_ids,
 		'conditionalRules' => gnf_rest_get_wpforms_conditional_rules( $form_id ),
 		'savedValues' => $saved_state['savedValues'],
 		'savedAt'     => $saved_state['savedAt'],
@@ -2876,26 +2910,6 @@ function gnf_rest_supervisor_dashboard( WP_REST_Request $request ) {
 		)
 	);
 
-	register_rest_route(
-		$ns,
-		'/admin/impact',
-		array(
-			'methods'             => 'GET',
-			'callback'            => 'gnf_rest_admin_impact',
-			'permission_callback' => 'gnf_rest_is_admin',
-		)
-	);
-
-	register_rest_route(
-		$ns,
-		'/impact',
-		array(
-			'methods'             => 'GET',
-			'callback'            => 'gnf_rest_public_impact',
-			'permission_callback' => '__return_true',
-		)
-	);
-
 	if ( '' !== $user_circuito && ! empty( $centro_ids ) ) {
 		$circuito_centros = get_posts(
 			array(
@@ -3082,8 +3096,11 @@ function gnf_rest_supervisor_centro_detail( WP_REST_Request $request ) {
 		);
 	}
 
+	$centro = gnf_rest_build_centro_with_stats( $centro_id, $anio, gnf_rest_get_entry_counts_by_centro( array( $centro_id ), $anio ) );
+	$review_summary = gnf_summarize_docente_entries( $entries_raw, $retos_seleccionados );
+	$centro['annual']['reportPdfStatus'] = $review_summary['allComplete'] ? 'final' : 'draft';
 	return array(
-		'centro'  => gnf_rest_build_centro_with_stats( $centro_id, $anio, gnf_rest_get_entry_counts_by_centro( array( $centro_id ), $anio ) ),
+		'centro'  => $centro,
 		'entries' => $entries,
 	);
 }

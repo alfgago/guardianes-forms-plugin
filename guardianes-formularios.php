@@ -52,6 +52,7 @@ require_once 'includes/evidence-dates.php';
 require_once 'includes/evidence-review.php';
 require_once 'includes/evidence-notifications.php';
 require_once 'includes/helpers.php';
+require_once 'includes/docente-summary.php';
 require_once 'includes/feature-rollout.php';
 require_once 'includes/award-rules.php';
 require_once 'includes/impact-metrics.php';

@@ -5,7 +5,7 @@ $root       = __DIR__ . '/..';
 $reports    = file_get_contents( $root . '/app/src/panels/admin/pages/ReportesPage.tsx' );
 $modal      = file_get_contents( $root . '/app/src/components/ui/Modal.tsx' );
 $styles     = file_get_contents( $root . '/app/src/styles/components.css' );
-$docente    = file_get_contents( $root . '/app/src/panels/docente/pages/ResumenPage.tsx' );
+$docente    = file_get_contents( $root . '/app/src/panels/docente/components/ProgressHero.tsx' );
 $admin      = file_get_contents( $root . '/app/src/panels/admin/pages/CentroDetailPage.tsx' );
 $supervisor = file_get_contents( $root . '/app/src/panels/supervisor/pages/CentroDetailPage.tsx' );
 
@@ -31,7 +31,7 @@ check_pilot_ux( false !== strpos( $modal, 'previousActiveElement' ) && false !==
 check_pilot_ux( false !== strpos( $modal, 'aria-labelledby' ) && false !== strpos( $modal, 'aria-label' ), 'modal siempre tiene nombre accesible' );
 check_pilot_ux( false !== strpos( $modal, 'overscrollBehavior' ), 'modal contiene el desplazamiento' );
 check_pilot_ux( false !== strpos( $styles, '.gnf-modal-dialog' ) && false !== strpos( $styles, 'prefers-reduced-motion' ), 'animacion del modal respeta movimiento reducido' );
-check_pilot_ux( false !== strpos( $docente, 'Descargar borrador PDF' ) && false !== strpos( $docente, 'Descargar reporte final PDF' ), 'docente ve el estado del documento en el boton' );
+check_pilot_ux( false !== strpos( $docente, 'disabled={!reportAvailable}' ) && false !== strpos( $docente, 'Descargar reporte final PDF' ), 'docente descarga el reporte al estar disponible' );
 check_pilot_ux( false !== strpos( $admin, 'reportPdfStatus' ) && false !== strpos( $supervisor, 'reportPdfStatus' ), 'revisores ven el estado del reporte' );
 
 echo "\n{$tests} checks, {$fails} failures\n";

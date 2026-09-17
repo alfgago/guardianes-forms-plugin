@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="es">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Panel docente - datos de prueba</title></head>
+<body>
+<div id="gnf-docente-root"></div>
+<script type="module">
+  import logoUrl from '../assets/logo-guardiana.png';
+  const assigned = new URLSearchParams(location.search).has('assigned');
+  const empty = new URLSearchParams(location.search).has('empty');
+  window.__GNF_DOCENTE__ = {
+    restUrl: '/mock-api', nonce: '', anio: 2026, selectedYear: 2026, availableYears: [2026], logoUrl: new URL(logoUrl, location.href).pathname,
+    user: { id: 1, name: 'Docente de prueba', displayName: 'Docente de prueba', role: 'docente', roles: ['docente'], email: 'demo@example.org' },
+    feedbackEnabled: false,
+  };
+  const retos = [
+    ['AGUA', 'Fortalecer la educación y sensibilización de la comunidad educativa en torno al agua.', '#285f85', 95],
+    ['ELECTRICIDAD', 'Promover buenas prácticas de ahorro energético en el centro educativo.', '#708324', 60],
+    ['RESIDUOS', 'Impulsar un programa de gestión integral de residuos en el centro educativo.', '#9d315a', 80],
+    ['ECO CLUBES ESTUDIANTILES', 'Promover la participación activa de los estudiantes en acciones educativas.', '#218077', 25],
+    ['ECO LONCHERA', 'Promover alimentos frescos y recipientes reutilizables.', '#b65268', 45],
+  ].map(([title, descripcion, color, puntajeMaximo], index) => ({
+    id: index + 1, titulo: 'RETO ' + title, descripcion, color, puntajeMaximo, obligatorio: index < 3,
+    entry: { id: index + 1, retoId: index + 1, estado: 'en_progreso', puntaje: index === 0 ? 35 : 15, evidencias: [], createdAt: '2026-09-16', updatedAt: '2026-09-16' },
+  }));
+  const nativeFetch = window.fetch.bind(window);
+  window.fetch = async (input, options) => {
+    const url = new URL(String(input), location.origin);
+    if (!url.pathname.startsWith('/mock-api')) return nativeFetch(input, options);
+    let payload = { success: true };
+    if (url.pathname.endsWith('/docente/dashboard')) payload = {
+      centro: { id: 1, nombre: 'CENTRO EDUCATIVO DE PRUEBA', codigoMep: '0000', regionName: 'NICOYA' },
+      docenteEstado: 'activo', tieneMatricula: true, retosCount: 5, puntajeTotal: empty ? 0 : 95,
+      aprobados: 1, enviados: 2, correccion: 1, enProgreso: 1,
+      evidenceCounts: empty ? { pending: 0, approved: 0, rejected: 0, total: 0 } : { pending: 8, approved: 24, rejected: 3, total: 35 },
+      assignedAward: assigned ? { result: { stars: 3 }, assignedAt: '2026-09-16', assignedBy: 2 } : null,
+      reportPdfStatus: assigned ? 'final' : 'draft', reportPdfUrl: assigned ? '#reporte-final-prueba' : '',
+    };
+    else if (url.pathname.endsWith('/docente/retos')) payload = retos;
+    else if (url.pathname.endsWith('/notifications')) payload = [{ id: 1, tipo: 'evidencia_rechazada', mensaje: 'La evidencia del reto Agua no corresponde a la actividad.', leido: false, createdAt: '2026-09-16 09:00:00', actionLabel: 'Corregir evidencia', actionTarget: { page: 'formularios', params: { reto_id: '1' } }, evidenceItems: [] }];
+    else if (url.pathname.endsWith('/docente/wizard')) payload = retos.map(reto => ({ retoId: reto.id, retoTitulo: reto.titulo, retoColor: reto.color, formId: 10, estado: 'en_progreso', puntaje: 15, puntajeMaximo: reto.puntajeMaximo }));
+    else if (url.pathname.endsWith('/form-html')) payload = {
+      formId: 10, reto: retos[0], entry: null, savedValues: {}, conditionalRules: [],
+      fieldPoints: [{ fieldId: 1, label: 'REQUISITO - Fotografía de los estudiantes durante la actividad educativa.', puntos: 5, tipo: 'file-upload' }],
+      requiredEvidenceFieldIds: [1],
+      html: '<div class="wpforms-container"><form id="wpforms-form-10"><div id="wpforms-10-field_1-container" class="wpforms-field wpforms-field-file-upload" data-field-id="1"><label for="wpforms-10-field_1">REQUISITO - Fotografía de los estudiantes durante la actividad educativa.</label><input id="wpforms-10-field_1" type="file" name="wpforms[fields][1]"></div><div id="wpforms-10-field_2-container" class="wpforms-field"><label for="wpforms-10-field_2">Comentario opcional</label><input id="wpforms-10-field_2" name="wpforms[fields][2]"></div></form></div>',
+    };
+    return new Response(JSON.stringify(payload), { status: 200, headers: { 'Content-Type': 'application/json' } });
+  };
+  await import('/src/entries/docente.tsx');
+</script>
+</body>
+</html>

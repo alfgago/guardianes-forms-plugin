@@ -6,7 +6,7 @@ $module     = @file_get_contents( $root . '/includes/report-pdf.php' ) ?: '';
 $bootstrap  = file_get_contents( $root . '/guardianes-formularios.php' );
 $rest       = file_get_contents( $root . '/includes/rest-api.php' );
 $composer   = file_get_contents( $root . '/composer.json' );
-$docente    = file_get_contents( $root . '/app/src/panels/docente/pages/ResumenPage.tsx' );
+$docente    = file_get_contents( $root . '/app/src/panels/docente/components/ProgressHero.tsx' );
 $admin      = file_get_contents( $root . '/app/src/panels/admin/pages/CentroDetailPage.tsx' );
 $supervisor = file_get_contents( $root . '/app/src/panels/supervisor/pages/CentroDetailPage.tsx' );
 
@@ -100,7 +100,11 @@ if ( file_exists( $root . '/includes/report-pdf.php' ) ) {
 
 		check_center_report_pdf( false !== strpos( $html, 'Escuela Las Brisas' ) && false === strpos( $html, '<script>' ), 'escapa datos del centro' );
 		check_center_report_pdf( false !== strpos( $html, 'Información del centro educativo' ) && false !== strpos( $html, 'Matrícula y contacto' ), 'incluye informacion completa y matricula' );
-		check_center_report_pdf( false !== strpos( $html, 'Galardón calculado' ) && false !== strpos( $html, 'Puntaje validado' ), 'incluye resultado dinamico de galardon' );
+		check_center_report_pdf( false !== strpos( $html, 'Galardón logrado' ) && false !== strpos( $html, 'Pendiente de asignación' ), 'no revela estrellas antes de asignacion' );
+		$published = $sample;
+		$published['award']['assigned'] = array( 'result' => $sample['award']['validated'] );
+		$published_html = gnf_render_center_report_html( $published );
+		check_center_report_pdf( false === strpos( $published_html, 'Pendiente de asignación' ) && false !== strpos( $published_html, '<div>2</div>' ), 'muestra estrellas asignadas sin usar proyeccion' );
 		check_center_report_pdf( false !== strpos( $html, 'Reto Agua' ) && false !== strpos( $html, '30 / 60 puntos' ), 'incluye puntaje por reto' );
 		check_center_report_pdf( false !== strpos( $html, 'Cantidad captada' ) && false !== strpos( $html, '150 litros' ), 'incluye respuestas registradas' );
 		check_center_report_pdf( false !== strpos( $html, 'evidencia-agua.pdf' ) && false !== strpos( $html, '12/08/2025' ), 'incluye evidencia y fecha original' );

@@ -1,6 +1,6 @@
 <?php
 /**
- * Lanzamiento controlado de funcionalidades por centro educativo.
+ * Disponibilidad general de funcionalidades; conserva la API del antiguo piloto.
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -92,22 +92,17 @@ function gnf_get_rollout_option( $name, $default = '' ) {
  * @return string
  */
 function gnf_get_feature_rollout_mode( $feature ) {
-	$option = gnf_get_feature_rollout_option_name( $feature );
-	return $option ? gnf_normalize_feature_rollout_mode( gnf_get_rollout_option( $option, 'off' ) ) : 'off';
+	// Las opciones antiguas off/pilot no deben limitar instalaciones existentes.
+	return gnf_get_feature_rollout_option_name( $feature ) ? 'all' : 'off';
 }
 
 /**
- * IDs seleccionados para el piloto.
+ * Compatibilidad: ya no hay una lista de centros que limite el alcance.
  *
  * @return int[]
  */
 function gnf_get_pilot_center_ids() {
-	$value = gnf_get_rollout_option( 'pilot_centers', array() );
-	$ids   = array();
-	foreach ( (array) $value as $item ) {
-		$ids[] = is_object( $item ) && isset( $item->ID ) ? (int) $item->ID : (int) $item;
-	}
-	return array_values( array_unique( array_filter( array_map( 'absint', $ids ) ) ) );
+	return array();
 }
 
 /**
@@ -120,7 +115,7 @@ function gnf_current_user_can_preview_features() {
 }
 
 /**
- * Comprueba rollout para un centro concreto.
+ * Comprueba disponibilidad, no permisos ni condiciones de publicacion.
  *
  * @param string $feature             Funcionalidad.
  * @param int    $centro_id           Centro.
@@ -128,13 +123,7 @@ function gnf_current_user_can_preview_features() {
  * @return bool
  */
 function gnf_feature_is_enabled_for_center( $feature, $centro_id, $allow_admin_preview = true ) {
-	$is_preview = $allow_admin_preview && gnf_current_user_can_preview_features();
-	return gnf_feature_enabled_for_values(
-		gnf_get_feature_rollout_mode( $feature ),
-		$centro_id,
-		gnf_get_pilot_center_ids(),
-		$is_preview
-	);
+	return 'all' === gnf_get_feature_rollout_mode( $feature );
 }
 
 /**

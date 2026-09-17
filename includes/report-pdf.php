@@ -36,16 +36,13 @@ function gnf_get_center_report_status( $centro_id, $anio ) {
 	$table    = $wpdb->prefix . 'gn_reto_entries';
 	$rows     = $wpdb->get_results(
 		$wpdb->prepare(
-			"SELECT reto_id, estado FROM {$table} WHERE centro_id = %d AND anio = %d",
+			"SELECT reto_id, anio, estado, evidencias FROM {$table} WHERE centro_id = %d AND anio = %d",
 			absint( $centro_id ),
 			absint( $anio )
 		)
 	);
-	$states = array();
-	foreach ( (array) $rows as $row ) {
-		$states[ (int) $row->reto_id ] = (string) $row->estado;
-	}
-	return gnf_center_report_status_from_entries( $selected, $states );
+	$summary = gnf_summarize_docente_entries( $rows, $selected );
+	return $summary['allComplete'] ? 'final' : 'draft';
 }
 
 /**
@@ -301,10 +298,8 @@ function gnf_build_center_report_data( $centro_id, $anio ) {
 		)
 	);
 	$by_reto     = array();
-	$entry_states = array();
 	foreach ( (array) $entries_raw as $entry ) {
 		$by_reto[ (int) $entry->reto_id ] = $entry;
-		$entry_states[ (int) $entry->reto_id ] = (string) $entry->estado;
 	}
 
 	$selected = array_map( 'absint', (array) gnf_get_centro_retos_seleccionados( $centro_id, $anio ) );
@@ -360,9 +355,10 @@ function gnf_build_center_report_data( $centro_id, $anio ) {
 	return array(
 		'year'        => $anio,
 		'generatedAt' => function_exists( 'current_time' ) ? current_time( 'mysql' ) : gmdate( 'Y-m-d H:i:s' ),
-		'status'      => gnf_center_report_status_from_entries( $selected, $entry_states ),
+		'status'      => gnf_summarize_docente_entries( $entries_raw, $selected )['allComplete'] ? 'final' : 'draft',
 		'center'      => $center,
 		'award'       => array(
+			'assigned' => function_exists( 'gnf_get_assigned_center_award' ) ? gnf_get_assigned_center_award( $centro_id, $anio ) : array(),
 			'projected' => function_exists( 'gnf_get_center_award_result' ) ? gnf_get_center_award_result( $centro_id, $anio, 'projected' ) : array(),
 			'validated' => function_exists( 'gnf_get_center_award_result' ) ? gnf_get_center_award_result( $centro_id, $anio, 'validated' ) : array(),
 		),
@@ -398,6 +394,8 @@ function gnf_render_center_report_html( $report ) {
 	$center    = (array) ( $report['center'] ?? array() );
 	$projected = (array) ( $report['award']['projected'] ?? array() );
 	$validated = (array) ( $report['award']['validated'] ?? array() );
+	$assigned = (array) ( $report['award']['assigned']['result'] ?? array() );
+	$visible_stars = $assigned ? (string) (int) ( $assigned['stars'] ?? 0 ) : 'Pendiente de asignación';
 	$retos     = (array) ( $report['retos'] ?? array() );
 	$year      = (int) ( $report['year'] ?? 0 );
 	$name      = (string) ( $center['nombre'] ?? 'Centro educativo' );
@@ -445,7 +443,7 @@ function gnf_render_center_report_html( $report ) {
 	);
 
 	$special_awards = array();
-	foreach ( (array) ( $validated['awards'] ?? array() ) as $award ) {
+	foreach ( (array) ( $assigned['awards'] ?? array() ) as $award ) {
 		if ( ! empty( $award['achieved'] ) ) {
 			$special_awards[] = (string) ( $award['label'] ?? '' );
 		}
@@ -467,10 +465,10 @@ function gnf_render_center_report_html( $report ) {
 	}
 	$html .= '<h1>' . gnf_report_html_escape( $title ) . '</h1><h2>' . gnf_report_html_escape( $name ) . '</h2>';
 	$html .= '<div class="cover-meta"><strong>Participación ' . gnf_report_html_escape( $year ) . '</strong><br>' . gnf_report_html_escape( $center['region_name'] ?? '' ) . ' · Circuito ' . gnf_report_html_escape( $center['circuito'] ?? '' ) . '<br>Código MEP: ' . gnf_report_html_escape( $center['codigo_mep'] ?? '' ) . '</div>';
-	$html .= '<table class="score-grid"><tr><td><div class="score-number">' . gnf_report_html_escape( $validated['score'] ?? $center['puntaje_total'] ?? 0 ) . '</div><div class="score-label">Puntaje validado</div></td><td><div class="score-number">' . gnf_report_html_escape( $validated['stars'] ?? $center['estrella_final'] ?? 0 ) . '</div><div class="score-label">Estrellas validadas</div></td><td><div class="score-number">' . count( $retos ) . '</div><div class="score-label">Eco retos inscritos</div></td></tr></table></section>';
+	$html .= '<table class="score-grid"><tr><td><div class="score-number">' . gnf_report_html_escape( $validated['score'] ?? $center['puntaje_total'] ?? 0 ) . '</div><div class="score-label">Puntaje validado</div></td><td><div>' . gnf_report_html_escape( $visible_stars ) . '</div><div class="score-label">Galardón logrado</div></td><td><div class="score-number">' . count( $retos ) . '</div><div class="score-label">Eco retos inscritos</div></td></tr></table></section>';
 	$html .= '<section class="section"><h2 class="section-title">Información del centro educativo</h2>' . gnf_report_render_pairs( $center_rows ) . '</section>';
 	$html .= '<section class="section"><h2 class="section-title">Matrícula y contacto</h2>' . gnf_report_render_pairs( $matricula_rows ) . '</section>';
-	$html .= '<section class="section"><h2 class="section-title">Galardón calculado</h2><div class="award-box"><table class="award-grid"><tr><td><div class="award-value">' . gnf_report_html_escape( $projected['score'] ?? 0 ) . '</div><div class="score-label">Puntaje con evidencia activa</div></td><td><div class="award-value">' . gnf_report_html_escape( $validated['score'] ?? 0 ) . '</div><div class="score-label">Puntaje validado</div></td><td><div class="award-value">' . gnf_report_html_escape( $validated['stars'] ?? 0 ) . '</div><div class="score-label">Estrellas validadas</div></td></tr></table>';
+	$html .= '<section class="section"><h2 class="section-title">Galardón logrado</h2><div class="award-box"><table class="award-grid"><tr><td><div class="award-value">' . gnf_report_html_escape( $projected['score'] ?? 0 ) . '</div><div class="score-label">Puntaje con evidencia activa</div></td><td><div class="award-value">' . gnf_report_html_escape( $validated['score'] ?? 0 ) . '</div><div class="score-label">Puntaje validado</div></td><td><div>' . gnf_report_html_escape( $visible_stars ) . '</div><div class="score-label">Estrellas asignadas</div></td></tr></table>';
 	$html .= '<p><strong>Rúbrica:</strong> ' . gnf_report_html_escape( $validated['rubricLabel'] ?? $projected['rubricLabel'] ?? 'No determinada' ) . '</p>';
 	if ( $missing_required ) {
 		$html .= '<p><strong>Requisitos base pendientes:</strong> ' . gnf_report_html_escape( implode( ', ', $missing_required ) ) . '.</p>';
@@ -592,13 +590,17 @@ function gnf_generate_center_report_pdf( $report, $output_path ) {
  * @param int $centro_id Centro.
  * @return bool
  */
-function gnf_user_can_download_center_report( $centro_id ) {
+function gnf_user_can_download_center_report( $centro_id, $anio = null ) {
 	$user_id = get_current_user_id();
 	if ( $user_id <= 0 ) {
 		return false;
 	}
 	if ( current_user_can( 'manage_options' ) ) {
 		return true;
+	}
+	$anio = gnf_normalize_year( $anio );
+	if ( gnf_user_receives_only_rejections( $user_id ) && 'final' !== gnf_get_center_report_status( $centro_id, $anio ) ) {
+		return false;
 	}
 	return gnf_user_can_access_centro( $user_id, absint( $centro_id ) )
 		&& ( ! function_exists( 'gnf_feature_is_enabled_for_center' ) || gnf_feature_is_enabled_for_center( 'reports', $centro_id, false ) );
@@ -614,7 +616,7 @@ function gnf_user_can_download_center_report( $centro_id ) {
 function gnf_get_center_report_download_url( $centro_id, $anio ) {
 	$centro_id = absint( $centro_id );
 	$anio      = absint( $anio );
-	if ( ! $centro_id || ! $anio || ! gnf_user_can_download_center_report( $centro_id ) ) {
+	if ( ! $centro_id || ! $anio || ! gnf_user_can_download_center_report( $centro_id, $anio ) ) {
 		return '';
 	}
 	$url = add_query_arg(
@@ -636,7 +638,7 @@ function gnf_get_center_report_download_url( $centro_id, $anio ) {
 function gnf_handle_download_center_report_pdf() {
 	$centro_id = isset( $_GET['centro_id'] ) ? absint( $_GET['centro_id'] ) : 0;
 	$anio      = isset( $_GET['year'] ) ? absint( $_GET['year'] ) : ( function_exists( 'gnf_get_active_year' ) ? gnf_get_active_year() : (int) gmdate( 'Y' ) );
-	if ( ! $centro_id || ! gnf_user_can_download_center_report( $centro_id ) ) {
+	if ( ! $centro_id || ! gnf_user_can_download_center_report( $centro_id, $anio ) ) {
 		wp_die( 'Sin permisos para descargar este reporte.', 'Acceso denegado', array( 'response' => 403 ) );
 	}
 	check_admin_referer( 'gnf_download_center_report_' . $centro_id . '_' . $anio );

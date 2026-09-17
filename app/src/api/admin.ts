@@ -110,6 +110,9 @@ interface GetCentrosParams {
 }
 
 export const adminApi = {
+  assignAward(centroId: number, year: number, action: 'assign' | 'revoke') {
+    return post<{ success: boolean }>(`/admin/centros/${centroId}/award`, { year, action });
+  },
   getStats(year: number) {
     return get<AdminStats>('/admin/stats', { year });
   },

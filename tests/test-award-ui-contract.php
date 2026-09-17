@@ -27,7 +27,7 @@ check_award_ui( false !== strpos( $types, 'export interface AwardResult' ), 'Typ
 check_award_ui( false !== strpos( $component, 'Galardón ' ) && false !== strpos( $component, '{year}' ), 'componente compartido identifica el galardon y su año' );
 check_award_ui( false !== strpos( $component, 'Progreso estimado' ) && false !== strpos( $component, 'Rúbrica aplicada' ), 'resumen distingue puntaje y rubrica' );
 check_award_ui( false !== strpos( $component, 'Requisitos base pendientes' ), 'resumen explica requisitos pendientes' );
-check_award_ui( false !== strpos( $docente, '<AwardSummary award={dashboard.award}' ), 'panel docente muestra resultado' );
+check_award_ui( false !== strpos( $docente, 'assignedAward={dashboard.assignedAward}' ) && false === strpos( $docente, '<AwardSummary' ), 'panel docente muestra solo el resultado asignado' );
 check_award_ui( false !== strpos( $admin, '<AwardSummary award={centro.annual.award}' ), 'detalle administrativo muestra resultado' );
 check_award_ui( false !== strpos( $supervisor, '<AwardSummary award={centro.annual.award}' ), 'detalle supervisor muestra resultado' );
 check_award_ui( false !== strpos( $rest, 'gnf_get_center_award_bundle( $centro_id, $anio, true' ), 'vistas de detalle recalculan ambos resultados' );

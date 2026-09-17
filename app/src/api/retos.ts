@@ -1,5 +1,5 @@
 import { get, post } from './client';
-import type { AwardBundle, Reto, RetoEntry, RetoWithEntry } from '@/types';
+import type { AssignedAward, Reto, RetoEntry, RetoWithEntry } from '@/types';
 
 interface DocenteDashboard {
   centro: {
@@ -22,7 +22,8 @@ interface DocenteDashboard {
   allRetosComplete: boolean;
   reportPdfUrl?: string;
   reportPdfStatus?: 'draft' | 'final';
-  award?: AwardBundle;
+  assignedAward?: AssignedAward | null;
+  evidenceCounts: { pending: number; approved: number; rejected: number; total: number };
 }
 
 interface WizardStep {
@@ -70,6 +71,7 @@ export interface EvidenceFileMetadata {
 }
 
 export interface RetoFormResponse {
+  requiredEvidenceFieldIds?: number[];
   html: string;
   formId: number;
   fieldPoints: RetoFieldPoint[];

@@ -1,104 +1,59 @@
+import { CheckCircle2, Clock3, Download, Star, CircleAlert } from 'lucide-react';
 import { ProgressBar } from '@/components/ui/ProgressBar';
-import { formatPercentage } from '@/utils/formatters';
+import type { AssignedAward } from '@/types';
 
 interface ProgressHeroProps {
   anio: number;
   retosCount: number;
-  aprobados: number;
-  enviados: number;
-  correccion: number;
-  enProgreso: number;
   puntajeTotal: number;
+  evidenceCounts: { pending: number; approved: number; rejected: number; total: number };
+  assignedAward?: AssignedAward | null;
+  reportPdfUrl?: string;
+  reportPdfStatus?: 'draft' | 'final';
+  onViewRejected?: () => void;
 }
 
-export function ProgressHero({
-  anio,
-  retosCount,
-  aprobados,
-  enviados,
-  correccion,
-  enProgreso,
-  puntajeTotal,
-}: ProgressHeroProps) {
-  const percentage = formatPercentage(aprobados, retosCount);
+export function ProgressHero({ anio, retosCount, puntajeTotal, evidenceCounts, assignedAward, reportPdfUrl, reportPdfStatus, onViewRejected }: ProgressHeroProps) {
+  const stars = assignedAward?.result.stars ?? 0;
+  const percentage = evidenceCounts.total > 0 ? Math.round(evidenceCounts.approved / evidenceCounts.total * 100) : 0;
+  const reportAvailable = Boolean(reportPdfUrl && reportPdfStatus === 'final');
 
   return (
-    <div
-      style={{
-        background: 'linear-gradient(135deg, var(--gnf-forest) 0%, var(--gnf-ocean-dark) 100%)',
-        borderRadius: 'var(--gnf-radius-lg)',
-        padding: 'var(--gnf-space-8)',
-        color: 'var(--gnf-white)',
-        marginBottom: 'var(--gnf-space-6)',
-        boxShadow: 'var(--gnf-shadow-md)',
-      }}
-    >
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'flex-start',
-          flexWrap: 'wrap',
-          gap: 'var(--gnf-space-4)',
-        }}
-      >
+    <section className="gnf-docente-summary" aria-label={`Resumen de participación ${anio}`}>
+      <div className="gnf-docente-summary__header">
         <div>
-          <p
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 'var(--gnf-space-2)',
-              padding: '6px 12px',
-              borderRadius: 'var(--gnf-radius-full)',
-              background: 'rgba(255,255,255,0.14)',
-              fontSize: '0.8125rem',
-              marginBottom: 'var(--gnf-space-3)',
-            }}
-          >
-            Participación {anio}
-          </p>
-          <h3 style={{ color: 'var(--gnf-white)', margin: 0 }}>Eco puntos acumulados: {puntajeTotal}</h3>
-          <p style={{ opacity: 0.88, margin: 'var(--gnf-space-2) 0 0', fontSize: '0.9375rem' }}>
-            {retosCount} retos matriculados para este centro educativo.
-          </p>
+          <p className="gnf-docente-summary__year">Participación {anio}</p>
+          <h3>Eco puntos acumulados: {puntajeTotal}</h3>
+          <p>{retosCount} retos matriculados para este centro educativo.</p>
         </div>
-
-      </div>
-
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))',
-          gap: 'var(--gnf-space-4)',
-          marginTop: 'var(--gnf-space-6)',
-        }}
-      >
-        <div>
-          <strong style={{ fontSize: '1.5rem', display: 'block' }}>{aprobados}</strong>
-          <small style={{ opacity: 0.8 }}>Aprobados</small>
-        </div>
-        <div>
-          <strong style={{ fontSize: '1.5rem', display: 'block' }}>{enviados}</strong>
-          <small style={{ opacity: 0.8 }}>En revision</small>
-        </div>
-        <div>
-          <strong style={{ fontSize: '1.5rem', display: 'block' }}>{enProgreso}</strong>
-          <small style={{ opacity: 0.8 }}>En progreso</small>
-        </div>
-        {correccion > 0 && (
-          <div style={{ color: 'var(--gnf-sun)' }}>
-            <strong style={{ fontSize: '1.5rem', display: 'block' }}>{correccion}</strong>
-            <small style={{ opacity: 0.9 }}>Con observaciones</small>
+        <div className="gnf-docente-summary__actions">
+          <div>
+            <div className="gnf-docente-summary__award">
+              <strong>Galardón logrado</strong>
+              <span className="gnf-docente-summary__stars" role="img" aria-label={assignedAward ? `${stars} de 5 estrellas asignadas` : 'Galardón pendiente de asignación'}>
+                {Array.from({ length: 5 }, (_, index) => (
+                  <Star key={index} size={25} aria-hidden="true" fill={index < stars ? 'currentColor' : 'none'} className={index < stars ? 'is-awarded' : ''} />
+                ))}
+              </span>
+            </div>
+            <small>{assignedAward ? 'Galardón asignado' : 'Pendiente de asignación'}</small>
           </div>
-        )}
+          <button type="button" className="gnf-docente-summary__report" disabled={!reportAvailable}
+            title={reportAvailable ? 'Descargar reporte final PDF' : 'Disponible al finalizar la revisión'}
+            onClick={() => { if (reportAvailable && reportPdfUrl) window.location.href = reportPdfUrl; }}>
+            <Download size={18} aria-hidden="true" /> Reporte final
+          </button>
+        </div>
       </div>
-
-      <div style={{ marginTop: 'var(--gnf-space-5)' }}>
-        <ProgressBar value={aprobados} max={retosCount} color="var(--gnf-leaf)" height={8} />
-        <small style={{ opacity: 0.75, marginTop: 'var(--gnf-space-1)', display: 'block' }}>
-          {percentage}% de los retos ya fueron aprobados
-        </small>
+      <div className="gnf-docente-summary__counts">
+        <div><Clock3 aria-hidden="true" /><strong>{evidenceCounts.pending}</strong><span>Evidencias pendientes de revisión</span></div>
+        <div><CheckCircle2 aria-hidden="true" /><strong>{evidenceCounts.approved}</strong><span>Evidencias aprobadas</span></div>
+        <button type="button" onClick={onViewRejected} disabled={!onViewRejected || evidenceCounts.rejected === 0} className={evidenceCounts.rejected > 0 ? 'has-rejections' : ''}>
+          <CircleAlert aria-hidden="true" /><strong>{evidenceCounts.rejected}</strong><span>Evidencias rechazadas</span>
+        </button>
       </div>
-    </div>
+      <ProgressBar value={evidenceCounts.approved} max={Math.max(1, evidenceCounts.total)} color="var(--gnf-leaf)" height={8} />
+      <small className="gnf-docente-summary__progress">{evidenceCounts.total > 0 ? `${percentage}% de las evidencias aprobadas` : 'Aún no hay evidencias registradas'}</small>
+    </section>
   );
 }

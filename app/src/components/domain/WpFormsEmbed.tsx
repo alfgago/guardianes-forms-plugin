@@ -1005,6 +1005,7 @@ export function WpFormsEmbed({ retoId, year }: WpFormsEmbedProps) {
       queryClient.invalidateQueries({ queryKey: ['wizard-steps', year] });
       queryClient.invalidateQueries({ queryKey: ['docente-retos', year] });
       queryClient.invalidateQueries({ queryKey: ['docente-dashboard', year] });
+      queryClient.invalidateQueries({ queryKey: ['notifications'] });
       return true;
     },
     [queryClient, retoId, year],
@@ -1036,6 +1037,15 @@ export function WpFormsEmbed({ retoId, year }: WpFormsEmbedProps) {
     hydratingRef.current = true;
 
     const allFields = form.querySelectorAll('.wpforms-field');
+    for (const fieldId of data.requiredEvidenceFieldIds ?? []) {
+      const field = form.querySelector<HTMLElement>(`#wpforms-${data.formId}-field_${fieldId}-container`);
+      if (!field) continue;
+      field.classList.add('gnf-required-evidence');
+      const badge = document.createElement('strong');
+      badge.className = 'gnf-required-evidence__badge';
+      badge.textContent = 'REQUISITO PARA EL GALARDÓN';
+      field.prepend(badge);
+    }
     const fileFields = form.querySelectorAll('.wpforms-field-file-upload');
     console.log(`[GNF] Form mounted — ${allFields.length} fields total, ${fileFields.length} file-upload fields, conditionalRules=${(data.conditionalRules ?? []).length}`);
 
@@ -1540,12 +1550,13 @@ export function WpFormsEmbed({ retoId, year }: WpFormsEmbedProps) {
                     {data.fieldPoints.map((fieldPoint) => (
                       <div
                         key={fieldPoint.fieldId}
+                        className={data.requiredEvidenceFieldIds?.includes(fieldPoint.fieldId) ? 'gnf-required-evidence' : undefined}
                         style={{
                           display: 'flex',
                           justifyContent: 'space-between',
                           gap: 'var(--gnf-space-3)',
                           padding: 'var(--gnf-space-3)',
-                          borderRadius: '12px',
+                          borderRadius: '8px',
                           border: `1px solid ${completedFieldIds.has(String(fieldPoint.fieldId)) ? 'rgba(34, 197, 94, 0.35)' : 'var(--gnf-gray-100)'}`,
                           background: completedFieldIds.has(String(fieldPoint.fieldId)) ? 'rgba(34, 197, 94, 0.08)' : 'var(--gnf-white)',
                           fontSize: '0.8125rem',

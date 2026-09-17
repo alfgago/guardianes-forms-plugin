@@ -340,7 +340,7 @@ function gnf_render_impact_fields_admin_notice() {
 	?>
 	<div class="notice notice-info">
 		<p><strong>Campos de indicadores 2026:</strong> <?php echo esc_html( $prepared ? 'preparados' : 'pendientes de preparación' ); ?>.</p>
-		<p>Esta acción conserva los campos existentes y agrega únicamente las cantidades faltantes. Durante el modo piloto, los campos nuevos solo se mostrarán a los centros seleccionados.</p>
+		<p>Esta acción conserva los campos existentes y agrega únicamente las cantidades faltantes. Los campos nuevos estarán disponibles para todos los centros.</p>
 		<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
 			<input type="hidden" name="action" value="gnf_prepare_impact_fields">
 			<?php wp_nonce_field( 'gnf_prepare_impact_fields_2026' ); ?>

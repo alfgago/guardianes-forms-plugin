@@ -79,6 +79,7 @@ export function DocentePanel() {
             onFillForm={handleFillForm}
             onReopen={handleReopen}
             onViewFeedback={(notes) => setFeedbackModal(notes)}
+            onViewRejected={() => navigate('notificaciones')}
           />
         );
       case 'formularios':
@@ -86,13 +87,14 @@ export function DocentePanel() {
       case 'matricula':
         return <MatriculaPage />;
       case 'notificaciones':
-        return <NotificacionesPage />;
+        return <NotificacionesPage rejectionsOnly />;
       default:
         return (
           <ResumenPage
             onFillForm={handleFillForm}
             onReopen={handleReopen}
             onViewFeedback={(notes) => setFeedbackModal(notes)}
+            onViewRejected={() => navigate('notificaciones')}
           />
         );
     }

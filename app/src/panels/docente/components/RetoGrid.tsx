@@ -13,7 +13,7 @@ export function RetoGrid({ retos, onFillForm, onReopen, onViewFeedback }: RetoGr
     <div
       style={{
         display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))',
+        gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 340px), 1fr))',
         gap: 'var(--gnf-space-5)',
       }}
     >

@@ -51,7 +51,7 @@ const TYPE_META: Record<NotificationType, { label: string; color: string; bg: st
   rechazado: { label: 'Rechazado', color: '#b91c1c', bg: 'rgba(239, 68, 68, 0.14)' },
 };
 
-export function NotificacionesPage() {
+export function NotificacionesPage({ rejectionsOnly = false }: { rejectionsOnly?: boolean }) {
   const setNotifications = useNotificationStore((state) => state.setNotifications);
   const markRead = useNotificationStore((state) => state.markRead);
   const markAllRead = useNotificationStore((state) => state.markAllRead);
@@ -128,8 +128,8 @@ export function NotificacionesPage() {
     return (
       <EmptyState
         icon={<Bell size={48} />}
-        title="Sin historial de notificaciones"
-        description="Cuando haya envíos, validaciones o revisiones aparecerán aquí."
+        title={rejectionsOnly ? 'No hay evidencias rechazadas por corregir' : 'Sin historial de notificaciones'}
+        description={rejectionsOnly ? undefined : 'Cuando haya envíos, validaciones o revisiones aparecerán aquí.'}
       />
     );
   }
