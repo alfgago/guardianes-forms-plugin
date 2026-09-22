@@ -94,8 +94,8 @@ check_evidence_ui_contract(
 );
 
 check_evidence_ui_contract(
-	strpos( $entry_review, "reviewReason: action === 'rechazar' ? rejectReason : undefined" ) !== false
-		&& strpos( $notifications_page, "reviewReason: action === 'rechazar' ? rejectReason : undefined" ) !== false
+	strpos( $entry_review, "reviewReason: action !== 'aprobar' ? rejectReason : undefined" ) !== false
+		&& strpos( $notifications_page, "reviewReason: action !== 'aprobar' ? rejectReason : undefined" ) !== false
 		&& strpos( $supervisor_api, 'reviewReason?: string' ) !== false,
 	'payload de rechazo incluye reviewReason tipificado'
 );
@@ -125,5 +125,11 @@ check_evidence_ui_contract(
 	'tipos exponen review_reason/reviewReason'
 );
 
+foreach ( array( $entry_review, $notifications_page ) as $surface ) {
+	check_evidence_ui_contract( strpos( $surface, "setReviewMode('pausar')" ) !== false && strpos( $surface, 'PAUSE_REASON_OPTIONS' ) !== false, 'superficie permite pausar con causa' );
+	check_evidence_ui_contract( strpos( $surface, "isPaused ? 'pausar'" ) !== false, 'editar nota conserva estado en pausa' );
+}
+check_evidence_ui_contract( strpos( $wpforms_embed, 'envio final del wizard' ) === false, 'sin mensaje tecnico del wizard' );
+check_evidence_ui_contract( strpos( $wpforms_embed, 'En pausa: ${getReviewReasonLabel' ) !== false, 'docente ve estado y causa de pausa' );
 echo "\n{$tests} checks, {$fails} failures\n";
 exit( $fails ? 1 : 0 );

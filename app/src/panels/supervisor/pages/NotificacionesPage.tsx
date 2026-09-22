@@ -27,7 +27,8 @@ import { useNotificationStore } from '@/stores/useNotificationStore';
 import { useToast } from '@/components/ui/Toast';
 import { formatDateTime } from '@/utils/formatters';
 import { navigateTo } from '@/utils/url';
-import { formatEvidenceOriginalDate, getRejectionReasonLabel, REJECTION_REASON_OPTIONS } from '@/utils/evidenceReview';
+import { formatEvidenceOriginalDate, getReviewReasonLabel, REJECTION_REASON_OPTIONS, PAUSE_REASON_OPTIONS } from '@/utils/evidenceReview';
+import { PauseCircle } from 'lucide-react';
 import type { Notification, NotificationEvidenceItem, NotificationType } from '@/types';
 
 const TYPE_META: Record<NotificationType, { label: string; color: string; bg: string }> = {
@@ -38,6 +39,7 @@ const TYPE_META: Record<NotificationType, { label: string; color: string; bg: st
   evidencia_resubida: { label: 'Evidencia corregida', color: '#0369a1', bg: 'rgba(14, 116, 144, 0.14)' },
   evidencia_aprobada: { label: 'Evidencia aprobada', color: '#166534', bg: 'rgba(34, 197, 94, 0.14)' },
   evidencia_rechazada: { label: 'Evidencia rechazada', color: '#b91c1c', bg: 'rgba(239, 68, 68, 0.14)' },
+  evidencia_en_pausa: { label: 'Evidencia en pausa', color: '#92400e', bg: '#fffbeb' },
   matricula: { label: 'Matrícula', color: '#0f766e', bg: 'rgba(20, 184, 166, 0.14)' },
   general: { label: 'General', color: '#475569', bg: 'rgba(148, 163, 184, 0.18)' },
   participacion_enviada: { label: 'Participación enviada', color: '#1d4ed8', bg: 'rgba(59, 130, 246, 0.14)' },
@@ -333,24 +335,25 @@ function NotificationEvidenceCard({
 }) {
   const [reviewComment, setReviewComment] = useState('');
   const [rejectReason, setRejectReason] = useState('');
-  const [reviewMode, setReviewMode] = useState<'aprobar' | 'rechazar' | 'editar' | null>(null);
+  const [reviewMode, setReviewMode] = useState<'aprobar' | 'rechazar' | 'pausar' | 'editar' | null>(null);
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const status = evidence.estado ?? 'pendiente';
   const isApproved = status === 'aprobada';
   const isRejected = status === 'rechazada';
-  const isReviewed = isApproved || isRejected;
+  const isPaused = status === 'en_pausa';
+  const isReviewed = isApproved || isRejected || isPaused;
   const canReview = !!notification.entryId && !!notification.canReview && (!!evidence.canReview || isReviewed);
-  const reviewReasonLabel = getRejectionReasonLabel(evidence.reviewReason);
+  const reviewReasonLabel = getReviewReasonLabel(evidence.reviewReason);
 
   const mutation = useMutation({
-    mutationFn: (action: 'aprobar' | 'rechazar') => supervisorApi.reviewEvidence(notification.entryId!, evidence.evidenceIndex, {
+    mutationFn: (action: 'aprobar' | 'rechazar' | 'pausar') => supervisorApi.reviewEvidence(notification.entryId!, evidence.evidenceIndex, {
       action,
       comment: reviewComment.trim(),
-      reviewReason: action === 'rechazar' ? rejectReason : undefined,
+      reviewReason: action !== 'aprobar' ? rejectReason : undefined,
     }),
     onSuccess: async (_data, action) => {
-      toast('success', action === 'aprobar' ? 'Evidencia aprobada.' : 'Evidencia rechazada.');
+      toast('success', action === 'aprobar' ? 'Evidencia aprobada.' : action === 'pausar' ? 'Evidencia en pausa.' : 'Evidencia rechazada.');
       queryClient.invalidateQueries({ queryKey: ['supervisor-centro'] });
       queryClient.invalidateQueries({ queryKey: ['supervisor-centros'] });
       queryClient.invalidateQueries({ queryKey: ['supervisor-dashboard'] });
@@ -392,7 +395,7 @@ function NotificationEvidenceCard({
   };
 
   const submitEditedComment = () => {
-    mutation.mutate(isRejected ? 'rechazar' : 'aprobar');
+    mutation.mutate(isPaused ? 'pausar' : isRejected ? 'rechazar' : 'aprobar');
   };
 
   const statusColor = isApproved ? '#166534' : isRejected ? '#b91c1c' : '#b45309';
@@ -402,7 +405,8 @@ function NotificationEvidenceCard({
   const reviewMeta = evidence.reviewedBy !== 0 && (reviewedByName || evidence.reviewedAt)
     ? `${reviewedByName ? `Revisado por ${reviewedByName}` : 'Revisado'}${evidence.reviewedAt ? ` el ${formatDateTime(evidence.reviewedAt)}` : ''}`
     : '';
-  const showApprovalCommentForm = reviewMode === 'aprobar' || (reviewMode === 'editar' && !isRejected);
+  const showApprovalCommentForm = reviewMode === 'aprobar' || (reviewMode === 'editar' && isApproved);
+  const showPauseCommentForm = reviewMode === 'pausar' || (reviewMode === 'editar' && isPaused);
   const showRejectionCommentForm = reviewMode === 'rechazar' || (reviewMode === 'editar' && isRejected);
   const canApprove = !isApproved;
   const canReject = !isRejected;
@@ -467,7 +471,7 @@ function NotificationEvidenceCard({
           <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--gnf-space-2)', flexWrap: 'wrap' }}>
             <strong style={{ color: 'var(--gnf-ocean-dark)' }}>{evidence.questionLabel}</strong>
             <Badge color={statusColor} bg={statusBg}>
-              {isApproved ? 'Aprobada' : isRejected ? 'Rechazada' : 'Pendiente'}
+              {isApproved ? 'Aprobada' : isRejected ? 'Rechazada' : isPaused ? 'En pausa' : 'Pendiente'}
             </Badge>
             {evidence.puntos != null && evidence.puntos > 0 && (
               <Badge color="#166534" bg="rgba(34, 197, 94, 0.12)">{evidence.puntos} pts</Badge>
@@ -561,6 +565,21 @@ function NotificationEvidenceCard({
                   Rechazar
                 </Button>
               )}
+              {!isPaused && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  icon={<PauseCircle size={14} />}
+                  disabled={mutation.isPending}
+                  onClick={() => {
+                    setReviewComment(evidence.supervisorComment ?? '');
+                    setRejectReason('');
+                    setReviewMode('pausar');
+                  }}
+                >
+                  En pausa
+                </Button>
+              )}
               {isReviewed && (
                 <Button
                   variant="outline"
@@ -604,14 +623,14 @@ function NotificationEvidenceCard({
             </div>
           )}
 
-          {showRejectionCommentForm && (
+          {(showRejectionCommentForm || showPauseCommentForm) && (
             <div style={{ paddingTop: 'var(--gnf-space-1)' }}>
               <Select
-                label=""
+                label={showPauseCommentForm ? 'Motivo de pausa' : 'Motivo de rechazo'}
                 value={rejectReason}
                 onChange={(event) => setRejectReason(event.target.value)}
-                options={[...REJECTION_REASON_OPTIONS]}
-                placeholder="Selecciona el tipo de situación"
+                options={showPauseCommentForm ? [...PAUSE_REASON_OPTIONS] : [...REJECTION_REASON_OPTIONS]}
+                placeholder="Selecciona una causa"
                 style={{ marginBottom: 'var(--gnf-space-2)' }}
               />
               <Textarea
@@ -624,13 +643,13 @@ function NotificationEvidenceCard({
               />
               <div style={{ display: 'flex', gap: 'var(--gnf-space-2)', flexWrap: 'wrap' }}>
                 <Button
-                  variant="danger"
+                  variant={showPauseCommentForm ? 'outline' : 'danger'}
                   size="sm"
-                  loading={mutation.isPending && mutation.variables === 'rechazar'}
+                  loading={mutation.isPending}
                   disabled={!rejectReason || mutation.isPending}
-                  onClick={reviewMode === 'editar' ? submitEditedComment : () => mutation.mutate('rechazar')}
+                  onClick={reviewMode === 'editar' ? submitEditedComment : () => mutation.mutate(showPauseCommentForm ? 'pausar' : 'rechazar')}
                 >
-                  {reviewMode === 'editar' ? 'Guardar comentario' : 'Guardar rechazo'}
+                  {reviewMode === 'editar' ? 'Guardar comentario' : showPauseCommentForm ? 'Guardar pausa' : 'Guardar rechazo'}
                 </Button>
                 <Button
                   variant="ghost"

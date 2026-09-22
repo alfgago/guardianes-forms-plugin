@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="es">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Revision de evidencia - prueba local</title></head>
+<body><main id="preview" style="max-width:960px;margin:24px auto;padding:12px"></main>
+<script type="module">
+  import React from 'react';
+  import { createRoot } from 'react-dom/client';
+  import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query';
+  import { EntryReviewCard } from '/src/panels/supervisor/components/EntryReviewCard.tsx';
+  import { AwardSummary } from '/src/components/domain/AwardSummary.tsx';
+  import { ToastProvider } from '/src/components/ui/Toast.tsx';
+  import '/src/styles/base.css';
+  import '/src/styles/components.css';
+  import logo from '../assets/logo-guardiana.png';
+  window.__GNF_SUPERVISOR__ = { restUrl: '/mock-review', nonce: '' };
+  const h = React.createElement;
+  const params = new URLSearchParams(location.search);
+  let evidence = { field_id: 1, nombre: 'mural.jpg', url: new URL(logo, location.href).pathname, tipo: 'imagen', puntos: 10, estado: params.get('state') || 'pendiente', review_reason: params.get('state') === 'en_pausa' ? 'reto_inconcluso' : null, supervisor_comment: 'Falta mostrar el mural terminado.' };
+  window.reviewRequests = [];
+  const nativeFetch = window.fetch.bind(window);
+  window.fetch = async (input, options) => {
+    if (!String(input).startsWith('/mock-review')) return nativeFetch(input, options);
+    const body = JSON.parse(options.body);
+    window.reviewRequests.push(body);
+    evidence = { ...evidence, estado: { aprobar: 'aprobada', rechazar: 'rechazada', pausar: 'en_pausa' }[body.action], supervisor_comment: body.comment, review_reason: body.reviewReason, reviewed_by: 2, reviewed_by_name: 'Supervisora de prueba' };
+    return new Response(JSON.stringify({ success: true, evidence }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+  };
+  function Preview() {
+    const { data: ev = evidence } = useQuery({ queryKey: ['supervisor-centro', 1], queryFn: async () => ({ ...evidence }), staleTime: Infinity });
+    const entry = { id: 1, retoId: 1, retoTitulo: 'Reto Eco Mural', puntaje: 10, evidencias: [ev], responses: [{ fieldId: 1, label: 'Fotografia del mural terminado', puntos: 10, displayValue: '', type: 'file-upload', evidencias: [ev] }] };
+    const result = { rubricLabel: 'Tipo IV/V', score: 120, stars: 3, thresholds: { 1: 60, 2: 90, 3: 120, 4: 145, 5: 180 }, missingRequired: [], awards: {
+      excelencia_general: { key: 'excelencia_general', label: 'Estrella Dorada', achieved: false, missing: ['Alcanzar cinco estrellas'] },
+      dorada_turquesa: { key: 'dorada_turquesa', label: 'Estrella Turquesa', achieved: false, missing: ['Consumir productos de la huerta en el comedor'] },
+    } };
+    return h(React.Fragment, null, h(EntryReviewCard, { entry }), h(AwardSummary, { year: 2026, award: { projected: result, validated: result, rollout: { mode: 'all' } } }));
+  }
+  createRoot(document.getElementById('preview')).render(h(QueryClientProvider, { client: new QueryClient() }, h(ToastProvider, null, h(Preview))));
+</script></body></html>

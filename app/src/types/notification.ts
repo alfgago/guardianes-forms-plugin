@@ -6,6 +6,7 @@ export type NotificationType =
   | 'evidencia_resubida'
   | 'evidencia_aprobada'
   | 'evidencia_rechazada'
+  | 'evidencia_en_pausa'
   | 'matricula'
   | 'general'
   | 'participacion_enviada'

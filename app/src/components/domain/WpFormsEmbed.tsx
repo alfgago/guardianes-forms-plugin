@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/Button';
 import { EvidenceViewer } from '@/components/domain/EvidenceViewer';
 import { StatusBadge } from '@/components/domain/StatusBadge';
 import { trackClientEvent } from '@/utils/analytics';
-import { formatEvidenceOriginalDate, getEvidenceOriginalDate, getEvidenceReviewStatus, getRejectionReasonLabel } from '@/utils/evidenceReview';
+import { formatEvidenceOriginalDate, getEvidenceOriginalDate, getEvidenceReviewStatus, getRejectionReasonLabel, getReviewReasonLabel } from '@/utils/evidenceReview';
 import type { Evidencia, RetoEntry } from '@/types';
 import { CheckCircle2, ExternalLink, Save } from 'lucide-react';
 
@@ -402,6 +402,15 @@ function extractFieldValues(snapshot: Record<string, AutosaveFieldPayload>) {
 
 function getEvidenceStatus(file: Evidencia) {
   const estado = getEvidenceReviewStatus(file);
+
+  if (estado === 'en_pausa') {
+    return {
+      label: `En pausa: ${getReviewReasonLabel(file.review_reason) || 'Pendiente de completar'}`,
+      color: '#92400e',
+      background: '#fffbeb',
+      border: '#fcd34d',
+    };
+  }
 
   if (estado === 'rechazada') {
     return {
@@ -1334,7 +1343,7 @@ export function WpFormsEmbed({ retoId, year }: WpFormsEmbedProps) {
     const activeEvidenceByField = new Set<string>();
 
     evidenceList.forEach((item) => {
-      if (item.replaced || item.estado === 'rechazada') {
+      if (item.replaced || item.estado === 'rechazada' || item.estado === 'en_pausa') {
         return;
       }
 
@@ -1469,9 +1478,6 @@ export function WpFormsEmbed({ retoId, year }: WpFormsEmbedProps) {
                   </span>
                 </div>
                 <h4 style={{ margin: 0, color: data.reto.color || 'var(--gnf-forest)' }}>{data.reto.titulo}</h4>
-                <p style={{ margin: 'var(--gnf-space-2) 0 0', color: 'var(--gnf-gray-600)', maxWidth: 720 }}>
-                  Completa las actividades poco a poco. Todo lo que subas o respondas queda guardado y el envio final del wizard solo notifica a supervision y comite.
-                </p>
               </div>
             </div>
 

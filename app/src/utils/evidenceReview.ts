@@ -1,6 +1,16 @@
 import type { Evidencia } from '@/types';
 
-export type EvidenceReviewAction = 'aprobar' | 'rechazar';
+export type EvidenceReviewAction = 'aprobar' | 'rechazar' | 'pausar';
+
+export const PAUSE_REASON_OPTIONS = [
+  { value: 'reto_inconcluso', label: 'Reto inconcluso' },
+  { value: 'subir_requisito', label: 'Subir requisito' },
+  { value: 'no_concluyente', label: 'No es concluyente' },
+] as const;
+
+export function getReviewReasonLabel(reason?: string | null) {
+  return [...REJECTION_REASON_OPTIONS, ...PAUSE_REASON_OPTIONS].find((option) => option.value === reason)?.label ?? '';
+}
 
 export const REJECTION_REASON_OPTIONS = [
   { value: 'no_corresponde', label: 'Evidencia no corresponde.' },

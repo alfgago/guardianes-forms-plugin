@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { CheckCircle2, FileText, PencilLine, Upload, XCircle } from 'lucide-react';
+import { CheckCircle2, FileText, PauseCircle, PencilLine, Upload, XCircle } from 'lucide-react';
 import { supervisorApi } from '@/api/supervisor';
 import { EvidenceViewer } from '@/components/domain/EvidenceViewer';
 import { Button } from '@/components/ui/Button';
@@ -12,7 +12,8 @@ import {
   formatEvidenceOriginalDate,
   getEvidenceOriginalDate,
   getEvidenceReviewStatus,
-  getRejectionReasonLabel,
+  getReviewReasonLabel,
+  PAUSE_REASON_OPTIONS,
   REJECTION_REASON_OPTIONS,
 } from '@/utils/evidenceReview';
 
@@ -224,16 +225,17 @@ function EvidenceReviewItem({
 }) {
   const [reviewComment, setReviewComment] = useState('');
   const [rejectReason, setRejectReason] = useState('');
-  const [reviewMode, setReviewMode] = useState<'aprobar' | 'rechazar' | 'editar' | null>(null);
+  const [reviewMode, setReviewMode] = useState<'aprobar' | 'rechazar' | 'pausar' | 'editar' | null>(null);
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
   const effectivePuntos = evidence.puntos ?? fieldPuntos;
-  const hasPuntos = effectivePuntos != null && effectivePuntos > 0;
+  const hasPuntos = effectivePuntos != null && effectivePuntos >= 0;
   const estado = getEvidenceReviewStatus(evidence);
   const isRejected = estado === 'rechazada';
   const isApproved = estado === 'aprobada';
-  const isReviewed = isApproved || isRejected;
+  const isPaused = estado === 'en_pausa';
+  const isReviewed = isApproved || isRejected || isPaused;
   const imgUrl = evidence.ruta || evidence.url || '';
   const isImage = (evidence.tipo ?? evidence.type) === 'imagen';
   const nombre = evidence.nombre ?? evidence.filename ?? 'Archivo';
@@ -241,7 +243,7 @@ function EvidenceReviewItem({
   const originalDate = getEvidenceOriginalDate(evidence);
   const dateDisplay = formatEvidenceOriginalDate(originalDate);
   const isAutoRejected = isRejected && evidence.reviewed_by === 0;
-  const reviewReasonLabel = getRejectionReasonLabel(evidence.review_reason);
+  const reviewReasonLabel = getReviewReasonLabel(evidence.review_reason);
   const reviewerName = evidence.reviewed_by_name?.trim();
   const reviewedDate = evidence.reviewed_at
     ? new Date(evidence.reviewed_at).toLocaleDateString('es-CR')
@@ -251,16 +253,20 @@ function EvidenceReviewItem({
     : '';
 
   const mutation = useMutation({
-    mutationFn: (action: 'aprobar' | 'rechazar') =>
+    mutationFn: (action: 'aprobar' | 'rechazar' | 'pausar') =>
       supervisorApi.reviewEvidence(entryId, evidenceIndex, {
         action,
         comment: reviewComment.trim(),
-        reviewReason: action === 'rechazar' ? rejectReason : undefined,
+        reviewReason: action !== 'aprobar' ? rejectReason : undefined,
       }),
     onSuccess: (_, action) => {
-      toast('success', action === 'aprobar' ? 'Evidencia aprobada.' : 'Evidencia rechazada.');
+      toast('success', action === 'aprobar' ? 'Evidencia aprobada.' : action === 'pausar' ? 'Evidencia en pausa.' : 'Evidencia rechazada.');
       queryClient.invalidateQueries({ queryKey: ['supervisor-centro'] });
       queryClient.invalidateQueries({ queryKey: ['supervisor-centros'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-centro-supervisor'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-centros'] });
+      queryClient.invalidateQueries({ queryKey: ['supervisor-dashboard'] });
+      queryClient.invalidateQueries({ queryKey: ['notifications'] });
       setReviewComment('');
       setRejectReason('');
       setReviewMode(null);
@@ -293,7 +299,7 @@ function EvidenceReviewItem({
   };
 
   const submitEditedComment = () => {
-    mutation.mutate(isRejected ? 'rechazar' : 'aprobar');
+    mutation.mutate(isPaused ? 'pausar' : isRejected ? 'rechazar' : 'aprobar');
   };
 
   if (entryId === 0 || !hasPuntos) {
@@ -371,7 +377,8 @@ function EvidenceReviewItem({
     : isRejected
       ? 'rgba(239, 107, 74, 0.04)'
       : 'var(--gnf-white)';
-  const showApprovalCommentForm = reviewMode === 'aprobar' || (reviewMode === 'editar' && !isRejected);
+  const showApprovalCommentForm = reviewMode === 'aprobar' || (reviewMode === 'editar' && isApproved);
+  const showPauseCommentForm = reviewMode === 'pausar' || (reviewMode === 'editar' && isPaused);
   const showRejectionCommentForm = reviewMode === 'rechazar' || (reviewMode === 'editar' && isRejected);
   const canApprove = !isApproved;
   const canReject = !isRejected;
@@ -381,6 +388,7 @@ function EvidenceReviewItem({
       style={{
         display: 'flex',
         gap: 'var(--gnf-space-4)',
+        flexWrap: 'wrap',
         padding: 'var(--gnf-space-4)',
         border: `1px solid ${borderColor}`,
         borderRadius: 'var(--gnf-radius)',
@@ -424,7 +432,7 @@ function EvidenceReviewItem({
         )}
       </div>
 
-      <div style={{ flex: 1, minWidth: 0 }}>
+      <div style={{ flex: '1 1 220px', minWidth: 0 }}>
         <div
           style={{
             display: 'flex',
@@ -477,7 +485,7 @@ function EvidenceReviewItem({
               color: isApproved ? 'var(--gnf-forest)' : isRejected ? 'var(--gnf-coral)' : '#b45309',
             }}
           >
-            {isApproved ? 'Aprobada' : isRejected ? 'Rechazada' : 'Pendiente'}
+            {isApproved ? 'Aprobada' : isRejected ? 'Rechazada' : isPaused ? 'En pausa' : 'Pendiente'}
           </span>
         </div>
 
@@ -567,6 +575,21 @@ function EvidenceReviewItem({
                 </Button>
               )}
 
+              {!isPaused && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  icon={<PauseCircle size={14} />}
+                  disabled={mutation.isPending}
+                  onClick={() => {
+                    setReviewComment(evidence.supervisor_comment ?? '');
+                    setRejectReason('');
+                    setReviewMode('pausar');
+                  }}
+                >
+                  En pausa
+                </Button>
+              )}
               {isReviewed && (
                 <Button
                   variant="outline"
@@ -613,14 +636,14 @@ function EvidenceReviewItem({
             </div>
           )}
 
-          {showRejectionCommentForm && (
+          {(showRejectionCommentForm || showPauseCommentForm) && (
             <div style={{ width: '100%', marginTop: 'var(--gnf-space-2)' }}>
               <Select
-                label=""
+                label={showPauseCommentForm ? 'Motivo de pausa' : 'Motivo de rechazo'}
                 value={rejectReason}
                 onChange={(event) => setRejectReason(event.target.value)}
-                options={[...REJECTION_REASON_OPTIONS]}
-                placeholder="Selecciona el tipo de situación"
+                options={showPauseCommentForm ? [...PAUSE_REASON_OPTIONS] : [...REJECTION_REASON_OPTIONS]}
+                placeholder="Selecciona una causa"
                 style={{ marginBottom: 'var(--gnf-space-2)' }}
               />
               <Textarea
@@ -633,14 +656,14 @@ function EvidenceReviewItem({
               />
               <div style={{ display: 'flex', gap: 'var(--gnf-space-2)', marginTop: 4 }}>
                 <Button
-                  variant="danger"
+                  variant={showPauseCommentForm ? 'outline' : 'danger'}
                   size="sm"
-                  loading={mutation.isPending && mutation.variables === 'rechazar'}
-                  onClick={reviewMode === 'editar' ? submitEditedComment : () => mutation.mutate('rechazar')}
+                  loading={mutation.isPending}
+                  onClick={reviewMode === 'editar' ? submitEditedComment : () => mutation.mutate(showPauseCommentForm ? 'pausar' : 'rechazar')}
                   disabled={!rejectReason || mutation.isPending}
                   style={{ fontSize: '0.75rem' }}
                 >
-                  {reviewMode === 'editar' ? 'Guardar comentario' : 'Guardar rechazo'}
+                  {reviewMode === 'editar' ? 'Guardar comentario' : showPauseCommentForm ? 'Guardar pausa' : 'Guardar rechazo'}
                 </Button>
                 <Button
                   variant="ghost"

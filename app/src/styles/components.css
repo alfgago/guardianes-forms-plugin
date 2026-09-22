@@ -718,7 +718,7 @@
   color: #fff; border-radius: 5px; min-height: 44px; cursor: pointer;
 }
 .gnf-docente-summary__report:disabled { opacity: .6; cursor: default; }
-.gnf-docente-summary__counts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px; margin: 28px 0 22px; }
+.gnf-docente-summary__counts { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 24px; margin: 28px 0 22px; }
 .gnf-docente-summary__counts > div, .gnf-docente-summary__counts > button {
   display: grid; grid-template-columns: 24px auto minmax(0, 1fr); gap: 12px; align-items: center;
   padding: 12px 0; border: 0; background: transparent; color: inherit; text-align: left;

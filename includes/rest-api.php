@@ -784,6 +784,7 @@ function gnf_rest_build_centro_with_stats( $centro_id, $anio, $counts = array(),
 	$ev_pendientes = 0;
 	$ev_aprobadas  = 0;
 	$ev_rechazadas = 0;
+	$ev_pausadas   = 0;
 	$ev_total      = 0;
 	foreach ( $ev_rows as $ev_json ) {
 		$evs = json_decode( $ev_json, true );
@@ -795,6 +796,7 @@ function gnf_rest_build_centro_with_stats( $centro_id, $anio, $counts = array(),
 			$est = $ev['estado'] ?? 'pendiente';
 			if ( 'aprobada' === $est ) $ev_aprobadas++;
 			elseif ( 'rechazada' === $est ) $ev_rechazadas++;
+			elseif ( 'en_pausa' === $est ) $ev_pausadas++;
 			else $ev_pendientes++;
 		}
 	}
@@ -811,6 +813,7 @@ function gnf_rest_build_centro_with_stats( $centro_id, $anio, $counts = array(),
 			'evPendientes'   => $ev_pendientes,
 			'evAprobadas'    => $ev_aprobadas,
 			'evRechazadas'   => $ev_rechazadas,
+			'evPausadas'     => $ev_pausadas,
 			'evTotal'        => $ev_total,
 			'canImpersonateDocente' => '' !== $docente_impersonate_url,
 			'docenteImpersonateUrl' => $docente_impersonate_url,
@@ -3109,7 +3112,7 @@ function gnf_rest_supervisor_centro_detail( WP_REST_Request $request ) {
  * Supervisor reviews an individual evidence (approve or reject).
  *
  * POST /gnf/v1/supervisor/evidence/{entry_id}/{evidence_index}
- * Body: { "action": "aprobar"|"rechazar", "comment": "string", "reviewReason": "string" }
+ * Body: { "action": "aprobar"|"rechazar"|"pausar", "comment": "string", "reviewReason": "string" }
  */
 function gnf_rest_supervisor_review_evidence( WP_REST_Request $request ) {
 	$entry_id      = (int) $request->get_param( 'entry_id' );
@@ -3118,8 +3121,11 @@ function gnf_rest_supervisor_review_evidence( WP_REST_Request $request ) {
 	$comment       = sanitize_textarea_field( $request->get_param( 'comment' ) ?? '' );
 	$review_reason = sanitize_key( $request->get_param( 'reviewReason' ) ?? $request->get_param( 'review_reason' ) ?? '' );
 
-	if ( ! in_array( $action, array( 'aprobar', 'rechazar' ), true ) ) {
-		return new WP_Error( 'invalid_action', 'Acción inválida. Use "aprobar" o "rechazar".', array( 'status' => 400 ) );
+	if ( ! in_array( $action, array( 'aprobar', 'rechazar', 'pausar' ), true ) ) {
+		return new WP_Error( 'invalid_action', 'Acción inválida. Use "aprobar", "rechazar" o "pausar".', array( 'status' => 400 ) );
+	}
+	if ( 'pausar' === $action && ! gnf_is_valid_evidence_pause_reason( $review_reason ) ) {
+		return new WP_Error( 'missing_review_reason', 'Selecciona un motivo para pausar la evidencia.', array( 'status' => 400 ) );
 	}
 	if ( 'rechazar' === $action && ( ! function_exists( 'gnf_is_valid_evidence_rejection_reason' ) || ! gnf_is_valid_evidence_rejection_reason( $review_reason ) ) ) {
 		return new WP_Error( 'missing_review_reason', 'Selecciona un motivo para rechazar la evidencia.', array( 'status' => 400 ) );
@@ -3161,9 +3167,9 @@ function gnf_rest_supervisor_review_evidence( WP_REST_Request $request ) {
 	$reviewer = get_userdata( $user_id );
 	$reviewer_name = ( $reviewer && $reviewer->display_name ) ? (string) $reviewer->display_name : 'Supervisor';
 
-	$evidencias[ $ev_index ]['estado']             = 'aprobar' === $action ? 'aprobada' : 'rechazada';
+	$evidencias[ $ev_index ]['estado']             = array( 'aprobar' => 'aprobada', 'rechazar' => 'rechazada', 'pausar' => 'en_pausa' )[ $action ];
 	$evidencias[ $ev_index ]['supervisor_comment']  = $comment ?: null;
-	$evidencias[ $ev_index ]['review_reason']      = 'rechazar' === $action ? $review_reason : null;
+	$evidencias[ $ev_index ]['review_reason']      = 'aprobar' !== $action ? $review_reason : null;
 	$evidencias[ $ev_index ]['reviewed_by']         = $user_id;
 	$evidencias[ $ev_index ]['reviewed_by_name']    = $reviewer_name;
 	$evidencias[ $ev_index ]['reviewed_at']         = $now;
@@ -3200,8 +3206,8 @@ function gnf_rest_supervisor_review_evidence( WP_REST_Request $request ) {
 			$entry_id
 		);
 	} else {
-		$reason_label = function_exists( 'gnf_get_evidence_rejection_reason_label' ) ? gnf_get_evidence_rejection_reason_label( $review_reason ) : '';
-		$message      = sprintf( 'Tu evidencia "%s" del reto "%s" fue rechazada por %s.', $ev_nombre, $reto_title, $reviewer_name );
+		$reason_label = gnf_get_evidence_review_reason_label( $review_reason );
+		$message      = sprintf( 'pausar' === $action ? 'Tu evidencia "%s" del reto "%s" fue puesta en pausa por %s.' : 'Tu evidencia "%s" del reto "%s" fue rechazada por %s.', $ev_nombre, $reto_title, $reviewer_name );
 		if ( '' !== $reason_label ) {
 			$message .= ' Motivo: ' . $reason_label;
 		}
@@ -3210,7 +3216,7 @@ function gnf_rest_supervisor_review_evidence( WP_REST_Request $request ) {
 		}
 		gnf_insert_notification(
 			$entry->user_id,
-			'evidencia_rechazada',
+			'pausar' === $action ? 'evidencia_en_pausa' : 'evidencia_rechazada',
 			$message,
 			$notification_relation_type,
 			$entry_id
@@ -3218,14 +3224,14 @@ function gnf_rest_supervisor_review_evidence( WP_REST_Request $request ) {
 	}
 
 	gnf_log_audit_event(
-		'aprobar' === $action ? 'supervisor_approve_evidence' : 'supervisor_reject_evidence',
+		array( 'aprobar' => 'supervisor_approve_evidence', 'rechazar' => 'supervisor_reject_evidence', 'pausar' => 'supervisor_pause_evidence' )[ $action ],
 		array(
 			'actor_user_id'  => $user_id,
 			'centro_id'      => (int) $entry->centro_id,
 			'reto_id'        => (int) $entry->reto_id,
 			'anio'           => (int) $entry->anio,
 			'panel'          => 'supervisor',
-			'message'        => sprintf( '%s %s evidencia.', $reviewer_name, 'aprobar' === $action ? 'aprobó' : 'rechazó' ),
+			'message'        => sprintf( '%s %s evidencia.', $reviewer_name, array( 'aprobar' => 'aprobó', 'rechazar' => 'rechazó', 'pausar' => 'puso en pausa' )[ $action ] ),
 			'meta'           => array(
 				'entry_id'       => $entry_id,
 				'evidence_index' => $ev_index,

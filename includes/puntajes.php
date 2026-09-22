@@ -59,7 +59,7 @@ function gnf_calcular_puntaje_por_campos( $entry_row ) {
 
 		$all_file_fields[ $field_id ] = true;
 		$estado = (string) ( $ev['estado'] ?? 'pendiente' );
-		if ( empty( $ev['replaced'] ) && 'rechazada' !== $estado ) {
+		if ( empty( $ev['replaced'] ) && ! in_array( $estado, array( 'rechazada', 'en_pausa' ), true ) ) {
 			$files_by_field[ $field_id ] = true;
 		}
 	}

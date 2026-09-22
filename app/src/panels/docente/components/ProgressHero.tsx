@@ -1,4 +1,4 @@
-import { CheckCircle2, Clock3, Download, Star, CircleAlert } from 'lucide-react';
+import { CheckCircle2, Clock3, Download, Star, CircleAlert, PauseCircle } from 'lucide-react';
 import { ProgressBar } from '@/components/ui/ProgressBar';
 import type { AssignedAward } from '@/types';
 
@@ -6,7 +6,7 @@ interface ProgressHeroProps {
   anio: number;
   retosCount: number;
   puntajeTotal: number;
-  evidenceCounts: { pending: number; approved: number; rejected: number; total: number };
+  evidenceCounts: { pending: number; approved: number; rejected: number; paused?: number; total: number };
   assignedAward?: AssignedAward | null;
   reportPdfUrl?: string;
   reportPdfStatus?: 'draft' | 'final';
@@ -51,6 +51,7 @@ export function ProgressHero({ anio, retosCount, puntajeTotal, evidenceCounts, a
         <button type="button" onClick={onViewRejected} disabled={!onViewRejected || evidenceCounts.rejected === 0} className={evidenceCounts.rejected > 0 ? 'has-rejections' : ''}>
           <CircleAlert aria-hidden="true" /><strong>{evidenceCounts.rejected}</strong><span>Evidencias rechazadas</span>
         </button>
+        <div><PauseCircle aria-hidden="true" /><strong>{evidenceCounts.paused ?? 0}</strong><span>Evidencias en pausa</span></div>
       </div>
       <ProgressBar value={evidenceCounts.approved} max={Math.max(1, evidenceCounts.total)} color="var(--gnf-leaf)" height={8} />
       <small className="gnf-docente-summary__progress">{evidenceCounts.total > 0 ? `${percentage}% de las evidencias aprobadas` : 'Aún no hay evidencias registradas'}</small>

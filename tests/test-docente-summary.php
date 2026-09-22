@@ -32,7 +32,7 @@ if ( function_exists( 'gnf_summarize_docente_entries' ) ) {
 		(object) array( 'reto_id' => 3, 'estado' => 'aprobado', 'evidencias' => '[{"ruta":"/excluded","estado":"aprobada"}]' ),
 	);
 	$result = gnf_summarize_docente_entries( $entries, array( 1, 2 ) );
-	verify_summary( array( 'pending' => 1, 'approved' => 1, 'rejected' => 1, 'total' => 3 ) === $result['evidenceCounts'], 'Counts individual active evidence, including zero points; excludes replaced and unselected retos' );
+	verify_summary( array( 'pending' => 1, 'approved' => 1, 'rejected' => 1, 'paused' => 0, 'total' => 3 ) === $result['evidenceCounts'], 'Counts individual active evidence, including zero points; excludes replaced and unselected retos' );
 	verify_summary( 1 === $result['aprobados'] && 1 === $result['en_progreso'], 'Counts singular entry states once' );
 	verify_summary( ! $result['allComplete'], 'Partial selection is not complete' );
 	verify_summary( ! gnf_summarize_docente_entries( array(), array() )['allComplete'], 'Empty selection is not final' );

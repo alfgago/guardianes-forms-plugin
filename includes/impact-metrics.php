@@ -594,8 +594,11 @@ function gnf_build_impact_entry_record( $entry, $anio ) {
 			continue;
 		}
 		$state = (string) ( $evidence['estado'] ?? 'pendiente' );
-		if ( 'rechazada' !== $state ) {
+		if ( ! in_array( $state, array( 'rechazada', 'en_pausa' ), true ) ) {
 			$active = true;
+		}
+		if ( 'en_pausa' === $state ) {
+			$approved = false;
 		}
 	}
 

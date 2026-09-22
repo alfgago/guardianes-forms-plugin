@@ -90,7 +90,7 @@ function gnf_notification_should_include_evidence( $notification_type, $relation
 	$file_mentioned   = '' !== $file_name && false !== strpos( (string) $message, $file_name );
 	$comment_mentioned = '' !== $comment && false !== strpos( (string) $message, $comment );
 
-	if ( in_array( (string) $notification_type, array( 'evidencia_aprobada', 'evidencia_rechazada' ), true ) ) {
+	if ( in_array( (string) $notification_type, array( 'evidencia_aprobada', 'evidencia_rechazada', 'evidencia_en_pausa' ), true ) ) {
 		return $file_mentioned;
 	}
 	if ( $file_mentioned || $comment_mentioned ) {
@@ -124,7 +124,7 @@ function gnf_filter_notification_evidences( $notification_type, $relation_type, 
 	}
 
 	$requires_unique_match = '' !== gnf_get_notification_evidence_scope_key( $relation_type )
-		|| in_array( (string) $notification_type, array( 'evidencia_aprobada', 'evidencia_rechazada' ), true );
+		|| in_array( (string) $notification_type, array( 'evidencia_aprobada', 'evidencia_rechazada', 'evidencia_en_pausa' ), true );
 	if ( $requires_unique_match && 1 !== count( $matches ) ) {
 		return array();
 	}

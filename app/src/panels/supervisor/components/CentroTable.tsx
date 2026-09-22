@@ -82,7 +82,8 @@ export function CentroTable({ centros, onViewDetail, emptyMessage = 'No hay cent
           return <span style={{ fontSize: '0.8125rem', color: 'var(--gnf-muted)' }}>Sin evidencias</span>;
         }
         return (
-          <div style={{ display: 'flex', gap: 6, alignItems: 'center', fontSize: '0.8125rem' }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center', fontSize: '0.8125rem' }}>
+            {(c.evPausadas ?? 0) > 0 && <Badge color="#92400e" bg="#fffbeb">{c.evPausadas} en pausa</Badge>}
             {pending > 0 && <Badge color="#b45309" bg="rgba(245, 158, 11, 0.12)">{pending} pendientes</Badge>}
             {rejected > 0 && <Badge color="#dc2626" bg="rgba(239, 107, 74, 0.12)">{rejected} rechazadas</Badge>}
             {pending === 0 && rejected === 0 && approved === total && (

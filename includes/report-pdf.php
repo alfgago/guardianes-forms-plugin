@@ -128,6 +128,7 @@ function gnf_report_status_label( $status ) {
 		'aprobada'       => 'Aprobada',
 		'enviado'        => 'En revisión',
 		'pendiente'      => 'Pendiente',
+		'en_pausa'       => 'En pausa',
 		'correccion'     => 'Requiere corrección',
 		'rechazada'      => 'Rechazada',
 		'en_progreso'    => 'En progreso',
@@ -533,7 +534,7 @@ function gnf_render_center_report_html( $report ) {
 			if ( '' !== $url ) {
 				$html .= '<div><a href="' . gnf_report_html_escape( $url ) . '">Abrir archivo original</a></div>';
 			}
-			$reason = gnf_report_rejection_reason_label( $evidence['review_reason'] ?? '' );
+			$reason = function_exists( 'gnf_get_evidence_review_reason_label' ) ? gnf_get_evidence_review_reason_label( $evidence['review_reason'] ?? '' ) : gnf_report_rejection_reason_label( $evidence['review_reason'] ?? '' );
 			if ( '' !== $reason ) {
 				$html .= '<div class="note"><strong>Motivo:</strong> ' . gnf_report_html_escape( $reason ) . '</div>';
 			}

@@ -4303,6 +4303,7 @@ function gnf_get_reto_entry_computed_status( $entry ) {
 
 	$aprobadas  = 0;
 	$rechazadas = 0;
+	$pausadas   = 0;
 	$pendientes = 0;
 	$total      = 0;
 
@@ -4319,6 +4320,8 @@ function gnf_get_reto_entry_computed_status( $entry ) {
 			$aprobadas++;
 		} elseif ( 'rechazada' === $estado ) {
 			$rechazadas++;
+		} elseif ( 'en_pausa' === $estado ) {
+			$pausadas++;
 		} else {
 			$pendientes++;
 		}
@@ -4331,6 +4334,7 @@ function gnf_get_reto_entry_computed_status( $entry ) {
 			'label'      => 'Sin evidencias',
 			'aprobadas'  => 0,
 			'rechazadas' => 0,
+			'pausadas'   => 0,
 			'pendientes' => 0,
 			'total'      => 0,
 		);
@@ -4344,6 +4348,10 @@ function gnf_get_reto_entry_computed_status( $entry ) {
 		$status = 'requiere_atencion';
 		$badge  = 'coral';
 		$label  = 'Requiere atención';
+	} elseif ( $pausadas > 0 ) {
+		$status = 'requiere_atencion';
+		$badge  = 'sun';
+		$label  = 'Evidencias en pausa';
 	} else {
 		$status = 'en_progreso';
 		$badge  = 'sun';
@@ -4356,6 +4364,7 @@ function gnf_get_reto_entry_computed_status( $entry ) {
 		'label'      => $label,
 		'aprobadas'  => $aprobadas,
 		'rechazadas' => $rechazadas,
+		'pausadas'   => $pausadas,
 		'pendientes' => $pendientes,
 		'total'      => $total,
 	);
@@ -4480,6 +4489,7 @@ function gnf_build_notification_evidence_items( $item, $entry ) {
 		'evidencia_resubida',
 		'evidencia_aprobada',
 		'evidencia_rechazada',
+		'evidencia_en_pausa',
 		'invalid_photo_date',
 		'correccion',
 	);

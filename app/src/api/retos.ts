@@ -23,7 +23,7 @@ interface DocenteDashboard {
   reportPdfUrl?: string;
   reportPdfStatus?: 'draft' | 'final';
   assignedAward?: AssignedAward | null;
-  evidenceCounts: { pending: number; approved: number; rejected: number; total: number };
+  evidenceCounts: { pending: number; approved: number; rejected: number; paused?: number; total: number };
 }
 
 interface WizardStep {

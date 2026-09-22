@@ -7,7 +7,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 function gnf_summarize_docente_entries( $entries, $selected_ids ) {
 	$selected = array_fill_keys( array_map( 'intval', (array) $selected_ids ), true );
 	$result = array( 'aprobados' => 0, 'enviados' => 0, 'correccion' => 0, 'en_progreso' => 0,
-		'evidenceCounts' => array( 'pending' => 0, 'approved' => 0, 'rejected' => 0, 'total' => 0 ) );
+		'evidenceCounts' => array( 'pending' => 0, 'approved' => 0, 'rejected' => 0, 'paused' => 0, 'total' => 0 ) );
 	$reviewed_ids = array();
 	foreach ( (array) $entries as $entry ) {
 		if ( ! isset( $selected[ (int) $entry->reto_id ] ) ) {
@@ -26,7 +26,7 @@ function gnf_summarize_docente_entries( $entries, $selected_ids ) {
 				continue;
 			}
 			$state = $evidence['estado'] ?? 'pendiente';
-			$key = 'aprobada' === $state ? 'approved' : ( 'rechazada' === $state ? 'rejected' : 'pending' );
+			$key = array( 'aprobada' => 'approved', 'rechazada' => 'rejected', 'en_pausa' => 'paused' )[ $state ] ?? 'pending';
 			$result['evidenceCounts'][ $key ]++;
 			$result['evidenceCounts']['total']++;
 			$entry_total++;

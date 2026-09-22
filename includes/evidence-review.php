@@ -27,6 +27,23 @@ function gnf_get_evidence_rejection_reasons() {
  * @param string $reason Reason key.
  * @return bool
  */
+function gnf_get_evidence_pause_reasons() {
+	return array(
+		'reto_inconcluso' => 'Reto inconcluso',
+		'subir_requisito' => 'Subir requisito',
+		'no_concluyente' => 'No es concluyente',
+	);
+}
+
+function gnf_is_valid_evidence_pause_reason( $reason ) {
+	return array_key_exists( trim( (string) $reason ), gnf_get_evidence_pause_reasons() );
+}
+
+function gnf_get_evidence_review_reason_label( $reason ) {
+	$reasons = gnf_get_evidence_rejection_reasons() + gnf_get_evidence_pause_reasons();
+	return $reasons[ trim( (string) $reason ) ] ?? '';
+}
+
 function gnf_is_valid_evidence_rejection_reason( $reason ) {
 	$reason = trim( (string) $reason );
 	return '' !== $reason && array_key_exists( $reason, gnf_get_evidence_rejection_reasons() );

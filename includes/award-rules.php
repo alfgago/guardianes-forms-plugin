@@ -217,8 +217,8 @@ function gnf_evaluate_award( $input ) {
 		'baseEligible'   => $base_eligible,
 		'missingRequired'=> $missing_required,
 		'awards'         => array(
-			'excelencia_general' => gnf_award_result_item( 'excelencia_general', 'Excelencia general', $excellence_requirements ),
-			'dorada_turquesa'    => gnf_award_result_item( 'dorada_turquesa', 'Estrella Dorada / Turquesa', $food_requirements ),
+			'excelencia_general' => gnf_award_result_item( 'excelencia_general', 'Estrella Dorada', $excellence_requirements ),
+			'dorada_turquesa'    => gnf_award_result_item( 'dorada_turquesa', 'Estrella Turquesa', $food_requirements ),
 			'plata_residuos'     => gnf_award_result_item( 'plata_residuos', 'Estrella Plata - Residuos', $waste_requirements ),
 			'naranja_bienestar'  => gnf_award_result_item( 'naranja_bienestar', 'Estrella Naranja - Bienestar animal', $animal_requirements ),
 		),
@@ -235,7 +235,7 @@ function gnf_award_evidence_qualifies( $evidence, $mode ) {
 		return false;
 	}
 	$state = (string) ( $evidence['estado'] ?? 'pendiente' );
-	return 'validated' === $mode ? 'aprobada' === $state : 'rechazada' !== $state;
+	return 'validated' === $mode ? 'aprobada' === $state : ! in_array( $state, array( 'rechazada', 'en_pausa' ), true );
 }
 
 function gnf_award_entry_has_evidence( $entry, $mode, $label_contains = '' ) {
@@ -483,10 +483,21 @@ function gnf_get_center_award_result( $centro_id, $anio, $mode = 'projected' ) {
 
 function gnf_get_stored_center_award_result( $centro_id, $anio, $mode = 'projected' ) {
 	$result = get_post_meta( absint( $centro_id ), '_gnf_award_' . absint( $anio ) . '_' . ( 'validated' === $mode ? 'validated' : 'projected' ), true );
-	return is_array( $result ) ? $result : array();
+	return is_array( $result ) ? gnf_normalize_award_labels( $result ) : array();
+}
+
+function gnf_normalize_award_labels( $result ) {
+	// Keep persisted keys stable; this is a naming correction, not a new rubric.
+	foreach ( array( 'excelencia_general' => 'Estrella Dorada', 'dorada_turquesa' => 'Estrella Turquesa' ) as $key => $label ) {
+		if ( isset( $result['awards'][ $key ] ) ) {
+			$result['awards'][ $key ]['label'] = $label;
+		}
+	}
+	return $result;
 }
 
 function gnf_award_result_fingerprint( $result ) {
+	$result = gnf_normalize_award_labels( $result );
 	unset( $result['generatedAt'] );
 	return hash( 'sha256', json_encode( $result ) );
 }
@@ -504,6 +515,7 @@ function gnf_get_assigned_center_award( $centro_id, $anio ) {
 		gnf_log_audit_event( 'award_assignment_invalidated', array( 'centro_id' => $centro_id, 'anio' => $anio, 'message' => 'El resultado validado cambió; requiere nueva asignación.' ) );
 		return array();
 	}
+	$assigned['result'] = gnf_normalize_award_labels( $assigned['result'] );
 	return $assigned;
 }
 

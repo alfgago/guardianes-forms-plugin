@@ -41,6 +41,15 @@ if ( function_exists( 'gnf_evaluate_award' ) ) {
 		)
 	);
 	check_award_rule( 'small' === $small['rubricKey'], 'Tipo IV usa rubrica de centros pequenos' );
+	check_award_rule( 'Estrella Dorada' === $small['awards']['excelencia_general']['label'], 'excelencia se presenta como Estrella Dorada' );
+	check_award_rule( 'Estrella Turquesa' === $small['awards']['dorada_turquesa']['label'], 'seguridad alimentaria se presenta solo como Estrella Turquesa' );
+	$legacy = $small;
+	$legacy['awards']['excelencia_general']['label'] = 'Excelencia general';
+	$legacy['awards']['dorada_turquesa']['label'] = 'Estrella Dorada / Turquesa';
+	$renamed = $small;
+	$renamed['awards']['excelencia_general']['label'] = 'Estrella Dorada';
+	$renamed['awards']['dorada_turquesa']['label'] = 'Estrella Turquesa';
+	check_award_rule( gnf_award_result_fingerprint( $legacy ) === gnf_award_result_fingerprint( $renamed ), 'corregir nombres no revoca un galardon asignado' );
 	check_award_rule( 4 === $small['stars'], '145 puntos entrega cuatro estrellas en rubrica pequena' );
 	check_award_rule( array( 60, 90, 120, 145, 180 ) === array_values( $small['thresholds'] ), 'umbrales pequenos coinciden con rubrica' );
 

@@ -92,6 +92,7 @@ export interface CentroWithStats extends Centro {
   evPendientes: number;
   evAprobadas: number;
   evRechazadas: number;
+  evPausadas?: number;
   evTotal: number;
   validado?: boolean;
   comiteStatus?: string;
