@@ -1412,7 +1412,7 @@ function gnf_clear_docente_centro_assignment( $user_id, $centro_id = 0 ) {
  */
 function gnf_insert_notification($user_id, $tipo, $mensaje, $relacion_tipo = '', $relacion_id = 0)
 {
-	if ( gnf_user_receives_only_rejections( $user_id ) && ! in_array( $tipo, array( 'evidencia_rechazada', 'invalid_photo_date', 'correccion' ), true ) ) {
+	if ( gnf_user_receives_only_rejections( $user_id ) && ! in_array( $tipo, gnf_get_docente_action_notification_types(), true ) ) {
 		return;
 	}
 	global $wpdb;
@@ -1446,7 +1446,7 @@ function gnf_insert_notification($user_id, $tipo, $mensaje, $relacion_tipo = '',
  * @return int ID de la notificación afectada.
  */
 function gnf_insert_or_refresh_notification( $user_id, $tipo, $mensaje, $relacion_tipo = '', $relacion_id = 0 ) {
-	if ( gnf_user_receives_only_rejections( $user_id ) && ! in_array( $tipo, array( 'evidencia_rechazada', 'invalid_photo_date', 'correccion' ), true ) ) {
+	if ( gnf_user_receives_only_rejections( $user_id ) && ! in_array( $tipo, gnf_get_docente_action_notification_types(), true ) ) {
 		return 0;
 	}
 	global $wpdb;

@@ -26,10 +26,13 @@ export function AuthPanel() {
   const authLogoUrl = initData.authLogoUrl || initData.logoUrl;
   const defaultTab = (initData.defaultTab as string) ?? 'login';
   const redirectTo = (initData.redirectTo as string) ?? '';
-  const searchParams = new URLSearchParams(window.location.search);
-  const isResetMode = searchParams.get('reset') === '1';
-  const resetLogin = searchParams.get('login') ?? '';
-  const resetKey = searchParams.get('key') ?? '';
+  const [resetRequest, setResetRequest] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    return params.get('reset') === '1' && params.get('login') && params.get('key')
+      ? { login: params.get('login')!, key: params.get('key')! }
+      : null;
+  });
+  const isResetMode = resetRequest !== null;
 
   const headerContent = useMemo(() => {
     if (redirectTo === 'docente') {
@@ -78,6 +81,7 @@ export function AuthPanel() {
   const safeDefaultTab = enabledTabs.some((tab) => tab.id === defaultTab) ? defaultTab : enabledTabs[0]?.id ?? 'login';
   const [activeTab, setActiveTab] = useState(safeDefaultTab);
   const [forgotMode, setForgotMode] = useState(false);
+  const [recoveryIdentifier, setRecoveryIdentifier] = useState('');
   useTrackPageView({ panel: 'auth', page: isResetMode ? 'reset-password' : forgotMode ? 'forgot-password' : activeTab });
 
   useEffect(() => {
@@ -87,17 +91,31 @@ export function AuthPanel() {
   }, [activeTab, enabledTabs, safeDefaultTab]);
 
   function handleBackToLogin() {
+    clearResetRequest();
     setForgotMode(false);
     setActiveTab('login');
   }
 
+  function clearResetRequest() {
+    const url = new URL(window.location.href);
+    ['reset', 'login', 'key'].forEach((param) => url.searchParams.delete(param));
+    window.history.replaceState({}, '', url.toString());
+    setResetRequest(null);
+  }
+
+  function handleRequestNewLink() {
+    setRecoveryIdentifier(resetRequest?.login ?? '');
+    clearResetRequest();
+    setForgotMode(true);
+  }
+
   function renderContent() {
-    if (isResetMode && resetLogin && resetKey) {
-      return <ResetPasswordForm login={resetLogin} resetKey={resetKey} onBack={handleBackToLogin} />;
+    if (resetRequest) {
+      return <ResetPasswordForm login={resetRequest.login} resetKey={resetRequest.key} onBack={handleBackToLogin} onRequestNewLink={handleRequestNewLink} />;
     }
 
     if (forgotMode) {
-      return <ForgotPasswordForm onBack={handleBackToLogin} />;
+      return <ForgotPasswordForm onBack={handleBackToLogin} initialIdentifier={recoveryIdentifier} />;
     }
 
     if (activeTab === 'register-docente' && !DISABLE_CENTRO_REGISTRATION) {

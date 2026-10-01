@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="es">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Recuperación de contraseña - datos de prueba</title></head>
+<body>
+<div id="gnf-auth-root"></div>
+<script type="module">
+  import logoUrl from '../assets/logo-guardiana.png';
+  window.__GNF_AUTH__ = { restUrl: '/mock-api', nonce: '', redirectTo: 'docente', logoUrl, user: null };
+  const nativeFetch = window.fetch.bind(window);
+  window.__authRequests = [];
+  let consumed = false;
+  window.fetch = async (input, options) => {
+    const url = new URL(String(input), location.origin);
+    if (!url.pathname.startsWith('/mock-api')) return nativeFetch(input, options);
+    window.__authRequests.push({ path: url.pathname, body: options?.body });
+    let payload = { success: true };
+    let status = 200;
+    if (url.pathname.endsWith('/auth/reset-password')) {
+      const key = JSON.parse(options.body).key;
+      if (key === 'expired' || consumed) {
+        status = 400;
+        payload = { code: key === 'expired' ? 'expired_reset_key' : 'invalid_reset_key', message: 'El enlace ha caducado. Solicita uno nuevo y utiliza el correo más reciente.', data: { status } };
+      } else {
+        consumed = true;
+        payload = { success: true, message: 'Tu contraseña fue actualizada. Ya puedes iniciar sesión.' };
+      }
+    } else if (url.pathname.endsWith('/auth/forgot-password')) {
+      payload = { success: true, message: 'Si la cuenta existe, enviamos un enlace para restablecer la contraseña.' };
+    }
+    return new Response(JSON.stringify(payload), { status, headers: { 'Content-Type': 'application/json' } });
+  };
+  await import('/src/entries/auth.tsx');
+</script>
+</body>
+</html>

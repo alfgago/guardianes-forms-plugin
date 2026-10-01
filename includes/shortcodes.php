@@ -18,7 +18,7 @@ function gnf_get_shortcode_selected_year() {
 }
 
 function gnf_render_docente_panel_shortcode() {
-	if ( ! is_user_logged_in() ) {
+	if ( gnf_is_password_reset_request() || ! is_user_logged_in() ) {
 		return gnf_render_react_panel( 'auth', array( 'redirectTo' => 'docente' ) );
 	}
 
@@ -37,7 +37,7 @@ function gnf_render_docente_panel_shortcode() {
 }
 
 function gnf_render_supervisor_panel_shortcode() {
-	if ( ! is_user_logged_in() ) {
+	if ( gnf_is_password_reset_request() || ! is_user_logged_in() ) {
 		return gnf_render_react_panel( 'auth', array( 'redirectTo' => 'supervisor' ) );
 	}
 
@@ -56,6 +56,9 @@ function gnf_render_supervisor_panel_shortcode() {
 }
 
 function gnf_render_admin_panel_shortcode() {
+	if ( gnf_is_password_reset_request() ) {
+		return gnf_render_react_panel( 'auth', array( 'redirectTo' => 'admin' ) );
+	}
 	$user = wp_get_current_user();
 	if ( ! is_user_logged_in() || ( function_exists( 'gnf_user_can_access_panel' ) ? ! gnf_user_can_access_panel( $user, 'panel-admin' ) : ! current_user_can( 'manage_options' ) ) ) {
 		return gnf_render_react_panel( 'auth', array( 'redirectTo' => 'admin' ) );

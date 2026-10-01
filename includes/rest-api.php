@@ -1411,7 +1411,14 @@ function gnf_rest_auth_reset_password( WP_REST_Request $request ) {
 
 	$user = check_password_reset_key( $key, $login );
 	if ( is_wp_error( $user ) || ! ( $user instanceof WP_User ) ) {
-		return new WP_Error( 'invalid_reset_key', 'El enlace de recuperacion ya no es valido o expiro.', array( 'status' => 400 ) );
+		$expired = is_wp_error( $user ) && 'expired_key' === $user->get_error_code();
+		return new WP_Error(
+			$expired ? 'expired_reset_key' : 'invalid_reset_key',
+			$expired
+				? 'El enlace ha caducado. Solicita uno nuevo y utiliza el correo mas reciente.'
+				: 'El enlace no es valido o ya fue utilizado. Solicita uno nuevo y utiliza el correo mas reciente.',
+			array( 'status' => 400 )
+		);
 	}
 
 	reset_password( $user, $password );
@@ -1711,13 +1718,16 @@ function gnf_rest_notifications_list() {
 	$table   = $wpdb->prefix . 'gn_notificaciones';
 	$user_id = get_current_user_id();
 	$rejections_only = gnf_user_receives_only_rejections( $user_id );
-	$type_filter = $rejections_only ? " AND tipo IN ('evidencia_rechazada', 'invalid_photo_date', 'correccion')" : '';
+	if ( $rejections_only ) {
+		gnf_backfill_docente_pause_notifications( $user_id );
+	}
+	$type_filter = $rejections_only ? " AND tipo IN ('evidencia_rechazada', 'evidencia_en_pausa', 'invalid_photo_date', 'correccion')" : '';
 
 	$format = static function ( $item ) use ( $user_id, $rejections_only ) {
 			$context = function_exists( 'gnf_build_notification_context' ) ? gnf_build_notification_context( $item, $user_id ) : array();
 			if ( $rejections_only ) {
-				$context['evidenceItems'] = array_values( array_filter( (array) ( $context['evidenceItems'] ?? array() ), static function ( $evidence ) {
-					return 'rechazada' === ( $evidence['estado'] ?? '' );
+				$context['evidenceItems'] = array_values( array_filter( (array) ( $context['evidenceItems'] ?? array() ), static function ( $evidence ) use ( $item ) {
+					return gnf_docente_notification_matches_state( $item->tipo, $evidence['estado'] ?? '' );
 				} ) );
 				if ( ! gnf_docente_notification_is_actionable( $item->tipo, $context['evidenceItems'] ) ) {
 					return null;

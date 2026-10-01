@@ -308,12 +308,19 @@ function gnf_login_redirect( $redirect_to, $requested_redirect_to, $user ) {
 }
 add_filter( 'login_redirect', 'gnf_login_redirect', 10, 3 );
 
+/** Detects recovery mode without authorizing the supplied password reset key. */
+function gnf_is_password_reset_request() {
+	foreach ( array( 'reset', 'login', 'key' ) as $param ) {
+		if ( ! isset( $_GET[ $param ] ) || ! is_string( $_GET[ $param ] ) || '' === trim( wp_unslash( $_GET[ $param ] ) ) ) {
+			return false;
+		}
+	}
+	return '1' === wp_unslash( $_GET['reset'] );
+}
+
 /**
  * Protección de paneles frontend por rol.
- *
- * Redirige a los usuarios que intentan acceder a un panel
- * que no les corresponde hacia su propio panel.
- * El administrador puede acceder a todos.
+ * Redirige a los usuarios hacia su panel; recuperación muestra solamente auth.
  */
 function gnf_protect_frontend_panels() {
 	if ( ! is_singular() && ! is_page() ) {
@@ -330,6 +337,10 @@ function gnf_protect_frontend_panels() {
 
 	global $post;
 	$slug = $post->post_name ?? '';
+	// Recovery renders only auth; the REST endpoint still validates the native key.
+	if ( in_array( $slug, $panel_slugs, true ) && gnf_is_password_reset_request() ) {
+		return;
+	}
 
 	if ( 'panel-comite' === $slug ) {
 		$query = array();

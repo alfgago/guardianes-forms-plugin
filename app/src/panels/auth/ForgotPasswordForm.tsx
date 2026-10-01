@@ -8,10 +8,11 @@ import { authApi } from '@/api/auth';
 
 interface ForgotPasswordFormProps {
   onBack: () => void;
+  initialIdentifier?: string;
 }
 
-export function ForgotPasswordForm({ onBack }: ForgotPasswordFormProps) {
-  const [identifier, setIdentifier] = useState('');
+export function ForgotPasswordForm({ onBack, initialIdentifier = '' }: ForgotPasswordFormProps) {
+  const [identifier, setIdentifier] = useState(initialIdentifier);
 
   const mutation = useMutation({
     mutationFn: () =>
@@ -49,7 +50,7 @@ export function ForgotPasswordForm({ onBack }: ForgotPasswordFormProps) {
         required
       />
 
-      <div style={{ display: 'flex', gap: 'var(--gnf-space-3)', marginTop: 'var(--gnf-space-4)' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))', gap: 'var(--gnf-space-3)', marginTop: 'var(--gnf-space-4)' }}>
         <Button type="button" variant="ghost" style={{ flex: 1 }} onClick={onBack}>
           Volver
         </Button>

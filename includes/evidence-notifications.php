@@ -15,16 +15,81 @@ function gnf_user_receives_only_rejections( $user_id ) {
 		&& ! array_intersect( array( 'administrator', 'supervisor', 'comite_bae', 'dre' ), (array) $user->roles );
 }
 
+function gnf_get_docente_action_notification_types() {
+	return array( 'evidencia_rechazada', 'evidencia_en_pausa', 'invalid_photo_date', 'correccion' );
+}
+
+function gnf_docente_notification_matches_state( $type, $state ) {
+	return in_array( $type, gnf_get_docente_action_notification_types(), true )
+		&& ( 'evidencia_en_pausa' === $type ? 'en_pausa' === $state : 'rechazada' === $state );
+}
+
 function gnf_docente_notification_is_actionable( $type, $evidences ) {
-	if ( ! in_array( $type, array( 'evidencia_rechazada', 'invalid_photo_date', 'correccion' ), true ) ) {
-		return false;
-	}
 	foreach ( (array) $evidences as $evidence ) {
-		if ( empty( $evidence['replaced'] ) && 'rechazada' === ( $evidence['estado'] ?? '' ) ) {
+		if ( empty( $evidence['replaced'] ) && gnf_docente_notification_matches_state( $type, $evidence['estado'] ?? '' ) ) {
 			return true;
 		}
 	}
 	return false;
+}
+
+/** Recover notifications discarded by the former rejection-only policy, in batches. */
+function gnf_backfill_docente_pause_notifications( $user_id ) {
+	if ( get_user_meta( $user_id, '_gnf_pause_notifications_backfilled_v1', true ) ) {
+		return;
+	}
+	global $wpdb;
+	$cursor = absint( get_user_meta( $user_id, '_gnf_pause_notifications_cursor_v1', true ) );
+	$entries = $wpdb->get_results( $wpdb->prepare(
+		"SELECT id, reto_id, evidencias FROM {$wpdb->prefix}gn_reto_entries WHERE user_id = %d AND id > %d ORDER BY id ASC LIMIT 200",
+		$user_id, $cursor
+	) );
+	if ( ! is_array( $entries ) ) {
+		return;
+	}
+	$last_processed = $cursor;
+	foreach ( $entries as $entry ) {
+		$evidences = json_decode( (string) $entry->evidencias, true );
+		foreach ( (array) $evidences as $evidence ) {
+			if ( ! is_array( $evidence ) || ! empty( $evidence['replaced'] ) || 'en_pausa' !== ( $evidence['estado'] ?? '' ) ) {
+				continue;
+			}
+			$relation = gnf_get_evidence_notification_relation_type( $evidence );
+			$exists = $wpdb->get_var( $wpdb->prepare(
+				"SELECT id FROM {$wpdb->prefix}gn_notificaciones WHERE user_id = %d AND tipo = %s AND relacion_tipo = %s AND relacion_id = %d LIMIT 1",
+				$user_id, 'evidencia_en_pausa', $relation, $entry->id
+			) );
+			if ( $exists ) {
+				continue;
+			}
+			$message = sprintf( 'Tu evidencia "%s" del reto "%s" se encuentra en pausa.', $evidence['nombre'] ?? $evidence['filename'] ?? 'archivo', get_the_title( $entry->reto_id ) );
+			$reason = gnf_get_evidence_review_reason_label( $evidence['review_reason'] ?? '' );
+			if ( $reason ) {
+				$message .= ' Motivo: ' . $reason;
+			}
+			if ( ! empty( $evidence['supervisor_comment'] ) ) {
+				$message .= ' Comentario: ' . $evidence['supervisor_comment'];
+			}
+			$inserted = $wpdb->insert( $wpdb->prefix . 'gn_notificaciones', array(
+				'user_id' => $user_id, 'tipo' => 'evidencia_en_pausa', 'mensaje' => $message,
+				'relacion_tipo' => $relation, 'relacion_id' => (int) $entry->id,
+				'leido' => 0, 'created_at' => ! empty( $evidence['reviewed_at'] ) ? $evidence['reviewed_at'] : current_time( 'mysql' ),
+			), array( '%d', '%s', '%s', '%s', '%d', '%d', '%s' ) );
+			if ( false === $inserted ) {
+				if ( $last_processed > $cursor ) {
+					update_user_meta( $user_id, '_gnf_pause_notifications_cursor_v1', $last_processed );
+				}
+				return;
+			}
+		}
+		$last_processed = (int) $entry->id;
+	}
+	if ( $last_processed > $cursor ) {
+		update_user_meta( $user_id, '_gnf_pause_notifications_cursor_v1', $last_processed );
+	}
+	if ( count( $entries ) < 200 ) {
+		update_user_meta( $user_id, '_gnf_pause_notifications_backfilled_v1', 1 );
+	}
 }
 
 /**

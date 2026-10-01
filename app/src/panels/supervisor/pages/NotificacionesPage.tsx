@@ -130,7 +130,7 @@ export function NotificacionesPage({ rejectionsOnly = false }: { rejectionsOnly?
     return (
       <EmptyState
         icon={<Bell size={48} />}
-        title={rejectionsOnly ? 'No hay evidencias rechazadas por corregir' : 'Sin historial de notificaciones'}
+        title={rejectionsOnly ? 'No hay evidencias rechazadas o en pausa por resolver' : 'Sin notificaciones'}
         description={rejectionsOnly ? undefined : 'Cuando haya envíos, validaciones o revisiones aparecerán aquí.'}
       />
     );
@@ -151,7 +151,7 @@ export function NotificacionesPage({ rejectionsOnly = false }: { rejectionsOnly?
         <div>
           <h2 style={{ marginBottom: 'var(--gnf-space-2)' }}>Notificaciones</h2>
           <p style={{ margin: 0, color: 'var(--gnf-muted)' }}>
-            {unreadNotifications.length} pendiente{unreadNotifications.length === 1 ? '' : 's'} y {readNotifications.length} en historial reciente.
+            {unreadNotifications.length} sin leer y {readNotifications.length} leída{readNotifications.length === 1 ? '' : 's'}.
           </p>
         </div>
 
@@ -171,7 +171,7 @@ export function NotificacionesPage({ rejectionsOnly = false }: { rejectionsOnly?
       <div style={{ display: 'grid', gap: 'var(--gnf-space-6)' }}>
         <section>
           <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--gnf-space-2)', marginBottom: 'var(--gnf-space-3)' }}>
-            <h3 style={{ margin: 0 }}>Pendientes</h3>
+            <h3 style={{ margin: 0 }}>Sin leer</h3>
             <Badge color="#1d4ed8" bg="rgba(59, 130, 246, 0.14)">{unreadNotifications.length}</Badge>
           </div>
 
@@ -179,8 +179,7 @@ export function NotificacionesPage({ rejectionsOnly = false }: { rejectionsOnly?
             <Card>
               <EmptyState
                 icon={<CheckCircle2 size={44} />}
-                title="No hay notificaciones pendientes"
-                description="Todo está al día. Puedes revisar abajo el historial reciente."
+                title="No hay notificaciones sin leer"
               />
             </Card>
           ) : (
@@ -202,7 +201,7 @@ export function NotificacionesPage({ rejectionsOnly = false }: { rejectionsOnly?
         {readNotifications.length > 0 && (
           <section>
             <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--gnf-space-2)', marginBottom: 'var(--gnf-space-3)' }}>
-              <h3 style={{ margin: 0 }}>Historial reciente</h3>
+              <h3 style={{ margin: 0 }}>Leídas</h3>
               <Badge>{readNotifications.length}</Badge>
             </div>
 
@@ -256,12 +255,12 @@ function NotificationCard({
       }}
     >
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 'var(--gnf-space-4)', flexWrap: 'wrap' }}>
-        <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ flex: '1 1 320px', minWidth: 0, overflowWrap: 'anywhere' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--gnf-space-2)', marginBottom: 'var(--gnf-space-2)', flexWrap: 'wrap' }}>
             <Badge color={meta.color} bg={meta.bg}>{meta.label}</Badge>
-            {!notification.leido && (
-              <Badge color="#1d4ed8" bg="rgba(59, 130, 246, 0.14)">Pendiente</Badge>
-            )}
+            <Badge color={notification.leido ? '#475569' : '#1d4ed8'} bg={notification.leido ? '#f1f5f9' : 'rgba(59, 130, 246, 0.14)'}>
+              {notification.leido ? 'Leído' : 'Sin leer'}
+            </Badge>
             <time style={{ fontSize: '0.75rem', color: 'var(--gnf-gray-400)' }}>
               {formatDateTime(notification.createdAt)}
             </time>
@@ -467,7 +466,7 @@ function NotificationEvidenceCard({
           )}
         </div>
 
-        <div style={{ flex: 1, minWidth: 260, display: 'grid', gap: 'var(--gnf-space-2)' }}>
+        <div style={{ flex: '1 1 260px', minWidth: 0, display: 'grid', gap: 'var(--gnf-space-2)', overflowWrap: 'anywhere' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--gnf-space-2)', flexWrap: 'wrap' }}>
             <strong style={{ color: 'var(--gnf-ocean-dark)' }}>{evidence.questionLabel}</strong>
             <Badge color={statusColor} bg={statusBg}>

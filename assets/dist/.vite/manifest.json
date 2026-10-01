@@ -1,48 +1,48 @@
 {
-  "_AwardSummary-lx6ZFAkh.js": {
-    "file": "chunks/AwardSummary-lx6ZFAkh.js",
+  "_AwardSummary-BJyMGzaS.js": {
+    "file": "chunks/AwardSummary-BJyMGzaS.js",
     "name": "AwardSummary",
     "imports": [
-      "_components-CzwYczAz.js",
+      "_components-CAzZrGS4.js",
       "_query-D6iAQj8b.js",
-      "_formatters-DdZL5oFU.js"
+      "_formatters-BqTrU_WL.js"
     ]
   },
-  "_CentroSearch-CYOrD3tR.js": {
-    "file": "chunks/CentroSearch-CYOrD3tR.js",
+  "_CentroSearch-CHhujH7L.js": {
+    "file": "chunks/CentroSearch-CHhujH7L.js",
     "name": "CentroSearch",
     "imports": [
       "_query-D6iAQj8b.js",
-      "_components-CzwYczAz.js"
+      "_components-CAzZrGS4.js"
     ]
   },
-  "_FeedbackBubble-ldp7U7q3.js": {
-    "file": "chunks/FeedbackBubble-ldp7U7q3.js",
+  "_FeedbackBubble-Bx-ZFTWr.js": {
+    "file": "chunks/FeedbackBubble-Bx-ZFTWr.js",
     "name": "FeedbackBubble",
     "imports": [
-      "_components-CzwYczAz.js",
+      "_components-CAzZrGS4.js",
       "_query-D6iAQj8b.js",
-      "_formatters-DdZL5oFU.js"
+      "_formatters-BqTrU_WL.js"
     ]
   },
-  "_SupervisorPanel-CKInb9Mr.js": {
-    "file": "chunks/SupervisorPanel-CKInb9Mr.js",
+  "_SupervisorPanel-Cnh2GzYO.js": {
+    "file": "chunks/SupervisorPanel-Cnh2GzYO.js",
     "name": "SupervisorPanel",
     "imports": [
       "_query-D6iAQj8b.js",
-      "_formatters-DdZL5oFU.js",
-      "_components-CzwYczAz.js",
-      "_FeedbackBubble-ldp7U7q3.js",
-      "_AwardSummary-lx6ZFAkh.js",
-      "_eye-h_pqj0gX.js"
+      "_formatters-BqTrU_WL.js",
+      "_components-CAzZrGS4.js",
+      "_FeedbackBubble-Bx-ZFTWr.js",
+      "_AwardSummary-BJyMGzaS.js",
+      "_eye-CJxeoS6J.js"
     ]
   },
   "_components-AELHnBVJ.css": {
     "file": "assets/components-AELHnBVJ.css",
     "src": "_components-AELHnBVJ.css"
   },
-  "_components-CzwYczAz.js": {
-    "file": "chunks/components-CzwYczAz.js",
+  "_components-CAzZrGS4.js": {
+    "file": "chunks/components-CAzZrGS4.js",
     "name": "components",
     "imports": [
       "_react-BGA4by52.js",
@@ -52,18 +52,18 @@
       "assets/components-AELHnBVJ.css"
     ]
   },
-  "_eye-h_pqj0gX.js": {
-    "file": "chunks/eye-h_pqj0gX.js",
+  "_eye-CJxeoS6J.js": {
+    "file": "chunks/eye-CJxeoS6J.js",
     "name": "eye",
     "imports": [
-      "_components-CzwYczAz.js"
+      "_components-CAzZrGS4.js"
     ]
   },
-  "_formatters-DdZL5oFU.js": {
-    "file": "chunks/formatters-DdZL5oFU.js",
+  "_formatters-BqTrU_WL.js": {
+    "file": "chunks/formatters-BqTrU_WL.js",
     "name": "formatters",
     "imports": [
-      "_components-CzwYczAz.js",
+      "_components-CAzZrGS4.js",
       "_query-D6iAQj8b.js"
     ]
   },
@@ -78,87 +78,87 @@
       "_query-D6iAQj8b.js"
     ]
   },
-  "_useDebounce-Bj2OKOHD.js": {
-    "file": "chunks/useDebounce-Bj2OKOHD.js",
+  "_useDebounce-Cdh_ADu3.js": {
+    "file": "chunks/useDebounce-Cdh_ADu3.js",
     "name": "useDebounce",
     "imports": [
-      "_components-CzwYczAz.js",
+      "_components-CAzZrGS4.js",
       "_query-D6iAQj8b.js"
     ]
   },
   "src/entries/admin.tsx": {
-    "file": "admin-Be72NuKb.js",
+    "file": "admin-CjTAQAt1.js",
     "name": "admin",
     "src": "src/entries/admin.tsx",
     "isEntry": true,
     "imports": [
       "_query-D6iAQj8b.js",
-      "_components-CzwYczAz.js",
-      "_formatters-DdZL5oFU.js",
-      "_AwardSummary-lx6ZFAkh.js",
-      "_useDebounce-Bj2OKOHD.js",
-      "_CentroSearch-CYOrD3tR.js",
-      "_eye-h_pqj0gX.js",
+      "_components-CAzZrGS4.js",
+      "_formatters-BqTrU_WL.js",
+      "_AwardSummary-BJyMGzaS.js",
+      "_useDebounce-Cdh_ADu3.js",
+      "_CentroSearch-CHhujH7L.js",
+      "_eye-CJxeoS6J.js",
       "_react-BGA4by52.js"
     ]
   },
   "src/entries/auth.tsx": {
-    "file": "auth-BGKGo6pL.js",
+    "file": "auth-D81-py73.js",
     "name": "auth",
     "src": "src/entries/auth.tsx",
     "isEntry": true,
     "imports": [
       "_query-D6iAQj8b.js",
-      "_components-CzwYczAz.js",
-      "_eye-h_pqj0gX.js",
-      "_CentroSearch-CYOrD3tR.js",
+      "_components-CAzZrGS4.js",
+      "_eye-CJxeoS6J.js",
+      "_CentroSearch-CHhujH7L.js",
       "_react-BGA4by52.js"
     ]
   },
   "src/entries/comite.tsx": {
-    "file": "comite-CzP2FcJ_.js",
+    "file": "comite-BZDr7S9d.js",
     "name": "comite",
     "src": "src/entries/comite.tsx",
     "isEntry": true,
     "imports": [
       "_query-D6iAQj8b.js",
-      "_components-CzwYczAz.js",
-      "_SupervisorPanel-CKInb9Mr.js",
-      "_formatters-DdZL5oFU.js",
+      "_components-CAzZrGS4.js",
+      "_SupervisorPanel-Cnh2GzYO.js",
+      "_formatters-BqTrU_WL.js",
       "_react-BGA4by52.js",
-      "_FeedbackBubble-ldp7U7q3.js",
-      "_AwardSummary-lx6ZFAkh.js",
-      "_eye-h_pqj0gX.js"
+      "_FeedbackBubble-Bx-ZFTWr.js",
+      "_AwardSummary-BJyMGzaS.js",
+      "_eye-CJxeoS6J.js"
     ]
   },
   "src/entries/docente.tsx": {
-    "file": "docente-B0sDf9l0.js",
+    "file": "docente-4pAVL6-J.js",
     "name": "docente",
     "src": "src/entries/docente.tsx",
     "isEntry": true,
     "imports": [
       "_query-D6iAQj8b.js",
-      "_components-CzwYczAz.js",
-      "_formatters-DdZL5oFU.js",
-      "_FeedbackBubble-ldp7U7q3.js",
-      "_useDebounce-Bj2OKOHD.js",
+      "_components-CAzZrGS4.js",
+      "_formatters-BqTrU_WL.js",
+      "_FeedbackBubble-Bx-ZFTWr.js",
+      "_useDebounce-Cdh_ADu3.js",
       "_react-BGA4by52.js"
     ]
   },
   "src/entries/supervisor.tsx": {
-    "file": "supervisor-DbWO_iDx.js",
+    "file": "supervisor-BgUqfnxc.js",
     "name": "supervisor",
     "src": "src/entries/supervisor.tsx",
     "isEntry": true,
     "imports": [
       "_query-D6iAQj8b.js",
-      "_components-CzwYczAz.js",
-      "_SupervisorPanel-CKInb9Mr.js",
-      "_formatters-DdZL5oFU.js",
+      "_components-CAzZrGS4.js",
+      "_SupervisorPanel-Cnh2GzYO.js",
+      "_formatters-BqTrU_WL.js",
       "_react-BGA4by52.js",
-      "_FeedbackBubble-ldp7U7q3.js",
-      "_AwardSummary-lx6ZFAkh.js",
-      "_eye-h_pqj0gX.js"
+      "_FeedbackBubble-Bx-ZFTWr.js",
+      "_AwardSummary-BJyMGzaS.js",
+      "_eye-CJxeoS6J.js"
     ]
   }
 }

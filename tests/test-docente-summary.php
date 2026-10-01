@@ -3,6 +3,7 @@ define( 'ABSPATH', __DIR__ . '/../' );
 function add_action() {}
 function register_rest_route( $ns, $route, $args ) { $GLOBALS['routes'][ $route ] = $args; }
 function get_current_user_id() { return 1; }
+function get_user_meta() { return 1; }
 function get_userdata( $id ) { return (object) array( 'roles' => $GLOBALS['notification_roles'] ?? array( 'docente' ) ); }
 function gnf_build_notification_context( $item, $id ) { return array( 'evidenceItems' => array( array( 'estado' => $item->current_status ) ) ); }
 require_once __DIR__ . '/../includes/rest-api.php';
@@ -52,6 +53,10 @@ if ( function_exists( 'gnf_docente_notification_is_actionable' ) ) {
 	verify_summary( ! gnf_docente_notification_is_actionable( 'evidencia_aprobada', array( array( 'estado' => 'aprobada' ) ) ), 'Approval does not notify docente' );
 	verify_summary( ! gnf_docente_notification_is_actionable( 'evidencia_rechazada', array( array( 'estado' => 'aprobada' ) ) ), 'Reversed rejection is hidden' );
 	verify_summary( ! gnf_docente_notification_is_actionable( 'evidencia_rechazada', array() ), 'Removed rejection is hidden' );
+	verify_summary( gnf_docente_notification_is_actionable( 'evidencia_en_pausa', array( array( 'estado' => 'en_pausa' ) ) ), 'Current pause is shown' );
+	verify_summary( ! gnf_docente_notification_is_actionable( 'evidencia_en_pausa', array( array( 'estado' => 'aprobada' ) ) ), 'Resolved pause is hidden' );
+	verify_summary( ! gnf_docente_notification_is_actionable( 'evidencia_rechazada', array( array( 'estado' => 'en_pausa' ) ) ), 'Previous rejection is not shown as a current pause' );
+	verify_summary( ! gnf_docente_notification_is_actionable( 'evidencia_en_pausa', array( array( 'estado' => 'en_pausa', 'replaced' => true ) ) ), 'Replaced paused evidence is hidden' );
 }
 verify_summary( function_exists( 'gnf_award_result_fingerprint' ), 'Assignment change detection available' );
 if ( function_exists( 'gnf_award_required_fields_met' ) ) {
@@ -77,10 +82,11 @@ if ( function_exists( 'gnf_award_result_fingerprint' ) ) {
 	verify_summary( gnf_award_result_fingerprint( $a ) !== gnf_award_result_fingerprint( $b ), 'Changed result invalidates assignment' );
 }
 class SummaryNotificationDatabase {
-	public $prefix = 'wp_'; public $queries = array();
+	public $prefix = 'wp_'; public $queries = array(); public $fixtures = null;
 	function prepare( $sql, ...$args ) { return array( $sql, $args ); }
 	function get_results( $query ) {
 		$this->queries[] = $query;
+		if ( null !== $this->fixtures ) { return $this->fixtures; }
 		$offset = $query[1][1];
 		$items = array();
 		for ( $i = 1; $i <= ( $offset === 0 ? 50 : 2 ); $i++ ) {
@@ -93,6 +99,14 @@ $wpdb = new SummaryNotificationDatabase();
 $notifications = gnf_rest_notifications_list();
 verify_summary( count( $notifications ) === 1 && $notifications[0]['id'] === 51, 'Resolved recent notifications do not hide older actionable rejections; duplicates collapsed' );
 verify_summary( count( $wpdb->queries ) === 2, 'Notifications fetched in bounded batches' );
+$pause = (object) array( 'id' => 60, 'user_id' => 1, 'tipo' => 'evidencia_en_pausa', 'mensaje' => 'En pausa', 'relacion_tipo' => 'reto_entry_evidence:' . str_repeat( 'b', 64 ), 'relacion_id' => 1, 'leido' => 1, 'created_at' => '2026-09-25', 'current_status' => 'en_pausa' );
+$old_rejection = clone $pause; $old_rejection->id = 59; $old_rejection->tipo = 'evidencia_rechazada';
+$resolved_pause = clone $pause; $resolved_pause->id = 58; $resolved_pause->current_status = 'aprobada';
+$wpdb->fixtures = array( $pause, $old_rejection, $resolved_pause );
+$notifications = gnf_rest_notifications_list();
+verify_summary( 1 === count( $notifications ) && 60 === $notifications[0]['id'] && $notifications[0]['leido'], 'REST includes the current pause, preserves read state and hides obsolete notifications' );
+verify_summary( false !== strpos( end( $wpdb->queries )[0], "'evidencia_en_pausa'" ), 'Teacher SQL query includes pauses' );
+$wpdb->fixtures = null;
 $notification_roles = array( 'supervisor' );
 $notifications = gnf_rest_notifications_list();
 verify_summary( count( $notifications ) === 50, 'Reviewer notification history remains available' );

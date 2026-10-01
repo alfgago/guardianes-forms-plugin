@@ -23,6 +23,17 @@
     id: index + 1, titulo: 'RETO ' + title, descripcion, color, puntajeMaximo, obligatorio: index < 3,
     entry: { id: index + 1, retoId: index + 1, estado: 'en_progreso', puntaje: index === 0 ? 35 : 15, evidencias: [], createdAt: '2026-09-16', updatedAt: '2026-09-16' },
   }));
+  const notifications = ['rechazada', 'en_pausa', 'en_pausa'].map((estado, index) => ({
+    id: index + 1, tipo: estado === 'en_pausa' ? 'evidencia_en_pausa' : 'evidencia_rechazada',
+    mensaje: estado === 'en_pausa' ? 'La evidencia del mural se encuentra en pausa. Falta el mural terminado.' : 'La evidencia del reto Agua no corresponde a la actividad.',
+    leido: index === 2, createdAt: '2026-09-25 09:00:00', entryId: index + 1,
+    actionLabel: 'Abrir reto', actionTarget: { page: 'formularios', params: { reto_id: '1' } },
+    centroNombre: 'CENTRO EDUCATIVO DE PRUEBA', retoTitulo: 'RETO ECO MURAL', regionName: 'NICOYA', circuito: '01',
+    evidenceItems: [{ evidenceIndex: 0, estado, questionLabel: 'Fotografía del mural terminado',
+      fileName: 'mural.jpg', previewUrl: new URL(logoUrl, location.href).pathname, isImage: true,
+      reviewReason: estado === 'en_pausa' ? 'reto_inconcluso' : 'no_corresponde',
+      supervisorComment: 'Adjunta una fotografía donde se vea el mural terminado.', reviewedBy: 2, reviewedByName: 'Supervisión', reviewedAt: '2026-09-25 09:00:00' }],
+  }));
   const nativeFetch = window.fetch.bind(window);
   window.fetch = async (input, options) => {
     const url = new URL(String(input), location.origin);
@@ -37,7 +48,9 @@
       reportPdfStatus: assigned ? 'final' : 'draft', reportPdfUrl: assigned ? '#reporte-final-prueba' : '',
     };
     else if (url.pathname.endsWith('/docente/retos')) payload = retos;
-    else if (url.pathname.endsWith('/notifications')) payload = [{ id: 1, tipo: 'evidencia_rechazada', mensaje: 'La evidencia del reto Agua no corresponde a la actividad.', leido: false, createdAt: '2026-09-16 09:00:00', actionLabel: 'Corregir evidencia', actionTarget: { page: 'formularios', params: { reto_id: '1' } }, evidenceItems: [] }];
+    else if (url.pathname.endsWith('/notifications')) payload = notifications;
+    else if (url.pathname.endsWith('/read')) { const id = Number(url.pathname.split('/').at(-2)); const item = notifications.find(n => n.id === id); if (item) item.leido = true; }
+    else if (url.pathname.endsWith('/read-all')) notifications.forEach(item => { item.leido = true; });
     else if (url.pathname.endsWith('/docente/wizard')) payload = retos.map(reto => ({ retoId: reto.id, retoTitulo: reto.titulo, retoColor: reto.color, formId: 10, estado: 'en_progreso', puntaje: 15, puntajeMaximo: reto.puntajeMaximo }));
     else if (url.pathname.endsWith('/form-html')) payload = {
       formId: 10, reto: retos[0], entry: paused ? { ...retos[0].entry, evidencias: [{ field_id: 1, nombre: 'actividad.jpg', url: new URL(logoUrl, location.href).pathname, tipo: 'imagen', puntos: 5, estado: 'en_pausa', review_reason: 'subir_requisito', supervisor_comment: 'Falta la evidencia de cierre.' }] } : null, savedValues: {}, conditionalRules: [],
