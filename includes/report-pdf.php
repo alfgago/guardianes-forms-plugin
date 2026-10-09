@@ -46,6 +46,48 @@ function gnf_get_center_report_status( $centro_id, $anio ) {
 }
 
 /**
+ * Solo el cierre explicito del programa anual y la revision completa finalizan el reporte.
+ * El estado de matricula del centro no determina el cierre del programa.
+ */
+function gnf_center_report_is_provisional( $centro_id, $anio, $status ) {
+	return 'final' !== $status
+		|| ! in_array( get_option( 'gnf_program_year_closed_' . $anio, false ), array( true, 1, '1' ), true );
+}
+
+/**
+ * La cookie firmada identifica al administrador, no al usuario docente actual.
+ */
+function gnf_is_admin_docente_report_preview() {
+	$user = wp_get_current_user();
+	if ( ! $user->ID || ! gnf_user_has_role( $user, 'docente' ) || current_user_can( 'manage_options' ) ) {
+		return false;
+	}
+	if ( ! function_exists( 'gnf_get_impersonate_original_user' ) ) {
+		return false;
+	}
+	$original_id = gnf_get_impersonate_original_user();
+	return $original_id > 0 && $original_id !== (int) $user->ID
+		&& get_userdata( $original_id ) && user_can( $original_id, 'manage_options' )
+		&& ( ! function_exists( 'gnf_get_docente_estado' ) || 'activo' === gnf_get_docente_estado( $user->ID ) );
+}
+
+/**
+ * Campos del dashboard docente; permisos ausentes deben ocultar la accion.
+ * Reutiliza el estado ya calculado cuando el dashboard proporciona sus conteos.
+ */
+function gnf_get_docente_school_report_payload( $centro_id, $anio, $status = null ) {
+	$anio   = gnf_normalize_year( $anio );
+	$status = null === $status ? gnf_get_center_report_status( $centro_id, $anio ) : $status;
+	$url    = gnf_is_admin_docente_report_preview() ? gnf_get_center_report_download_url( $centro_id, $anio ) : '';
+	return array(
+		'canDownloadSchoolReport' => '' !== $url,
+		'reportPdfUrl'            => $url,
+		'reportPdfStatus'         => $status,
+		'reportPdfProvisional'    => gnf_center_report_is_provisional( $centro_id, $anio, $status ),
+	);
+}
+
+/**
  * Escapa texto para la plantilla sin depender de WordPress.
  *
  * @param mixed $value Valor.
@@ -353,10 +395,12 @@ function gnf_build_center_report_data( $centro_id, $anio ) {
 		);
 	}
 
+	$status = gnf_summarize_docente_entries( $entries_raw, $selected )['allComplete'] ? 'final' : 'draft';
 	return array(
 		'year'        => $anio,
 		'generatedAt' => function_exists( 'current_time' ) ? current_time( 'mysql' ) : gmdate( 'Y-m-d H:i:s' ),
-		'status'      => gnf_summarize_docente_entries( $entries_raw, $selected )['allComplete'] ? 'final' : 'draft',
+		'status'      => $status,
+		'provisional' => gnf_center_report_is_provisional( $centro_id, $anio, $status ),
 		'center'      => $center,
 		'award'       => array(
 			'assigned' => function_exists( 'gnf_get_assigned_center_award' ) ? gnf_get_assigned_center_award( $centro_id, $anio ) : array(),
@@ -403,6 +447,10 @@ function gnf_render_center_report_html( $report ) {
 	$emails    = gnf_report_format_value( $center['contact_emails'] ?? array() );
 	$status    = 'final' === (string) ( $report['status'] ?? '' ) ? 'final' : 'draft';
 	$title     = 'final' === $status ? 'Reporte final de participación' : 'Borrador de participación';
+	$provisional = (bool) ( $report['provisional'] ?? ( 'draft' === $status ) );
+	if ( $provisional && 'final' === $status ) {
+		$title = 'Reporte provisional de participación';
+	}
 
 	$center_rows = array(
 		array( 'Código MEP', $center['codigo_mep'] ?? '' ),
@@ -461,8 +509,8 @@ function gnf_render_center_report_html( $report ) {
 	$html .= '@page{margin:18mm 14mm 17mm;}*{box-sizing:border-box}body{font-family:"DejaVu Sans",sans-serif;color:#24342e;font-size:9.5pt;line-height:1.42;margin:0}.footer{position:fixed;bottom:-11mm;left:0;right:0;border-top:1px solid #d7dfdb;padding-top:4px;color:#69766f;font-size:7.5pt}.cover{page-break-after:always;padding-top:12mm}.brand{color:#176b55;font-size:10pt;font-weight:bold;text-transform:uppercase;letter-spacing:.6px}.document-status{display:inline-block;margin-bottom:12px;padding:5px 8px;border:1px solid #d6b56b;background:#fff8e7;color:#7c5709;font-size:8pt;font-weight:bold;text-transform:uppercase}.accent{width:44px;height:5px;background:#e8b63d;margin:11px 0 20px}.cover h1{font-size:29pt;line-height:1.12;margin:0 0 8px;color:#173f35}.cover h2{font-size:15pt;margin:0;color:#50645c;font-weight:normal}.cover-meta{margin-top:20mm;border-left:5px solid #db654f;padding:10px 14px;background:#f5f7f6}.score-grid{margin-top:12mm;width:100%;border-collapse:separate;border-spacing:8px}.score-grid td{width:33.33%;border:1px solid #d7dfdb;padding:12px;background:#fff}.score-number{font-size:23pt;font-weight:bold;color:#176b55}.score-label{font-size:8pt;color:#69766f;text-transform:uppercase}.section{margin:0 0 14px}.section-title{font-size:15pt;color:#173f35;border-bottom:2px solid #e8b63d;padding-bottom:5px;margin:0 0 9px}.pairs{width:100%;border-collapse:collapse}.pairs th,.pairs td{border-bottom:1px solid #e5eae7;padding:5px 6px;vertical-align:top}.pairs th{width:35%;text-align:left;color:#52635c;background:#f6f8f7;font-weight:600}.pairs td{overflow-wrap:anywhere}.award-box{border:1px solid #cbd8d2;background:#f4f8f6;padding:10px 12px;margin-bottom:14px}.award-grid{width:100%;border-collapse:collapse}.award-grid td{width:33.33%;text-align:center;padding:7px;border-right:1px solid #d7dfdb}.award-grid td:last-child{border-right:0}.award-value{font-size:18pt;font-weight:bold;color:#176b55}.reto{page-break-before:auto;margin:0 0 16px}.reto-head{background:#173f35;color:#fff;padding:9px 11px}.reto-title{font-size:13pt;font-weight:bold}.reto-meta{font-size:8.5pt;margin-top:3px;color:#dce9e4}.response-table{width:100%;border-collapse:collapse;margin-top:8px}.response-table th,.response-table td{border:1px solid #dfe6e2;padding:5px;text-align:left;vertical-align:top}.response-table th{background:#f2f6f4}.evidence{page-break-inside:avoid;border:1px solid #d7dfdb;margin-top:8px;padding:8px}.evidence.rejected{border-left:4px solid #db654f}.evidence.approved{border-left:4px solid #176b55}.evidence.pending{border-left:4px solid #e8b63d}.evidence img{display:block;max-width:190px;max-height:135px;margin:7px 0;border:1px solid #d7dfdb}.evidence-name{font-weight:bold;color:#173f35;overflow-wrap:anywhere}.muted{color:#69766f}.note{background:#fff7e4;padding:6px 8px;margin-top:6px}.empty{color:#69766f;font-style:italic;padding:8px 0}.page-break{page-break-before:always}.raw-fields{font-size:8.5pt}.raw-fields tr{page-break-inside:avoid}</style></head><body>';
 	$html .= '<div class="footer">Movimiento Guardianes de la Naturaleza · Reporte ' . gnf_report_html_escape( $year ) . ' · Generado ' . gnf_report_html_escape( gnf_report_format_date( $report['generatedAt'] ?? '', true ) ) . '</div>';
 	$html .= '<section class="cover"><div class="brand">Bandera Azul Ecológica</div><div class="accent"></div>';
-	if ( 'draft' === $status ) {
-		$html .= '<div class="document-status">Documento preliminar · Pendiente de validación</div>';
+	if ( $provisional ) {
+		$html .= '<div class="document-status">Reporte provisional · Documento preliminar · Pendiente de cierre o validación</div>';
 	}
 	$html .= '<h1>' . gnf_report_html_escape( $title ) . '</h1><h2>' . gnf_report_html_escape( $name ) . '</h2>';
 	$html .= '<div class="cover-meta"><strong>Participación ' . gnf_report_html_escape( $year ) . '</strong><br>' . gnf_report_html_escape( $center['region_name'] ?? '' ) . ' · Circuito ' . gnf_report_html_escape( $center['circuito'] ?? '' ) . '<br>Código MEP: ' . gnf_report_html_escape( $center['codigo_mep'] ?? '' ) . '</div>';
@@ -599,9 +647,9 @@ function gnf_user_can_download_center_report( $centro_id, $anio = null ) {
 	if ( current_user_can( 'manage_options' ) ) {
 		return true;
 	}
-	$anio = gnf_normalize_year( $anio );
-	if ( gnf_user_receives_only_rejections( $user_id ) && 'final' !== gnf_get_center_report_status( $centro_id, $anio ) ) {
-		return false;
+	if ( gnf_user_has_role( wp_get_current_user(), 'docente' ) ) {
+		return gnf_is_admin_docente_report_preview()
+			&& gnf_user_can_access_centro( $user_id, absint( $centro_id ) );
 	}
 	return gnf_user_can_access_centro( $user_id, absint( $centro_id ) )
 		&& ( ! function_exists( 'gnf_feature_is_enabled_for_center' ) || gnf_feature_is_enabled_for_center( 'reports', $centro_id, false ) );
@@ -660,12 +708,26 @@ function gnf_handle_download_center_report_pdf() {
 
 	$post = get_post( $centro_id );
 	$slug = function_exists( 'sanitize_title' ) ? sanitize_title( $post ? $post->post_title : 'centro-' . $centro_id ) : 'centro-' . $centro_id;
+	if ( gnf_is_admin_docente_report_preview() && function_exists( 'gnf_log_audit_event' ) ) {
+		gnf_log_audit_event(
+			'admin_download_school_report_preview',
+			array(
+				'actor_user_id'  => gnf_get_impersonate_original_user(),
+				'target_user_id' => get_current_user_id(),
+				'centro_id'      => $centro_id,
+				'anio'           => $anio,
+				'panel'          => 'docente',
+				'message'        => 'Admin descargo el reporte escolar desde la sesion docente.',
+				'meta'           => array( 'provisional' => ! empty( $report['provisional'] ) ),
+			)
+		);
+	}
 	if ( function_exists( 'gnf_prepare_file_download_response' ) ) {
 		gnf_prepare_file_download_response();
 	}
 	header( 'Content-Type: application/pdf' );
-	$status = gnf_get_center_report_status( $centro_id, $anio );
-	header( 'Content-Disposition: attachment; filename="reporte-' . ( 'final' === $status ? 'final' : 'borrador' ) . '-' . $slug . '-' . $anio . '.pdf"' );
+	$status = ! empty( $report['provisional'] ) ? 'provisional' : ( 'final' === $report['status'] ? 'final' : 'borrador' );
+	header( 'Content-Disposition: attachment; filename="reporte-' . $status . '-' . $slug . '-' . $anio . '.pdf"' );
 	header( 'Content-Length: ' . filesize( $temp ) );
 	readfile( $temp );
 	@unlink( $temp );

@@ -8,6 +8,7 @@
   const assigned = new URLSearchParams(location.search).has('assigned');
   const empty = new URLSearchParams(location.search).has('empty');
   const paused = new URLSearchParams(location.search).has('paused');
+  const reportPreview = new URLSearchParams(location.search).has('report-preview');
   window.__GNF_DOCENTE__ = {
     restUrl: '/mock-api', nonce: '', anio: 2026, selectedYear: 2026, availableYears: [2026], logoUrl: new URL(logoUrl, location.href).pathname,
     user: { id: 1, name: 'Docente de prueba', displayName: 'Docente de prueba', role: 'docente', roles: ['docente'], email: 'demo@example.org' },
@@ -45,7 +46,8 @@
       aprobados: 1, enviados: 2, correccion: 1, enProgreso: 1,
       evidenceCounts: empty ? { pending: 0, approved: 0, rejected: 0, paused: 0, total: 0 } : { pending: 8, approved: 24, rejected: 3, paused: paused ? 2 : 0, total: paused ? 37 : 35 },
       assignedAward: assigned ? { result: { stars: 3 }, assignedAt: '2026-09-16', assignedBy: 2 } : null,
-      reportPdfStatus: assigned ? 'final' : 'draft', reportPdfUrl: assigned ? '#reporte-final-prueba' : '',
+      reportPdfStatus: assigned ? 'final' : 'draft', reportPdfUrl: reportPreview ? '#reporte-provisional-prueba' : '',
+      canDownloadSchoolReport: reportPreview, reportPdfProvisional: true,
     };
     else if (url.pathname.endsWith('/docente/retos')) payload = retos;
     else if (url.pathname.endsWith('/notifications')) payload = notifications;

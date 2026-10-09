@@ -1943,6 +1943,7 @@ function gnf_render_admin_dashboard()
 			</div>
 		</div>
 
+		<?php gnf_render_impact_admin_toolbar( $anio ); ?>
 		<div class="gnf-stats">
 			<div class="gnf-stat gnf-stat--info">
 				<strong><?php echo esc_html($centros_total); ?></strong>

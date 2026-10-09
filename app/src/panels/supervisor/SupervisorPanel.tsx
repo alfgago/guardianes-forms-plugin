@@ -1,4 +1,4 @@
-import { AlertTriangle, Bell, Clock3, LayoutDashboard, School } from 'lucide-react';
+import { AlertTriangle, BarChart3, Bell, Clock3, LayoutDashboard, School } from 'lucide-react';
 import { PanelShell } from '@/components/layout/PanelShell';
 import { SidebarLink } from '@/components/layout/SidebarLink';
 import { Alert } from '@/components/ui/Alert';
@@ -17,9 +17,11 @@ import { DashboardPage } from './pages/DashboardPage';
 import { CentroDetailPage } from './pages/CentroDetailPage';
 import { NotificacionesPage } from './pages/NotificacionesPage';
 import { FeedbackBubble } from '@/components/domain/FeedbackBubble';
+import { ImpactPanel } from '@/components/impact/ImpactPanel';
 
 const NAV_ITEMS = [
   { page: 'dashboard', label: 'Escritorio', icon: <LayoutDashboard size={18} /> },
+  { page: 'impacto', label: 'Panel de Impacto', icon: <BarChart3 size={18} /> },
   { page: 'notificaciones', label: 'Notificaciones', icon: <Bell size={18} />, badgeKey: 'notifications' as const },
 ];
 
@@ -118,6 +120,8 @@ function ActiveSupervisorPanel() {
         return <DashboardPage onViewCentro={(id) => navigate('centro', { centro_id: String(id) })} />;
       case 'notificaciones':
         return <NotificacionesPage />;
+      case 'impacto':
+        return <ImpactPanel />;
       default:
         return <DashboardPage onViewCentro={(id) => navigate('centro', { centro_id: String(id) })} />;
     }

@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Panel de Impacto</title>
+  <style>
+    .preview-controls { display:flex; gap:16px; flex-wrap:wrap; padding:12px 24px; border-bottom:1px solid #e2e8f0; background:#fff; }
+    .preview-controls label { display:flex; align-items:center; gap:8px; font-size:14px; }
+    .preview-controls select { min-height:36px; max-width:100%; border:1px solid #cbd5e1; border-radius:6px; padding:4px 8px; }
+    .preview-main { max-width:1440px; margin:24px auto; padding:0 24px 32px; min-width:0; }
+    @media(max-width:600px) { .preview-main { padding:0 16px 24px; } .preview-controls { padding:12px 16px; } }
+  </style>
+</head>
+<body><div id="preview"></div>
+<script type="module">
+  import React from 'react';
+  import { createRoot } from 'react-dom/client';
+  import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+  import { ImpactPanel } from '/src/components/impact/ImpactPanel.tsx';
+  import { useYearStore } from '/src/stores/useYearStore.ts';
+  import '/src/styles/base.css';
+  import '/src/styles/components.css';
+
+  const h = React.createElement;
+  const params = new URLSearchParams(location.search);
+  const mock = window.impactMock = { role: params.get('role') || 'admin', state: params.get('state') || 'ready', coldReads: 0, refreshUntil: 0 };
+  window.impactRequests = [];
+  window.__GNF_ADMIN__ = { restUrl: '/mock-impact', nonce: 'preview' };
+  useYearStore.getState().init(2026);
+
+  const catalog = [
+    {"key":"inscripciones","title":"Total de inscripciones","unit":"centros","source":"inscripcion","sourceLabel":"Inscripción"},
+    {"key":"centros_pequenos","title":"Centros unidocentes y Direccion I participantes","unit":"centros","source":"inscripcion","sourceLabel":"Inscripción"},
+    {"key":"estudiantes_migrantes","title":"Estudiantes en condicion de migrantes","unit":"estudiantes","source":"inscripcion","sourceLabel":"Inscripción"},
+    {"key":"centros_con_evidencias","title":"Centros inscritos con evidencias","unit":"centros","source":"eco-retos","sourceLabel":"Eco Retos"},
+    {"key":"agua_centros","title":"Centros realizando Reto Agua","unit":"centros","source":"reto-agua","sourceLabel":"Reto Agua"},
+    {"key":"agua_captacion","title":"Centros captando agua de lluvia","unit":"centros","source":"reto-agua","sourceLabel":"Reto Agua"},
+    {"key":"agua_riego","title":"Centros con riego ahorrativo","unit":"centros","source":"reto-agua","sourceLabel":"Reto Agua"},
+    {"key":"agua_registro_consumo","title":"Centros registrando consumo de agua","unit":"centros","source":"reto-agua","sourceLabel":"Reto Agua"},
+    {"key":"energia_centros","title":"Centros realizando Reto Energia","unit":"centros","source":"reto-electricidad","sourceLabel":"Reto Energía"},
+    {"key":"energia_paneles_solares","title":"Centros con paneles solares","unit":"centros","source":"reto-electricidad","sourceLabel":"Reto Energía"},
+    {"key":"energia_registro_consumo","title":"Centros registrando consumo de energia","unit":"centros","source":"reto-electricidad","sourceLabel":"Reto Energía"},
+    {"key":"residuos_centros","title":"Centros realizando Reto Residuos","unit":"centros","source":"reto-residuos","sourceLabel":"Reto Residuos"},
+    {"key":"residuos_estaciones","title":"Centros con estaciones de separacion","unit":"centros","source":"reto-residuos","sourceLabel":"Reto Residuos"},
+    {"key":"residuos_registro_no_valorizables","title":"Centros registrando residuos no valorizables","unit":"centros","source":"reto-residuos","sourceLabel":"Reto Residuos"},
+    {"key":"residuos_kg_valorizables","title":"Residuos valorizables recolectados","unit":"kg","source":"reto-residuos","sourceLabel":"Reto Residuos"},
+    {"key":"organicos_centros","title":"Centros realizando Gestion de Organicos","unit":"centros","source":"reto-gestion-de-organicos","sourceLabel":"Gestión de Orgánicos"},
+    {"key":"organicos_compostaje","title":"Centros aprovechando residuos organicos","unit":"centros","source":"reto-gestion-de-organicos","sourceLabel":"Gestión de Orgánicos"},
+    {"key":"limpiezas_centros","title":"Centros realizando Reto Limpiezas","unit":"centros","source":"reto-limpiezas","sourceLabel":"Reto Limpiezas"},
+    {"key":"limpiezas_total","title":"Limpiezas realizadas","unit":"limpiezas","source":"reto-limpiezas","sourceLabel":"Reto Limpiezas"},
+    {"key":"limpiezas_bolsas","title":"Bolsas recolectadas durante limpiezas","unit":"bolsas","source":"reto-limpiezas","sourceLabel":"Reto Limpiezas"},
+    {"key":"loncheras_centros","title":"Centros realizando Eco Loncheras","unit":"centros","source":"reto-eco-lonchera","sourceLabel":"Eco Loncheras"},
+    {"key":"jardines_centros","title":"Centros realizando Jardines para Polinizadores","unit":"centros","source":"reto-jardines-y-polinizadores","sourceLabel":"Jardines para Polinizadores"},
+    {"key":"jardines_areas","title":"Jardines para polinizadores","unit":"jardines","source":"reto-jardines-y-polinizadores","sourceLabel":"Jardines para Polinizadores"},
+    {"key":"jardines_inaturalist","title":"Centros usando iNaturalist","unit":"centros","source":"reto-jardines-y-polinizadores","sourceLabel":"Jardines para Polinizadores"},
+    {"key":"jardines_refugios","title":"Meliponarios, colmenas u hoteles de insectos","unit":"estructuras","source":"reto-jardines-y-polinizadores","sourceLabel":"Jardines para Polinizadores"},
+    {"key":"huerta_centros","title":"Centros realizando Reto Huerta","unit":"centros","source":"reto-huerta","sourceLabel":"Reto Huerta"},
+    {"key":"huerta_actividades","title":"Centros con actividades en la huerta","unit":"centros","source":"reto-huerta","sourceLabel":"Reto Huerta"},
+    {"key":"eco_gira_centros","title":"Centros realizando Eco Gira","unit":"centros","source":"reto-eco-gira","sourceLabel":"Eco Gira"},
+    {"key":"eco_giras_total","title":"Eco giras realizadas","unit":"giras","source":"reto-eco-gira","sourceLabel":"Eco Gira"},
+    {"key":"eco_giras_estudiantes","title":"Estudiantes visitando areas naturales","unit":"estudiantes","source":"reto-eco-gira","sourceLabel":"Eco Gira"},
+    {"key":"emprendimiento_centros","title":"Centros realizando Eco Emprendimiento","unit":"centros","source":"reto-eco-emprendimiento","sourceLabel":"Eco Emprendimiento"},
+    {"key":"emprendimiento_ingresos","title":"Ingresos de eco emprendimientos","unit":"colones","source":"reto-eco-emprendimiento","sourceLabel":"Eco Emprendimiento"},
+    {"key":"arboles_centros","title":"Centros realizando Siembra de Arboles","unit":"centros","source":"reto-siembra-de-arboles","sourceLabel":"Siembra de Árboles"},
+    {"key":"arboles_siembras","title":"Siembras de arboles realizadas","unit":"siembras","source":"reto-siembra-de-arboles","sourceLabel":"Siembra de Árboles"},
+    {"key":"arboles_estudiantes","title":"Estudiantes sembrando arboles","unit":"estudiantes","source":"reto-siembra-de-arboles","sourceLabel":"Siembra de Árboles"},
+    {"key":"arboles_plantados","title":"Arboles plantados","unit":"arboles","source":"reto-siembra-de-arboles","sourceLabel":"Siembra de Árboles"},
+    {"key":"eco_clubes_centros","title":"Centros realizando Eco Clubes","unit":"centros","source":"reto-eco-clubes","sourceLabel":"Eco Clubes Estudiantiles"},
+    {"key":"murales_centros","title":"Centros realizando Eco Murales","unit":"centros","source":"reto-artistico-eco-murales","sourceLabel":"Eco Murales"},
+    {"key":"eventos_centros","title":"Centros realizando Evento Sostenible","unit":"centros","source":"reto-evento-sostenible","sourceLabel":"Evento Sostenible"},
+    {"key":"bienestar_centros","title":"Centros realizando Bienestar Animal","unit":"centros","source":"reto-bienestar-animal","sourceLabel":"Bienestar Animal"},
+    {"key":"comodin_centros","title":"Centros realizando Reto Comodin","unit":"centros","source":"reto-comodin","sourceLabel":"Reto Comodín"}
+  ];
+  catalog.forEach((metric) => { metric.available = metric.key !== 'jardines_refugios'; });
+  const sources = [...new Map(catalog.map((metric) => [metric.source, { value: metric.source, label: metric.sourceLabel }])).values()];
+  const centers = Array.from({ length: 58 }, (_, index) => ({
+    regionId: index < 29 ? 1 : 2, regionName: index < 29 ? 'Alajuela' : 'Heredia',
+    circuit: String(index % 29 + 1).padStart(2, '0'),
+    values: Object.fromEntries(catalog.map((metric, m) => [metric.key,
+      !metric.available || (metric.key === 'agua_riego' && index >= 29) ? null
+        : metric.key === 'agua_captacion' ? 0 : metric.unit === 'centros' ? 1 : (index + 1) * (m + 1) * 3])),
+  }));
+  const nativeFetch = window.fetch.bind(window);
+  function aggregate(rows, id, label, mode, metrics, extra = {}) {
+    return { id, label, ...extra,
+      values: Object.fromEntries(metrics.map((metric) => {
+        const values = rows.map((row) => row.values[metric.key]).filter((value) => value !== null);
+        return [metric.key, values.length ? values.reduce((sum, value) => sum + value, 0) * (mode === 'approved' && metric.source !== 'inscripcion' && metric.unit !== 'centros' ? .75 : 1) : null];
+      })),
+      coverage: Object.fromEntries(metrics.map((metric) => [metric.key, rows.filter((row) => row.values[metric.key] !== null).length])),
+    };
+  }
+  window.fetch = async (input, options = {}) => {
+    const url = new URL(String(input), location.origin);
+    if (!url.pathname.startsWith('/mock-impact')) return nativeFetch(input, options);
+    window.impactRequests.push({ path: url.pathname, params: Object.fromEntries(url.searchParams), method: options.method || 'GET', body: options.body, at: Date.now() });
+    await new Promise((resolve) => setTimeout(resolve, 120));
+    const json = (body, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
+    if (mock.state === 'error') return json({ code: 'preview_error', message: 'Servicio no disponible', data: { status: 503 } }, 503);
+    if (url.pathname.endsWith('/refresh')) {
+      if (mock.role !== 'admin') return json({ message: 'Sin permiso' }, 403);
+      mock.refreshUntil = Date.now() + 5200;
+      return json({ refreshing: true });
+    }
+    const year = Number(url.searchParams.get('year') || 2026);
+    const region = mock.role === 'dre' ? '2' : url.searchParams.get('region') || '';
+    const circuit = url.searchParams.get('circuit') || '';
+    const mode = url.searchParams.get('mode') || 'approved';
+    const selectedSources = (url.searchParams.get('sources') || '').split(',').filter(Boolean);
+    const allCatalog = year === 2026 ? catalog : [];
+    const metrics = allCatalog.filter((metric) => !selectedSources.length || selectedSources.includes(metric.source));
+    const allowed = centers.filter((row) => mock.role !== 'dre' || row.regionId === 2);
+    const rows = mock.state === 'empty' ? [] : allowed.filter((row) => (!region || String(row.regionId) === region) && (!circuit || row.circuit === circuit));
+    const metadata = {
+      year, canRefresh: mock.role === 'admin', filters: { region, circuit, mode, sources: selectedSources },
+      availableRegions: [ { id: 1, name: 'Alajuela' }, { id: 2, name: 'Heredia' } ].filter((row) => mock.role !== 'dre' || row.id === 2),
+      availableCircuits: allowed.map((row) => ({ regionId: row.regionId, value: row.circuit, label: `Circuito ${row.circuit}` })),
+      availableSources: allCatalog.length ? sources : [],
+    };
+    if (mock.state === 'cold' && mock.coldReads++ === 0) return json({ ...metadata, ready: false, stale: false, refreshing: true, generatedAt: null, impact: null, summary: null, exports: {} });
+    const generatedAt = '2026-10-08 10:30:00';
+    const territoryRegions = Object.fromEntries([...new Set(rows.map((row) => row.regionId))].map((id) => {
+      const group = rows.filter((row) => row.regionId === id);
+      return [id, aggregate(group, id, group[0].regionName, mode, metrics)];
+    }));
+    const territoryCircuits = Object.fromEntries(rows.map((row) => {
+      const id = `${row.regionId}:${row.circuit}`;
+      return [id, aggregate([row], id, `Circuito ${row.circuit}`, mode, metrics, { regionId: row.regionId, regionName: row.regionName })];
+    }));
+    const exportParams = new URLSearchParams({ year, region, circuit, mode, sources: selectedSources.join(','), _wpnonce: 'preview-signed' });
+    return json({ ...metadata, ready: true, stale: mock.state === 'stale', refreshing: mock.state === 'refreshing' || Date.now() < mock.refreshUntil, generatedAt,
+      impact: { year, mode, generatedAt, catalog: metrics, total: aggregate(rows, 'total', region ? metadata.availableRegions.find((r) => String(r.id) === region)?.name : 'Total autorizado', mode, metrics), regions: territoryRegions, circuits: territoryCircuits },
+      summary: { totalCentros: rows.length, totalAprobados: rows.length * 12, promedioEstrellas: rows.length ? 2.6 : 0, promedioPuntaje: rows.length ? 87.4 : 0, centrosConEvidencias: rows.length },
+      exports: Object.fromEntries(['indicators','centros','retos','pdfSummary','pdfFull'].map((key) => [key, `/mock-impact/download?${exportParams}&dataset=${key}`])),
+    });
+  };
+
+  const client = new QueryClient();
+  window.impactQueryClient = client;
+  function Preview() {
+    const [epoch, setEpoch] = React.useState(0);
+    function change(key, value) { mock[key] = value; mock.coldReads = 0; mock.refreshUntil = 0; client.clear(); setEpoch(epoch + 1); }
+    return h(React.Fragment, null,
+      h('div', { className: 'preview-controls' },
+        h('strong', { style: { fontSize: 14, alignSelf: 'center', color: '#475569' } }, 'Datos de prueba'),
+        h('label', null, 'Rol', h('select', { 'aria-label': 'Rol de prueba', value: mock.role, onChange: (event) => change('role', event.target.value) }, h('option', { value: 'admin' }, 'Admin'), h('option', { value: 'dre' }, 'DRE'))),
+        h('label', null, 'Estado', h('select', { 'aria-label': 'Estado de prueba', value: mock.state, onChange: (event) => change('state', event.target.value) }, ['ready','cold','stale','refreshing','error','empty'].map((value) => h('option', { key: value, value }, { ready:'Listo', cold:'Preparando', stale:'Desactualizado', refreshing:'Actualizando', error:'Error', empty:'Sin centros' }[value]))))),
+      h('main', { className: 'preview-main', key: epoch }, h(QueryClientProvider, { client }, h(ImpactPanel))));
+  }
+  createRoot(document.getElementById('preview')).render(h(Preview));
+</script>
+</body>
+</html>

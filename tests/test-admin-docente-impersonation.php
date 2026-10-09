@@ -33,8 +33,8 @@ check_admin_docente_impersonation(
 );
 check_admin_docente_impersonation(
 	strpos( $impersonate, 'function gnf_get_primary_docentes_for_centros' ) !== false
-		&& substr_count( $rest, '$primary_docentes = gnf_get_primary_docentes_for_centros( $centro_ids );' ) >= 2,
-	'los listados React resuelven docentes activos por lote'
+		&& strpos( $rest, '$primary_docentes = gnf_get_primary_docentes_for_centros( $centro_ids );' ) !== false,
+	'el listado React de centros resuelve docentes activos por lote; reportes usa el corte precalculado'
 );
 check_admin_docente_impersonation(
 	strpos( $impersonate, 'function gnf_build_impersonate_url' ) !== false

@@ -441,6 +441,12 @@ function gnf_register_rest_routes() {
 	register_rest_route( $ns, '/impact', array(
 		'methods' => 'GET', 'callback' => 'gnf_rest_public_impact', 'permission_callback' => '__return_true',
 	) );
+	register_rest_route( $ns, '/reports/overview', array(
+		'methods' => 'GET', 'callback' => 'gnf_rest_reports_overview', 'permission_callback' => 'gnf_rest_is_supervisor',
+	) );
+	register_rest_route( $ns, '/reports/refresh', array(
+		'methods' => 'POST', 'callback' => 'gnf_rest_reports_refresh', 'permission_callback' => 'gnf_rest_is_admin',
+	) );
 
 	register_rest_route(
 		$ns,
@@ -1845,7 +1851,10 @@ function gnf_rest_docente_dashboard( WP_REST_Request $request ) {
 	$award_enabled = ! function_exists( 'gnf_feature_is_enabled_for_center' ) || gnf_feature_is_enabled_for_center( 'awards', $centro_id, false );
 	$assigned_award = $award_enabled ? gnf_get_assigned_center_award( $centro_id, $anio ) : array();
 
-	return array(
+	$school_report = function_exists( 'gnf_get_docente_school_report_payload' )
+		? gnf_get_docente_school_report_payload( $centro_id, $anio, $all_complete ? 'final' : 'draft' )
+		: array( 'canDownloadSchoolReport' => false, 'reportPdfUrl' => '', 'reportPdfStatus' => 'draft', 'reportPdfProvisional' => true );
+	return array_merge( array(
 		'centro'           => array(
 			'id'         => $centro_id,
 			'nombre'     => $centro ? $centro->post_title : '',
@@ -1866,9 +1875,7 @@ function gnf_rest_docente_dashboard( WP_REST_Request $request ) {
 		'tieneMatricula'   => 'no_iniciado' !== $matricula_estado,
 		'allRetosComplete' => $all_complete,
 		'assignedAward'     => $assigned_award ?: null,
-		'reportPdfUrl'      => function_exists( 'gnf_get_center_report_download_url' ) ? gnf_get_center_report_download_url( $centro_id, $anio ) : '',
-		'reportPdfStatus'   => $all_complete ? 'final' : 'draft',
-	);
+	), $school_report );
 }
 
 function gnf_rest_docente_retos( WP_REST_Request $request ) {
@@ -3691,54 +3698,15 @@ function gnf_rest_admin_retos( WP_REST_Request $request ) {
 }
 
 function gnf_rest_admin_reports( WP_REST_Request $request ) {
-	$anio = gnf_rest_get_active_panel_year();
-	$centro_ids = gnf_get_centros_with_matricula( $anio );
-	$counts     = gnf_rest_get_entry_counts_by_centro( $centro_ids, $anio );
-	if ( function_exists( '_prime_post_caches' ) ) {
-		_prime_post_caches( $centro_ids, false, true );
+	$year = gnf_normalize_year( $request->get_param( 'year' ) );
+	$result = gnf_scope_report_snapshot( gnf_get_report_snapshot( $year ), $request->get_param( 'region' ), $request->get_param( 'circuit' ) ?? '', $request->get_param( 'mode' ) ?? 'approved', $request->get_param( 'sources' ) ?? array() );
+	if ( is_wp_error( $result ) ) { return $result; }
+	$centros = array();
+	foreach ( $result['centros'] as $center ) {
+		$p = $center['profile']; $stats = $center['stats'];
+		$centros[] = array( 'id' => $p['centro_id'], 'nombre' => $p['nombre'], 'codigoMep' => $p['codigo_mep'], 'regionId' => $p['region_id'], 'regionName' => $p['region_name'], 'circuito' => $p['circuito'], 'aprobados' => $stats['aprobados'], 'annual' => array( 'anio' => $year, 'puntajeTotal' => $stats['puntaje'], 'estrellaFinal' => $stats['estrellas'] ) );
 	}
-	$primary_docentes = gnf_get_primary_docentes_for_centros( $centro_ids );
-	$centros    = array();
-
-	foreach ( (array) $centro_ids as $centro_id ) {
-		if ( 'publish' !== get_post_status( $centro_id ) ) {
-			continue;
-		}
-		$docente_id = absint( $primary_docentes[ $centro_id ] ?? 0 );
-		$impersonate_url = $docente_id
-			? gnf_build_impersonate_url( $docente_id, admin_url( 'admin.php?page=gnf-admin' ) )
-			: '';
-		$centros[] = gnf_rest_build_centro_with_stats(
-			$centro_id,
-			$anio,
-			$counts,
-			array(
-				'canImpersonateDocente' => '' !== $impersonate_url,
-				'docenteImpersonateUrl' => $impersonate_url,
-			)
-		);
-	}
-
-	$total_centros   = count( $centros );
-	$total_aprobados = 0;
-	$total_estrellas = 0;
-	$total_puntaje   = 0;
-
-	foreach ( $centros as $centro ) {
-		$total_aprobados += (int) $centro['aprobados'];
-		$total_estrellas += (int) $centro['annual']['estrellaFinal'];
-		$total_puntaje   += (int) $centro['annual']['puntajeTotal'];
-	}
-
-	return array(
-		'summary' => array(
-			'totalCentros'      => $total_centros,
-			'totalAprobados'    => $total_aprobados,
-			'promedioEstrellas' => $total_centros ? round( $total_estrellas / $total_centros, 2 ) : 0,
-			'promedioPuntaje'   => $total_centros ? round( $total_puntaje / $total_centros, 2 ) : 0,
-		),
-		'centros' => $centros,
-	);
+	return array( 'ready' => $result['ready'], 'generatedAt' => $result['generatedAt'], 'summary' => $result['summary'], 'centros' => $centros );
 }
 
 function gnf_rest_admin_dre_list() {

@@ -3,6 +3,9 @@
 
 $root       = __DIR__ . '/..';
 $reports    = file_get_contents( $root . '/app/src/panels/admin/pages/ReportesPage.tsx' );
+foreach ( glob( $root . '/app/src/components/impact/*.tsx' ) as $shared_component ) {
+	$reports .= file_get_contents( $shared_component );
+}
 $modal      = file_get_contents( $root . '/app/src/components/ui/Modal.tsx' );
 $styles     = file_get_contents( $root . '/app/src/styles/components.css' );
 $docente    = file_get_contents( $root . '/app/src/panels/docente/components/ProgressHero.tsx' );
@@ -26,7 +29,7 @@ function check_pilot_ux( $condition, $message ) {
 check_pilot_ux( false === strpos( $reports, 'Exportar CSV' ), 'Reportes no muestra una accion de exportacion inactiva' );
 check_pilot_ux( false !== strpos( $reports, 'Buscar DRE o circuito' ), 'comparacion territorial permite buscar' );
 check_pilot_ux( false !== strpos( $reports, 'No hay territorios que coincidan' ), 'comparacion territorial tiene estado vacio' );
-check_pilot_ux( false !== strpos( $reports, 'Última actualización' ), 'indicadores muestran fecha de actualizacion' );
+check_pilot_ux( false !== strpos( $reports, 'Última actualización' ) && false !== strpos( $reports, '<time dateTime=' ), 'indicadores muestran fecha de actualizacion' );
 check_pilot_ux( false !== strpos( $modal, 'previousActiveElement' ) && false !== strpos( $modal, "event.key === 'Tab'" ), 'modal contiene y restaura el foco' );
 check_pilot_ux( false !== strpos( $modal, 'aria-labelledby' ) && false !== strpos( $modal, 'aria-label' ), 'modal siempre tiene nombre accesible' );
 check_pilot_ux( false !== strpos( $modal, 'overscrollBehavior' ), 'modal contiene el desplazamiento' );

@@ -149,7 +149,7 @@ function gnf_impact_definition_matches_label( $definition, $label ) {
 /**
  * Anota y agrega campos sin cambiar IDs existentes. Funcion pura y testeable.
  */
-function gnf_prepare_impact_form_fields( $fields, $definitions ) {
+function gnf_prepare_impact_form_fields( $fields, $definitions, $next_id = 1 ) {
 	$fields  = is_array( $fields ) ? $fields : array();
 	$changed = false;
 	$found   = array();
@@ -171,7 +171,8 @@ function gnf_prepare_impact_form_fields( $fields, $definitions ) {
 	}
 	unset( $field );
 
-	$next_id = empty( $fields ) ? 1 : max( array_map( 'intval', array_keys( $fields ) ) ) + 1;
+	$used_ids = array_merge( array_map( 'intval', array_keys( $fields ) ), array_map( 'intval', array_column( $fields, 'id' ) ), array( 0 ) );
+	$next_id = max( (int) $next_id, max( $used_ids ) + 1 );
 	foreach ( (array) $definitions as $definition ) {
 		if ( empty( $definition['create'] ) || ! empty( $found[ $definition['key'] ] ) ) {
 			continue;
@@ -196,7 +197,7 @@ function gnf_prepare_impact_form_fields( $fields, $definitions ) {
 		$changed = true;
 	}
 
-	return array( 'fields' => $fields, 'changed' => $changed );
+	return array( 'fields' => $fields, 'changed' => $changed, 'next_id' => $next_id );
 }
 
 /**
@@ -220,6 +221,7 @@ function gnf_ensure_impact_fields_for_year( $anio = 2026 ) {
 		}
 	}
 	$processed = 0;
+	$failed = false;
 	foreach ( gnf_get_available_retos_for_year( $anio ) as $reto ) {
 		$slug = gnf_get_reto_canonical_slug( $reto->post_title );
 		if ( empty( $by_reto[ $slug ] ) && empty( $award_by_reto[ $slug ] ) ) {
@@ -228,29 +230,48 @@ function gnf_ensure_impact_fields_for_year( $anio = 2026 ) {
 		$form_id   = gnf_get_reto_form_id_for_year( $reto->ID, $anio );
 		$form_post = $form_id ? get_post( $form_id ) : null;
 		$form_data = $form_post ? json_decode( (string) $form_post->post_content, true ) : null;
-		if ( ! is_array( $form_data ) ) {
+		if ( ! $form_post || 'wpforms' !== $form_post->post_type || ! is_array( $form_data ) || ! is_array( $form_data['fields'] ?? null ) || empty( $form_data['fields'] ) ) {
+			$failed = true;
 			continue;
 		}
-		$prepared       = gnf_prepare_impact_form_fields( $form_data['fields'] ?? array(), $by_reto[ $slug ] ?? array() );
+		$prepared       = gnf_prepare_impact_form_fields( $form_data['fields'], $by_reto[ $slug ] ?? array(), $form_data['field_id'] ?? 1 );
 		$award_prepared = function_exists( 'gnf_prepare_award_form_fields' )
 			? gnf_prepare_award_form_fields( $prepared['fields'], $award_by_reto[ $slug ] ?? array() )
 			: array( 'fields' => $prepared['fields'], 'changed' => false );
 		if ( $prepared['changed'] || $award_prepared['changed'] ) {
 			$form_data['fields']   = $award_prepared['fields'];
-			$form_data['field_id'] = max( array_map( 'intval', array_keys( $prepared['fields'] ) ) ) + 1;
-			wp_update_post(
-				array(
+			$form_data['field_id'] = $prepared['next_id'];
+			$content = wp_json_encode( $form_data, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES );
+			if ( ! is_string( $content ) || ! is_array( json_decode( $content, true ) ) ) { $failed = true; continue; }
+			// Preserve the first valid definition before changing a shared live form.
+			$backup_key = 'gnf_impact_form_backup_' . $anio . '_' . $form_id;
+			if ( false === get_option( $backup_key, false ) ) {
+				$backup = array( 'form_id' => (int) $form_id, 'created_at' => time(), 'post_content' => (string) $form_post->post_content );
+				add_option( $backup_key, $backup, '', false );
+				if ( get_option( $backup_key, false ) !== $backup ) { $failed = true; continue; }
+			}
+			// wp_update_post unslashes input: protect JSON quotes and backslashes.
+			$result = wp_update_post(
+				wp_slash( array(
 					'ID'           => $form_id,
-					'post_content' => wp_json_encode( $form_data, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES ),
-				)
+					'post_content' => $content,
+				) ),
+				true
 			);
+			if ( is_wp_error( $result ) || ! $result ) { $failed = true; continue; }
+			$saved_post = get_post( $form_id );
+			if ( ! $saved_post || json_decode( (string) $saved_post->post_content, true ) !== $form_data ) {
+				$failed = true;
+				continue;
+			}
 		}
 		$processed++;
 	}
-	if ( $processed > 0 ) {
+	if ( $processed > 0 && ! $failed ) {
 		update_option( $schema_key, 1, false );
 		return true;
 	}
+	update_option( $schema_key, 0, false );
 	return false;
 }
 
@@ -335,7 +356,7 @@ function gnf_render_impact_fields_admin_notice() {
 	if ( 'success' === $result ) {
 		echo '<div class="notice notice-success is-dismissible"><p>Los formularios 2026 quedaron preparados para recopilar indicadores de impacto.</p></div>';
 	} elseif ( 'unavailable' === $result ) {
-		echo '<div class="notice notice-error is-dismissible"><p>No se encontraron formularios 2026 que pudieran prepararse.</p></div>';
+		echo '<div class="notice notice-error is-dismissible"><p>No se pudieron preparar todos los formularios 2026. Puede faltar un formulario o existir una definición inválida. Revisa los formularios y sus respaldos antes de volver a ejecutar esta acción.</p></div>';
 	}
 	?>
 	<div class="notice notice-info">
@@ -557,6 +578,9 @@ function gnf_impact_definitions_for_reto( $reto_slug, $anio ) {
 }
 
 function gnf_impact_field_key_map( $reto_id, $reto_slug, $anio ) {
+	static $cached = array();
+	$cache_key = (int) $reto_id . ':' . (int) $anio . ':' . $reto_slug;
+	if ( isset( $cached[ $cache_key ] ) ) { return $cached[ $cache_key ]; }
 	$form_id   = function_exists( 'gnf_get_reto_form_id_for_year' ) ? gnf_get_reto_form_id_for_year( $reto_id, $anio ) : 0;
 	$form_data = $form_id && function_exists( 'gnf_get_wpforms_form_definition' ) ? gnf_get_wpforms_form_definition( $form_id ) : array();
 	$fields    = is_array( $form_data['fields'] ?? null ) ? $form_data['fields'] : array();
@@ -577,6 +601,7 @@ function gnf_impact_field_key_map( $reto_id, $reto_slug, $anio ) {
 			$map[ $field_id ] = array( 'key' => $key, 'field' => $field );
 		}
 	}
+	$cached[ $cache_key ] = $map;
 	return $map;
 }
 
@@ -588,7 +613,8 @@ function gnf_build_impact_entry_record( $entry, $anio ) {
 	$evidences  = json_decode( (string) ( $entry->evidencias ?? '' ), true );
 	$evidences  = function_exists( 'gnf_enrich_evidencias' ) ? gnf_enrich_evidencias( (array) $evidences, (int) $entry->reto_id, $anio ) : (array) $evidences;
 	$active     = false;
-	$approved   = 'aprobado' === (string) ( $entry->estado ?? '' );
+	$approved   = true;
+	$reviewable = 0;
 	foreach ( $evidences as $evidence ) {
 		if ( ! is_array( $evidence ) || ! empty( $evidence['replaced'] ) ) {
 			continue;
@@ -597,10 +623,12 @@ function gnf_build_impact_entry_record( $entry, $anio ) {
 		if ( ! in_array( $state, array( 'rechazada', 'en_pausa' ), true ) ) {
 			$active = true;
 		}
-		if ( 'en_pausa' === $state ) {
-			$approved = false;
+		if ( ! array_key_exists( 'puntos', $evidence ) || null !== $evidence['puntos'] ) {
+			$reviewable++;
+			if ( 'aprobada' !== $state ) { $approved = false; }
 		}
 	}
+	$approved = $approved && $reviewable > 0;
 
 	$responses = array();
 	foreach ( gnf_impact_field_key_map( (int) $entry->reto_id, $reto_slug, $anio ) as $field_id => $field_info ) {
@@ -632,23 +660,33 @@ function gnf_merge_impact_entry_record( $current, $incoming ) {
 /**
  * Construye registros canonicos en lotes de 200 centros matriculados.
  */
-function gnf_get_impact_center_records( $anio ) {
+function gnf_get_impact_center_records( $anio, $only_ids = null, $with_profiles = false ) {
 	global $wpdb;
 	$records    = array();
-	$centro_ids = function_exists( 'gnf_get_centros_with_matricula' ) ? gnf_get_centros_with_matricula( $anio ) : array();
+	$centro_ids = $only_ids;
+	if ( null === $only_ids ) {
+		$wpdb->last_error = '';
+		$centro_ids = function_exists( 'gnf_get_centros_with_matricula' ) ? gnf_get_centros_with_matricula( $anio ) : array();
+		if ( ! empty( $wpdb->last_error ) ) { throw new RuntimeException( 'No se pudieron cargar los centros matriculados para impacto.' ); }
+	}
 	$centro_ids = array_values( array_unique( array_filter( array_map( 'absint', (array) $centro_ids ) ) ) );
 	$table      = $wpdb->prefix . 'gn_reto_entries';
 
 	foreach ( array_chunk( $centro_ids, 200 ) as $batch_ids ) {
+		$wpdb->last_error = '';
+		// Cache reads are checked separately in the batch loader below.
 		$posts = get_posts(
 			array(
-				'post_type'      => 'centro_educativo',
-				'post_status'    => 'publish',
-				'posts_per_page' => 200,
-				'post__in'       => $batch_ids,
-				'orderby'        => 'post__in',
+				'post_type'              => 'centro_educativo',
+				'post_status'            => 'publish',
+				'posts_per_page'         => 200,
+				'post__in'               => $batch_ids,
+				'orderby'                => 'post__in',
+				'update_post_meta_cache' => false,
+				'update_post_term_cache' => false,
 			)
 		);
+		if ( ! empty( $wpdb->last_error ) ) { throw new RuntimeException( 'No se pudieron cargar los centros publicados para impacto.' ); }
 		$published_ids = array_values( array_map( 'absint', wp_list_pluck( $posts, 'ID' ) ) );
 		if ( empty( $published_ids ) ) {
 			continue;
@@ -656,6 +694,7 @@ function gnf_get_impact_center_records( $anio ) {
 		$batch = function_exists( 'gnf_build_centros_export_batch_maps' ) ? gnf_build_centros_export_batch_maps( $published_ids, $anio ) : array();
 		foreach ( $published_ids as $centro_id ) {
 			$profile = function_exists( 'gnf_build_centro_export_record' ) ? gnf_build_centro_export_record( $centro_id, $anio, $batch ) : array();
+			if ( in_array( $profile['estado_centro'] ?? '', array( 'inactivo', 'rechazado', 'pendiente_de_revision_admin' ), true ) ) { continue; }
 			$records[ $centro_id ] = array(
 				'id'          => $centro_id,
 				'regionId'    => (int) ( $profile['region_id'] ?? 0 ),
@@ -666,6 +705,11 @@ function gnf_get_impact_center_records( $anio ) {
 				'migrantes'   => (int) ( $profile['estudiantes_migrantes'] ?? 0 ),
 				'entries'     => array(),
 			);
+			if ( $with_profiles ) {
+				$records[ $centro_id ]['profile'] = $profile;
+				$records[ $centro_id ]['stats'] = array( 'puntaje' => (int) ( $profile['puntaje_total'] ?? 0 ), 'estrellas' => (int) ( $profile['estrella_final'] ?? 0 ), 'aprobados' => 0, 'evidencias' => 0 );
+				$records[ $centro_id ]['retos'] = array();
+			}
 		}
 
 		$placeholders = implode( ',', array_fill( 0, count( $published_ids ), '%d' ) );
@@ -675,12 +719,20 @@ function gnf_get_impact_center_records( $anio ) {
 				array_merge( array( (int) $anio ), $published_ids )
 			)
 		);
+		if ( ! empty( $wpdb->last_error ) ) { throw new RuntimeException( 'No se pudieron cargar las evidencias de impacto.' ); }
 		foreach ( (array) $entries as $entry ) {
 			$centro_id    = (int) $entry->centro_id;
 			$entry_record = gnf_build_impact_entry_record( $entry, $anio );
 			$slug         = $entry_record['reto'];
 			if ( $slug && isset( $records[ $centro_id ] ) ) {
 				$records[ $centro_id ]['entries'][ $slug ] = gnf_merge_impact_entry_record( $records[ $centro_id ]['entries'][ $slug ] ?? array(), $entry_record );
+				if ( $with_profiles ) {
+					$summary = gnf_summarize_docente_entries( array( $entry ), array( (int) $entry->reto_id ) );
+					$records[ $centro_id ]['stats']['aprobados'] += $entry_record['approved'] ? 1 : 0;
+					$records[ $centro_id ]['stats']['evidencias'] += $summary['evidenceCounts']['total'];
+					$state = $entry_record['approved'] ? 'aprobado' : ( $summary['evidenceCounts']['paused'] ? 'en_pausa' : ( $summary['evidenceCounts']['rejected'] ? 'correccion' : ( $summary['evidenceCounts']['total'] ? 'enviado' : 'no_iniciado' ) ) );
+					$records[ $centro_id ]['retos'][] = array( 'id' => (int) $entry->reto_id, 'title' => get_the_title( (int) $entry->reto_id ), 'source' => 'reto-' . $slug, 'state' => $state, 'points' => (int) $entry->puntaje, 'evidenceCounts' => $summary['evidenceCounts'] );
+				}
 			}
 		}
 	}
@@ -725,6 +777,15 @@ function gnf_clear_impact_cache( $anio = 2026 ) {
 function gnf_build_impact_report( $anio, $mode = 'active', $force = false ) {
 	$anio      = function_exists( 'gnf_normalize_year' ) ? gnf_normalize_year( $anio ) : (int) $anio;
 	$mode      = 'approved' === $mode ? 'approved' : 'active';
+	if ( function_exists( 'gnf_get_report_snapshot' ) ) {
+		if ( $force ) { gnf_queue_report_refresh( $anio ); }
+		$snapshot = gnf_get_report_snapshot( $anio );
+		$report = $snapshot['impact'][ $mode ] ?? array( 'catalog' => array(), 'total' => array( 'id' => 'total', 'label' => 'Total general', 'values' => array() ), 'regions' => array(), 'circuits' => array() );
+		$report['year'] = $anio; $report['mode'] = $mode;
+		$report['generatedAt'] = $snapshot['generatedAt'] ?? '';
+		$report['ready'] = $snapshot['ready']; $report['stale'] = $snapshot['stale'];
+		return $report;
+	}
 	$scope      = function_exists( 'gnf_get_feature_rollout_mode' ) ? gnf_get_feature_rollout_mode( 'impact' ) : 'off';
 	$pilot_ids  = function_exists( 'gnf_get_pilot_center_ids' ) ? gnf_get_pilot_center_ids() : array();
 	$scope_hash = substr( md5( $scope . ':' . implode( ',', $pilot_ids ) ), 0, 10 );
@@ -780,10 +841,16 @@ function gnf_filter_impact_report_metrics( $report, $keys ) {
 	);
 	foreach ( array( 'total' ) as $scope_key ) {
 		$report[ $scope_key ]['values'] = array_intersect_key( (array) ( $report[ $scope_key ]['values'] ?? array() ), $keys );
+		if ( isset( $report[ $scope_key ]['coverage'] ) ) {
+			$report[ $scope_key ]['coverage'] = array_intersect_key( (array) $report[ $scope_key ]['coverage'], $keys );
+		}
 	}
 	foreach ( array( 'regions', 'circuits' ) as $collection_key ) {
 		foreach ( (array) ( $report[ $collection_key ] ?? array() ) as $id => $scope ) {
 			$report[ $collection_key ][ $id ]['values'] = array_intersect_key( (array) ( $scope['values'] ?? array() ), $keys );
+			if ( isset( $scope['coverage'] ) ) {
+				$report[ $collection_key ][ $id ]['coverage'] = array_intersect_key( (array) $scope['coverage'], $keys );
+			}
 		}
 	}
 	return $report;
@@ -824,7 +891,7 @@ function gnf_render_impact_shortcode( $atts = array() ) {
 		</style>
 		<div class="gnf-impact-public__grid">
 			<?php foreach ( $data['catalog'] as $metric ) : ?>
-				<?php if ( empty( $metric['available'] ) ) { continue; } ?>
+				<?php if ( empty( $metric['available'] ) || null === ( $data['total']['values'][ $metric['key'] ] ?? null ) ) { continue; } ?>
 				<div class="gnf-impact-public__item">
 					<span class="gnf-impact-public__value"><?php echo esc_html( number_format_i18n( $data['total']['values'][ $metric['key'] ] ?? 0, 'sum' === $metric['operation'] ? 1 : 0 ) ); ?></span>
 					<span class="gnf-impact-public__label"><?php echo esc_html( $metric['title'] ); ?></span>

@@ -19,7 +19,7 @@ const NAV_ITEMS = [
   { page: 'usuarios', label: 'Usuarios', icon: <Users size={18} /> },
   { page: 'centros', label: 'Centros', icon: <School size={18} /> },
   { page: 'retos', label: 'Retos', icon: <BookOpen size={18} /> },
-  { page: 'reportes', label: 'Reportes', icon: <BarChart3 size={18} /> },
+  { page: 'reportes', label: 'Panel de Impacto', icon: <BarChart3 size={18} /> },
   { page: 'auditoria', label: 'Auditoria', icon: <ShieldCheck size={18} /> },
   { page: 'configuracion', label: 'Regiones', icon: <Settings size={18} /> },
 ];

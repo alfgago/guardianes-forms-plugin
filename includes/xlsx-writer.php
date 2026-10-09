@@ -10,7 +10,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
- * Genera una hoja XLSX por streaming sin depender de Composer.
+ * Genera hojas XLSX por streaming sin depender de Composer.
  */
 class GNF_XLSX_Writer {
 	/** @var string */
@@ -22,8 +22,8 @@ class GNF_XLSX_Writer {
 	/** @var resource|null */
 	private $sheet_handle;
 
-	/** @var string */
-	private $sheet_name;
+	/** @var string[] */
+	private $sheet_names = array();
 
 	/** @var int */
 	private $row_index = 0;
@@ -40,7 +40,6 @@ class GNF_XLSX_Writer {
 	 */
 	public function __construct( $output_path, $sheet_name = 'Centros Educativos' ) {
 		$this->output_path = (string) $output_path;
-		$this->sheet_name  = $this->sanitize_sheet_name( $sheet_name );
 		$this->temp_dir    = rtrim( sys_get_temp_dir(), '/\\' ) . DIRECTORY_SEPARATOR . 'gnf-xlsx-' . str_replace( '.', '-', uniqid( '', true ) );
 
 		$this->create_directory( $this->temp_dir . DIRECTORY_SEPARATOR . '_rels' );
@@ -48,7 +47,26 @@ class GNF_XLSX_Writer {
 		$this->create_directory( $this->temp_dir . DIRECTORY_SEPARATOR . 'xl' . DIRECTORY_SEPARATOR . '_rels' );
 		$this->create_directory( $this->temp_dir . DIRECTORY_SEPARATOR . 'xl' . DIRECTORY_SEPARATOR . 'worksheets' );
 
-		$sheet_path         = $this->temp_dir . DIRECTORY_SEPARATOR . 'xl' . DIRECTORY_SEPARATOR . 'worksheets' . DIRECTORY_SEPARATOR . 'sheet1.xml';
+		$this->add_sheet( $sheet_name );
+	}
+
+	/** Start a new sheet; existing constructor/add_row/close callers are unchanged. */
+	public function add_sheet( $sheet_name ) {
+		if ( $this->closed ) {
+			throw new RuntimeException( 'El escritor XLSX ya esta cerrado.' );
+		}
+		$this->finish_sheet();
+		$name = $this->sanitize_sheet_name( $sheet_name );
+		$base = $name;
+		$suffix = 2;
+		while ( in_array( strtolower( $name ), array_map( 'strtolower', $this->sheet_names ), true ) ) {
+			$tail = ' ' . $suffix++;
+			$name = ( function_exists( 'mb_substr' ) ? mb_substr( $base, 0, 31 - strlen( $tail ), 'UTF-8' ) : substr( $base, 0, 31 - strlen( $tail ) ) ) . $tail;
+		}
+		$this->sheet_names[] = $name;
+		$this->row_index = 0;
+		$this->max_columns = 0;
+		$sheet_path         = $this->temp_dir . DIRECTORY_SEPARATOR . 'xl' . DIRECTORY_SEPARATOR . 'worksheets' . DIRECTORY_SEPARATOR . 'sheet' . count( $this->sheet_names ) . '.xml';
 		$this->sheet_handle = fopen( $sheet_path, 'wb' );
 		if ( false === $this->sheet_handle ) {
 			$this->cleanup();
@@ -108,6 +126,20 @@ class GNF_XLSX_Writer {
 			return $this->output_path;
 		}
 
+		try {
+			$this->finish_sheet();
+			$this->write_package_files();
+			$this->create_archive();
+			$this->closed = true;
+		} finally {
+			$this->cleanup();
+		}
+
+		return $this->output_path;
+	}
+
+	/** @return void */
+	private function finish_sheet() {
 		if ( is_resource( $this->sheet_handle ) ) {
 			$this->write_sheet( '</sheetData>' );
 			if ( $this->row_index > 0 && $this->max_columns > 0 ) {
@@ -119,15 +151,6 @@ class GNF_XLSX_Writer {
 			$this->sheet_handle = null;
 		}
 
-		try {
-			$this->write_package_files();
-			$this->create_archive();
-			$this->closed = true;
-		} finally {
-			$this->cleanup();
-		}
-
-		return $this->output_path;
 	}
 
 	/**
@@ -144,13 +167,22 @@ class GNF_XLSX_Writer {
 	/** @return void */
 	private function write_package_files() {
 		$created = gmdate( 'Y-m-d\TH:i:s\Z' );
+		$overrides = '';
+		$sheets = '';
+		$relationships = '';
+		foreach ( $this->sheet_names as $index => $name ) {
+			$id = $index + 1;
+			$overrides .= '<Override PartName="/xl/worksheets/sheet' . $id . '.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>';
+			$sheets .= '<sheet name="' . $this->xml_escape( $name ) . '" sheetId="' . $id . '" r:id="rId' . $id . '"/>';
+			$relationships .= '<Relationship Id="rId' . $id . '" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet' . $id . '.xml"/>';
+		}
 		$files   = array(
-			'[Content_Types].xml' => '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/><Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/><Override PartName="/docProps/app.xml" ContentType="application/vnd.openxmlformats-officedocument.extended-properties+xml"/></Types>',
+			'[Content_Types].xml' => '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>' . $overrides . '<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/><Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/><Override PartName="/docProps/app.xml" ContentType="application/vnd.openxmlformats-officedocument.extended-properties+xml"/></Types>',
 			'_rels/.rels'       => '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties" Target="docProps/core.xml"/><Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/extended-properties" Target="docProps/app.xml"/></Relationships>',
 			'docProps/app.xml'  => '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/extended-properties" xmlns:vt="http://schemas.openxmlformats.org/officeDocument/2006/docPropsVTypes"><Application>Guardianes de la Naturaleza</Application></Properties>',
 			'docProps/core.xml' => '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><dc:creator>Guardianes de la Naturaleza</dc:creator><dcterms:created xsi:type="dcterms:W3CDTF">' . $created . '</dcterms:created></cp:coreProperties>',
-			'xl/workbook.xml'   => '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="' . $this->xml_escape( $this->sheet_name ) . '" sheetId="1" r:id="rId1"/></sheets></workbook>',
-			'xl/_rels/workbook.xml.rels' => '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>',
+			'xl/workbook.xml'   => '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets>' . $sheets . '</sheets></workbook>',
+			'xl/_rels/workbook.xml.rels' => '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' . $relationships . '<Relationship Id="rId' . ( count( $this->sheet_names ) + 1 ) . '" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>',
 			'xl/styles.xml' => '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><fonts count="2"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><name val="Calibri"/></font></fonts><fills count="2"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill></fills><borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="2"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1"/></cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>',
 		);
 

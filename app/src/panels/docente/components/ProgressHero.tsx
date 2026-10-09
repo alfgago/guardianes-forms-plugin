@@ -9,14 +9,16 @@ interface ProgressHeroProps {
   evidenceCounts: { pending: number; approved: number; rejected: number; paused?: number; total: number };
   assignedAward?: AssignedAward | null;
   reportPdfUrl?: string;
-  reportPdfStatus?: 'draft' | 'final';
+  canDownloadSchoolReport?: boolean;
+  reportPdfProvisional?: boolean;
   onViewRejected?: () => void;
 }
 
-export function ProgressHero({ anio, retosCount, puntajeTotal, evidenceCounts, assignedAward, reportPdfUrl, reportPdfStatus, onViewRejected }: ProgressHeroProps) {
+export function ProgressHero({ anio, retosCount, puntajeTotal, evidenceCounts, assignedAward, reportPdfUrl, canDownloadSchoolReport, reportPdfProvisional, onViewRejected }: ProgressHeroProps) {
   const stars = assignedAward?.result.stars ?? 0;
   const percentage = evidenceCounts.total > 0 ? Math.round(evidenceCounts.approved / evidenceCounts.total * 100) : 0;
-  const reportAvailable = Boolean(reportPdfUrl && reportPdfStatus === 'final');
+  const reportAvailable = canDownloadSchoolReport === true && Boolean(reportPdfUrl);
+  const reportProvisional = reportPdfProvisional ?? true;
 
   return (
     <section className="gnf-docente-summary" aria-label={`Resumen de participación ${anio}`}>
@@ -38,11 +40,16 @@ export function ProgressHero({ anio, retosCount, puntajeTotal, evidenceCounts, a
             </div>
             <small>{assignedAward ? 'Galardón asignado' : 'Pendiente de asignación'}</small>
           </div>
-          <button type="button" className="gnf-docente-summary__report" disabled={!reportAvailable}
-            title={reportAvailable ? 'Descargar reporte final PDF' : 'Disponible al finalizar la revisión'}
-            onClick={() => { if (reportAvailable && reportPdfUrl) window.location.href = reportPdfUrl; }}>
-            <Download size={18} aria-hidden="true" /> Reporte final
-          </button>
+          {reportAvailable && (
+            <div>
+              <button type="button" className="gnf-docente-summary__report" disabled={!reportAvailable}
+                title={reportProvisional ? 'Descargar reporte provisional PDF' : 'Descargar reporte final PDF'}
+                onClick={() => { if (reportPdfUrl) window.location.href = reportPdfUrl; }}>
+                <Download size={18} aria-hidden="true" /> Descargar Reporte
+              </button>
+              {reportProvisional && <small style={{ display: 'block', marginTop: 'var(--gnf-space-2)' }}>Reporte provisional hasta el cierre anual</small>}
+            </div>
+          )}
         </div>
       </div>
       <div className="gnf-docente-summary__counts">

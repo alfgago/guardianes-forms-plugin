@@ -200,7 +200,9 @@ function gnf_build_centros_export_batch_maps( $centro_ids, $anio ) {
 		return $maps;
 	}
 
+	$wpdb->last_error = '';
 	update_meta_cache( 'post', $centro_ids );
+	if ( ! empty( $wpdb->last_error ) ) { throw new RuntimeException( 'No se pudieron cargar los metadatos de centros.' ); }
 	$id_placeholders = implode( ',', array_fill( 0, count( $centro_ids ), '%d' ) );
 
 	$matricula_table = $wpdb->prefix . 'gn_matriculas';
@@ -211,6 +213,7 @@ function gnf_build_centros_export_batch_maps( $centro_ids, $anio ) {
 		),
 		ARRAY_A
 	);
+	if ( ! empty( $wpdb->last_error ) ) { throw new RuntimeException( 'No se pudieron cargar las matriculas del lote.' ); }
 	foreach ( (array) $matricula_rows as $row ) {
 		$centro_id        = absint( $row['centro_id'] ?? 0 );
 		$matricula_user_id = absint( $row['user_id'] ?? 0 );
@@ -228,6 +231,7 @@ function gnf_build_centros_export_batch_maps( $centro_ids, $anio ) {
 		),
 		ARRAY_A
 	);
+	if ( ! empty( $wpdb->last_error ) ) { throw new RuntimeException( 'No se pudieron cargar los puntajes del lote.' ); }
 	foreach ( (array) $score_rows as $row ) {
 		$maps['scores'][ absint( $row['centro_id'] ?? 0 ) ] = absint( $row['puntaje'] ?? 0 );
 	}
@@ -241,6 +245,7 @@ function gnf_build_centros_export_batch_maps( $centro_ids, $anio ) {
 		),
 		ARRAY_A
 	);
+	if ( ! empty( $wpdb->last_error ) ) { throw new RuntimeException( 'No se pudieron cargar los docentes del lote.' ); }
 	foreach ( (array) $user_rows as $row ) {
 		$centro_id = absint( $row['meta_value'] ?? 0 );
 		$user_id   = absint( $row['user_id'] ?? 0 );
@@ -259,15 +264,21 @@ function gnf_build_centros_export_batch_maps( $centro_ids, $anio ) {
 
 	$all_user_ids = array_values( array_unique( array_merge( ...array_values( $maps['users'] ?: array( array() ) ) ) ) );
 	if ( $all_user_ids && function_exists( 'cache_users' ) ) {
+		$wpdb->last_error = '';
 		cache_users( $all_user_ids );
+		if ( ! empty( $wpdb->last_error ) ) { throw new RuntimeException( 'No se pudieron cargar los usuarios del lote.' ); }
+		$wpdb->last_error = '';
 		update_meta_cache( 'user', $all_user_ids );
+		if ( ! empty( $wpdb->last_error ) ) { throw new RuntimeException( 'No se pudieron cargar los metadatos de usuarios.' ); }
 	}
 
+	$wpdb->last_error = '';
 	$terms = wp_get_object_terms(
 		$centro_ids,
 		'gn_region',
 		array( 'fields' => 'all_with_object_id' )
 	);
+	if ( ! empty( $wpdb->last_error ) || is_wp_error( $terms ) ) { throw new RuntimeException( 'No se pudieron cargar las regiones del lote.' ); }
 	if ( ! is_wp_error( $terms ) ) {
 		foreach ( $terms as $term ) {
 			$object_id = absint( $term->object_id ?? 0 );
@@ -295,6 +306,7 @@ function gnf_build_centros_export_batch_maps( $centro_ids, $anio ) {
 	}
 
 	if ( $legacy_region_ids ) {
+		$wpdb->last_error = '';
 		$legacy_terms = get_terms(
 			array(
 				'taxonomy'   => 'gn_region',
@@ -302,6 +314,7 @@ function gnf_build_centros_export_batch_maps( $centro_ids, $anio ) {
 				'include'    => $legacy_region_ids,
 			)
 		);
+		if ( ! empty( $wpdb->last_error ) || is_wp_error( $legacy_terms ) ) { throw new RuntimeException( 'No se pudieron cargar las regiones legadas del lote.' ); }
 		if ( ! is_wp_error( $legacy_terms ) ) {
 			$legacy_terms_by_id = array();
 			foreach ( $legacy_terms as $term ) {
@@ -550,13 +563,16 @@ function gnf_build_centro_export_record( $centro_id, $anio, $batch ) {
  * @return Generator<array<string,mixed>>
  */
 function gnf_iter_centros_export_records( $anio, $region_id = 0, $circuito = '' ) {
+	global $wpdb;
+
 	$page      = 1;
 	$anio      = function_exists( 'gnf_normalize_year' ) ? gnf_normalize_year( $anio ) : absint( $anio );
 	$region_id = absint( $region_id );
 	$circuito  = function_exists( 'gnf_normalize_circuito' ) ? gnf_normalize_circuito( $circuito ) : trim( (string) $circuito );
-	$participant_ids = function_exists( 'gnf_get_centros_with_matricula' )
-		? array_values( array_filter( array_map( 'absint', gnf_get_centros_with_matricula( $anio ) ) ) )
-		: array();
+	$wpdb->last_error = '';
+	$participant_ids = function_exists( 'gnf_get_centros_with_matricula' ) ? gnf_get_centros_with_matricula( $anio ) : array();
+	if ( ! empty( $wpdb->last_error ) ) { throw new RuntimeException( 'No se pudieron cargar los centros matriculados para exportar.' ); }
+	$participant_ids = array_values( array_filter( array_map( 'absint', (array) $participant_ids ) ) );
 	if ( empty( $participant_ids ) ) {
 		return;
 	}
@@ -571,11 +587,13 @@ function gnf_iter_centros_export_records( $anio, $region_id = 0, $circuito = '' 
 			'order'                  => 'ASC',
 			'post__in'               => $participant_ids,
 			'no_found_rows'          => true,
-			'update_post_meta_cache' => true,
-			'update_post_term_cache' => true,
+			'update_post_meta_cache' => false,
+			'update_post_term_cache' => false,
 		);
 
+		$wpdb->last_error = '';
 		$query = new WP_Query( $args );
+		if ( ! empty( $wpdb->last_error ) ) { throw new RuntimeException( 'No se pudieron cargar los centros publicados para exportar.' ); }
 		$ids   = array_values( array_map( 'absint', wp_list_pluck( $query->posts, 'ID' ) ) );
 		$batch = gnf_build_centros_export_batch_maps( $ids, $anio );
 		foreach ( $ids as $centro_id ) {

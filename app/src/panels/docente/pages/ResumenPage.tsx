@@ -60,7 +60,8 @@ export function ResumenPage({ onFillForm, onReopen, onViewFeedback, onViewReject
           evidenceCounts={dashboard.evidenceCounts}
           assignedAward={dashboard.assignedAward}
           reportPdfUrl={dashboard.reportPdfUrl}
-          reportPdfStatus={dashboard.reportPdfStatus}
+          canDownloadSchoolReport={dashboard.canDownloadSchoolReport === true}
+          reportPdfProvisional={dashboard.reportPdfProvisional}
           onViewRejected={onViewRejected}
           puntajeTotal={dashboard.puntajeTotal}
         />

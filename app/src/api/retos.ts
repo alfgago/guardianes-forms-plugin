@@ -22,6 +22,8 @@ interface DocenteDashboard {
   allRetosComplete: boolean;
   reportPdfUrl?: string;
   reportPdfStatus?: 'draft' | 'final';
+  canDownloadSchoolReport?: boolean;
+  reportPdfProvisional?: boolean;
   assignedAward?: AssignedAward | null;
   evidenceCounts: { pending: number; approved: number; rejected: number; paused?: number; total: number };
 }
