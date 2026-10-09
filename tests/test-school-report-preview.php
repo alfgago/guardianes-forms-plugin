@@ -34,7 +34,7 @@ function gnf_get_centro_retos_seleccionados( $centro, $year ) { return array( 1 
 function gnf_summarize_docente_entries( $entries, $selected ) { return array( 'allComplete' => $GLOBALS['complete'] ); }
 function admin_url( $path = '' ) { return 'https://example.test/wp-admin/' . $path; }
 function add_query_arg( $args, $url ) { return $url . '?' . http_build_query( $args ); }
-function wp_nonce_url( $url, $action ) { return $url . '&_wpnonce=' . rawurlencode( $action ); }
+function wp_nonce_url( $url, $action ) { return htmlspecialchars( $url . '&_wpnonce=' . rawurlencode( $action ), ENT_QUOTES, 'UTF-8' ); }
 function check_admin_referer( $action ) {
 	$GLOBALS['nonce_checks']++;
 	if ( ( $_GET['_wpnonce'] ?? '' ) !== $action ) { throw new SchoolReportStop( 'nonce' ); }
@@ -86,6 +86,17 @@ $complete = false;
 school_cookie( 2 );
 check_school_preview( gnf_user_can_download_center_report( 10, 2026 ), 'Signed administrator impersonation can download before completion' );
 check_school_preview( false !== strpos( gnf_get_center_report_download_url( 10, 2026 ), 'gnf_download_center_report_10_2026' ), 'Preview URL keeps the center and year nonce' );
+$download_url = gnf_get_center_report_download_url( 10, 2026 );
+parse_str( parse_url( $download_url, PHP_URL_QUERY ), $download_args );
+check_school_preview( false === strpos( $download_url, '&amp;' ) && '10' === ( $download_args['centro_id'] ?? '' ) && '2026' === ( $download_args['year'] ?? '' ) && 'gnf_download_center_report_10_2026' === ( $download_args['_wpnonce'] ?? '' ), 'React navigation URL exposes actual center, year and nonce query parameters, not HTML entities' );
+$_GET = $download_args;
+$nonce_checks_before = $nonce_checks;
+$previous = error_reporting(); error_reporting( $previous & ~E_DEPRECATED & ~E_USER_DEPRECATED );
+$download_result = school_download_stop();
+error_reporting( $previous );
+check_school_preview( 'ready' === $download_result && $nonce_checks_before + 1 === $nonce_checks, 'Navigating the generated preview URL reaches PDF generation with its verified nonce' );
+if ( isset( $pdf_temp ) && file_exists( $pdf_temp ) ) { unlink( $pdf_temp ); }
+$_GET = array( 'centro_id' => 10, 'year' => 2026 );
 check_school_preview( ! gnf_user_can_download_center_report( 20, 2026 ), 'Impersonation does not grant another school access' );
 $reports_enabled = false;
 check_school_preview( gnf_user_can_download_center_report( 10, 2026 ), 'Administrative preview is available without releasing reports to teachers' );

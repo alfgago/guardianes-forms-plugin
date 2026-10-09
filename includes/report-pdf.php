@@ -676,7 +676,8 @@ function gnf_get_center_report_download_url( $centro_id, $anio ) {
 		),
 		admin_url( 'admin-post.php' )
 	);
-	return wp_nonce_url( $url, 'gnf_download_center_report_' . $centro_id . '_' . $anio );
+	// REST consumers navigate directly; wp_nonce_url returns HTML-escaped separators.
+	return html_entity_decode( wp_nonce_url( $url, 'gnf_download_center_report_' . $centro_id . '_' . $anio ), ENT_QUOTES, 'UTF-8' );
 }
 
 /**
