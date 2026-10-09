@@ -73,6 +73,7 @@ export interface EvidenceFileMetadata {
 }
 
 export interface RetoFormResponse {
+  formError?: string;
   requiredEvidenceFieldIds?: number[];
   html: string;
   formId: number;

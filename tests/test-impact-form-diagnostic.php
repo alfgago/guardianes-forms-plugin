@@ -56,6 +56,8 @@ $uploads = wp_upload_dir( null, false );
 $checks['Does not inspect paths outside uploads'] = 'no_verificables' === gnf_diagnostic_file_status( array( 'path_local' => dirname( __DIR__ ) . '/guardianes-formularios.php' ), $uploads );
 $checks['Rejects encoded traversal and null bytes'] = 'no_verificables' === gnf_diagnostic_file_status( array( 'ruta' => 'https://test.test/uploads/%2e%2e/secret' ), $uploads ) && 'no_verificables' === gnf_diagnostic_file_status( array( 'ruta' => 'https://test.test/uploads/bad%00.jpg' ), $uploads );
 $checks['Does not request external files'] = 'no_verificables' === gnf_diagnostic_file_status( array( 'ruta' => 'https://external.test/photo.jpg' ), $uploads );
+$checks['Compact output identifies the damaged form and candidate revision'] = function_exists( 'gnf_diagnostic_summary' ) && false !== strpos( gnf_diagnostic_summary( $report ), '101 | Reto Huerta | REVISAR | 102' );
+$checks['Compact output totals stored files without dumping revisions'] = function_exists( 'gnf_diagnostic_summary' ) && false !== strpos( gnf_diagnostic_summary( $report ), 'Archivos activos: 1 encontrados, 1 no encontrados, 0 no verificables' );
 $fails = 0;
 foreach ( $checks as $label => $ok ) { echo ( $ok ? 'ok: ' : 'FAIL: ' ) . $label . "\n"; $fails += $ok ? 0 : 1; }
 echo count( $checks ) . " checks, {$fails} failures\n";

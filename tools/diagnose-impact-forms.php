@@ -27,7 +27,7 @@ function gnf_diagnostic_file_status( $evidence, $uploads ) {
 
 function gnf_diagnose_impact_forms( $center_name, $year ) {
 	global $wpdb;
-	$report = array( 'anio' => $year, 'busqueda' => $center_name, 'centros' => array(), 'formularios' => array(), 'entradas' => array() );
+	$report = array( 'anio' => $year, 'busqueda' => $center_name, 'cache_objetos_persistente' => function_exists( 'wp_using_ext_object_cache' ) && wp_using_ext_object_cache(), 'centros' => array(), 'formularios' => array(), 'entradas' => array() );
 	$wpdb->last_error = '';
 	$centers = $wpdb->get_results( $wpdb->prepare(
 		"SELECT ID, post_title, post_status FROM {$wpdb->posts} WHERE post_type = 'centro_educativo' AND post_title LIKE %s ORDER BY ID",
@@ -107,12 +107,38 @@ function gnf_diagnose_impact_forms( $center_name, $year ) {
 	return $report;
 }
 
+function gnf_diagnostic_summary( $report ) {
+	$lines = array( 'Diagnostico ' . $report['anio'] . ': ' . $report['busqueda'] );
+	$lines[] = 'Cache de objetos persistente: ' . ( ! empty( $report['cache_objetos_persistente'] ) ? 'activo' : 'inactivo' );
+	foreach ( $report['centros'] as $center ) { $lines[] = 'Centro ' . $center['id'] . ': ' . $center['nombre'] . ' (' . $center['estado'] . ')'; }
+	if ( empty( $report['centros'] ) ) { $lines[] = 'No se encontraron centros con ese nombre.'; }
+	$lines[] = '';
+	$lines[] = 'Formulario | Reto | Estado | Revision candidata (ID / UTC / campos)';
+	foreach ( $report['formularios'] as $form ) {
+		$revision = $form['revisiones_validas'][0] ?? null;
+		$candidate = $revision ? $revision['id'] . ' / ' . $revision['modificado_utc'] . ' / ' . $revision['campos'] : 'sin revision valida entre las 50 mas recientes';
+		$lines[] = $form['formulario_id'] . ' | ' . $form['reto'] . ' | ' . ( $form['campos_validos'] ? 'OK' : 'REVISAR' ) . ' | ' . $candidate;
+	}
+	$lines[] = '';
+	$lines[] = 'Entrada | Reto | Respuestas | Evidencias activas | Archivos presentes | Campos ausentes';
+	$totals = array( 'encontrados' => 0, 'no_encontrados' => 0, 'no_verificables' => 0 );
+	foreach ( $report['entradas'] as $entry ) {
+		foreach ( $totals as $key => $count ) { $totals[$key] += $entry['archivos_activos'][$key]; }
+		$missing = null === $entry['campos_archivo_ausentes'] ? 'formulario ilegible' : implode( ',', $entry['campos_archivo_ausentes'] );
+		$lines[] = $entry['id'] . ' | ' . $entry['reto_id'] . ' | ' . $entry['respuestas_guardadas'] . ' | ' . $entry['evidencias_activas'] . ' | ' . $entry['archivos_activos']['encontrados'] . ' | ' . ( $missing ?: 'ninguno' );
+	}
+	$lines[] = '';
+	$lines[] = 'Archivos activos: ' . $totals['encontrados'] . ' encontrados, ' . $totals['no_encontrados'] . ' no encontrados, ' . $totals['no_verificables'] . ' no verificables';
+	return implode( "\n", $lines );
+}
+
 if ( ! function_exists( 'gnf_get_reto_form_id_for_year' ) || ! function_exists( 'gnf_get_available_retos_for_year' ) ) { WP_CLI::error( 'Activa el plugin Guardianes antes de ejecutar el diagnostico.' ); }
 $center_name = trim( (string) ( $args[0] ?? '' ) );
 $year = (int) ( $args[1] ?? 2026 );
 if ( '' === $center_name || $year < 2020 || $year > 2100 ) { WP_CLI::error( 'Uso: wp eval-file <archivo> "Nombre parcial del centro" 2026' ); }
 try {
-	WP_CLI::log( wp_json_encode( gnf_diagnose_impact_forms( $center_name, $year ), JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES ) );
+	$report = gnf_diagnose_impact_forms( $center_name, $year );
+	WP_CLI::log( 'resumen' === ( $args[2] ?? '' ) ? gnf_diagnostic_summary( $report ) : wp_json_encode( $report, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES ) );
 } catch ( Throwable $error ) {
 	WP_CLI::error( $error->getMessage() );
 }

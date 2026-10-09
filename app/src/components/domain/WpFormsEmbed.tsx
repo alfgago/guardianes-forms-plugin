@@ -7,10 +7,11 @@ import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { EvidenceViewer } from '@/components/domain/EvidenceViewer';
 import { StatusBadge } from '@/components/domain/StatusBadge';
+import { useAuthStore } from '@/stores/useAuthStore';
 import { trackClientEvent } from '@/utils/analytics';
 import { formatEvidenceOriginalDate, getEvidenceOriginalDate, getEvidenceReviewStatus, getRejectionReasonLabel, getReviewReasonLabel } from '@/utils/evidenceReview';
 import type { Evidencia, RetoEntry } from '@/types';
-import { CheckCircle2, ExternalLink, Save } from 'lucide-react';
+import { CheckCircle2, ExternalLink, RotateCcw, Save } from 'lucide-react';
 
 interface WpFormsEmbedProps {
   retoId: number;
@@ -865,6 +866,7 @@ function initWpForms(container: HTMLElement, onReady?: () => void, maxRetries = 
 
 export function WpFormsEmbed({ retoId, year }: WpFormsEmbedProps) {
   const queryClient = useQueryClient();
+  const userId = useAuthStore((state) => state.user?.id);
   const containerRef = useRef<HTMLDivElement>(null);
   const formRef = useRef<HTMLFormElement | null>(null);
   const saveTimerRef = useRef<number | null>(null);
@@ -880,9 +882,10 @@ export function WpFormsEmbed({ retoId, year }: WpFormsEmbedProps) {
   const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
   const [currentEntry, setCurrentEntry] = useState<RetoEntry | null>(null);
   const [fieldValues, setFieldValues] = useState<Record<string, string | string[]>>({});
+  const [formMountError, setFormMountError] = useState(false);
 
-  const { data, isLoading, error } = useQuery({
-    queryKey: ['wpforms-html', retoId, year],
+  const { data, isLoading, isFetching, error, refetch } = useQuery({
+    queryKey: ['wpforms-html', retoId, year, userId],
     queryFn: () => retosApi.getFormHtml(retoId, year),
     staleTime: 0,
     refetchOnWindowFocus: false,
@@ -1030,15 +1033,19 @@ export function WpFormsEmbed({ retoId, year }: WpFormsEmbedProps) {
   }, [retoId, year]);
 
   useEffect(() => {
-    if (!data?.html || !containerRef.current) return;
+    formRef.current = null;
+    setFormMountError(false);
+    if (!containerRef.current) return;
 
     const container = containerRef.current;
-    container.innerHTML = data.html;
+    container.innerHTML = data?.formError ? '' : data?.html ?? '';
+    if (!data?.html || data.formError) return;
 
     const form = container.querySelector('form');
-    if (!(form instanceof HTMLFormElement)) {
-      console.warn('[GNF] No <form> element found in container');
-      formRef.current = null;
+    if (!(form instanceof HTMLFormElement) || !form.querySelector('.wpforms-field')) {
+      console.warn('[GNF] Form questions are unavailable');
+      container.innerHTML = '';
+      setFormMountError(true);
       return;
     }
 
@@ -1322,7 +1329,7 @@ export function WpFormsEmbed({ retoId, year }: WpFormsEmbedProps) {
         }
       }
     };
-  }, [data?.conditionalRules, data?.entry?.estado, data?.entry?.evidencias, data?.html, data?.savedValues, handleRemoveEvidence, retoId, scheduleAutosave, triggerAutosave]);
+  }, [data?.conditionalRules, data?.entry?.estado, data?.entry?.evidencias, data?.html, data?.formError, data?.savedValues, handleRemoveEvidence, retoId, scheduleAutosave, triggerAutosave]);
 
   // ── Derived values ─────────────────────────────────────────────────
   const saveStatusLabel = useMemo(() => {
@@ -1333,6 +1340,7 @@ export function WpFormsEmbed({ retoId, year }: WpFormsEmbedProps) {
   }, [lastSavedAt, saveState]);
 
   const evidenceList = (currentEntry?.evidencias ?? []) as Evidencia[];
+  const formUnavailable = !!data?.formError || !data?.html?.trim() || formMountError;
   const isEditable = !currentEntry?.estado || !['enviado', 'aprobado'].includes(currentEntry.estado);
   const hasEvidenceDateMismatch = evidenceList.some(
     (evidence) => !evidence.replaced && evidence.requires_year_validation,
@@ -1376,6 +1384,16 @@ export function WpFormsEmbed({ retoId, year }: WpFormsEmbedProps) {
   return (
     <div>
       <style>{`
+        .gnf-form-unavailable [role="alert"] > svg {
+          width: 20px;
+          height: 20px;
+        }
+
+        .gnf-form-unavailable [role="alert"] > div {
+          min-width: 0;
+          flex: 1;
+        }
+
         .gnf-wpforms-shell .wpforms-container-full,
         .gnf-wpforms-shell .wpforms-form {
           margin: 0;
@@ -1494,6 +1512,7 @@ export function WpFormsEmbed({ retoId, year }: WpFormsEmbedProps) {
                 size="sm"
                 icon={<Save size={14} />}
                 loading={saveState === 'saving'}
+                disabled={formUnavailable}
                 onClick={() => void triggerAutosave('manual')}
               >
                 Guardar ahora
@@ -1501,11 +1520,11 @@ export function WpFormsEmbed({ retoId, year }: WpFormsEmbedProps) {
             </div>
           </div>
 
-          <div style={{ marginTop: 'var(--gnf-space-4)' }}>
+          {!formUnavailable && <div style={{ marginTop: 'var(--gnf-space-4)' }}>
             <Alert variant={saveState === 'error' ? 'error' : saveState === 'saved' ? 'success' : 'info'}>
               {saveStatusLabel}
             </Alert>
-          </div>
+          </div>}
           {hasEvidenceDateMismatch && (
             <div style={{ marginTop: 'var(--gnf-space-3)' }}>
               <Alert variant="warning" title="Revisa la fecha de la evidencia">
@@ -1518,7 +1537,19 @@ export function WpFormsEmbed({ retoId, year }: WpFormsEmbedProps) {
         <div style={{ padding: 'var(--gnf-space-6)' }}>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--gnf-space-6)', alignItems: 'flex-start' }}>
             <div style={{ flex: '999 1 620px', minWidth: 0 }}>
-              <div className="gnf-wpforms-shell" ref={containerRef} />
+              {formUnavailable && (
+                <div className="gnf-form-unavailable" style={{ display: 'grid', gap: 'var(--gnf-space-3)' }}>
+                  <Alert variant="warning" title="Preguntas no disponibles">
+                    {data.formError || 'No se pueden mostrar las preguntas en este momento. Tus respuestas y evidencias guardadas siguen disponibles.'}
+                  </Alert>
+                  <div>
+                    <Button variant="outline" size="sm" icon={<RotateCcw size={14} />} loading={isFetching} onClick={() => void refetch()}>
+                      Reintentar
+                    </Button>
+                  </div>
+                </div>
+              )}
+              <div className="gnf-wpforms-shell" ref={containerRef} style={{ display: formUnavailable ? 'none' : undefined }} />
             </div>
 
             <div style={{ flex: '320 1 300px', display: 'grid', gap: 'var(--gnf-space-4)' }}>

@@ -9,6 +9,9 @@
   const empty = new URLSearchParams(location.search).has('empty');
   const paused = new URLSearchParams(location.search).has('paused');
   const reportPreview = new URLSearchParams(location.search).has('report-preview');
+  let formMode = new URLSearchParams(location.search).get('form-mode');
+  window.__formRequests = [];
+  window.__restorePreviewForm = () => { formMode = null; };
   window.__GNF_DOCENTE__ = {
     restUrl: '/mock-api', nonce: '', anio: 2026, selectedYear: 2026, availableYears: [2026], logoUrl: new URL(logoUrl, location.href).pathname,
     user: { id: 1, name: 'Docente de prueba', displayName: 'Docente de prueba', role: 'docente', roles: ['docente'], email: 'demo@example.org' },
@@ -39,6 +42,7 @@
   window.fetch = async (input, options) => {
     const url = new URL(String(input), location.origin);
     if (!url.pathname.startsWith('/mock-api')) return nativeFetch(input, options);
+    window.__formRequests.push({ path: url.pathname, method: options?.method || 'GET' });
     let payload = { success: true };
     if (url.pathname.endsWith('/docente/dashboard')) payload = {
       centro: { id: 1, nombre: 'CENTRO EDUCATIVO DE PRUEBA', codigoMep: '0000', regionName: 'NICOYA' },
@@ -60,6 +64,10 @@
       requiredEvidenceFieldIds: [1],
       html: '<div class="wpforms-container"><form id="wpforms-form-10"><div id="wpforms-10-field_1-container" class="wpforms-field wpforms-field-file-upload" data-field-id="1"><label for="wpforms-10-field_1">REQUISITO - Fotografía de los estudiantes durante la actividad educativa.</label><input id="wpforms-10-field_1" type="file" name="wpforms[fields][1]"></div><div id="wpforms-10-field_2-container" class="wpforms-field"><label for="wpforms-10-field_2">Comentario opcional</label><input id="wpforms-10-field_2" name="wpforms[fields][2]"></div></form></div>',
     };
+    if (url.pathname.endsWith('/form-html') && formMode) {
+      payload.html = formMode === 'missing' ? '<div>No se pudo renderizar.</div>' : formMode === 'no-fields' ? '<form></form>' : '';
+      if (formMode === 'broken') payload.formError = 'No se pueden mostrar las preguntas en este momento. Tus respuestas y evidencias guardadas siguen disponibles.';
+    }
     return new Response(JSON.stringify(payload), { status: 200, headers: { 'Content-Type': 'application/json' } });
   };
   await import('/src/entries/docente.tsx');

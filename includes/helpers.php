@@ -1866,17 +1866,35 @@ function gnf_get_reto_color($reto_id, $default = '#369484')
  * @return array Datos formateados en camelCase.
  */
 function gnf_get_wpforms_form_definition( $form_id ) {
-	if ( ! function_exists( 'wpforms' ) ) {
+	$form_id = absint( $form_id );
+	if ( ! $form_id || ! function_exists( 'wpforms' ) ) {
 		return array();
 	}
 
-	$form = wpforms()->form->get( absint( $form_id ) );
+	$form = wpforms()->form->get( $form_id );
 	if ( ! $form || empty( $form->post_content ) ) {
 		return array();
 	}
 
+	// Cache only the shared definition; live content detects edits and repairs immediately.
+	static $definitions = array();
+	$signature = md5( (string) $form->post_content );
+	if ( isset( $definitions[ $form_id ] ) && $signature === $definitions[ $form_id ]['signature'] ) {
+		return $definitions[ $form_id ]['definition'];
+	}
+	$cache_key = 'gnf_wpforms_definition_v1_' . $form_id;
+	$cached = wp_cache_get( $cache_key, 'gnf_wpforms' );
+	if ( is_array( $cached ) && $signature === ( $cached['signature'] ?? '' ) && is_array( $cached['definition'] ?? null ) ) {
+		$definitions[ $form_id ] = $cached;
+		return $cached['definition'];
+	}
 	$form_data = json_decode( $form->post_content, true );
-	return is_array( $form_data ) ? $form_data : array();
+	if ( ! is_array( $form_data ) || ! is_array( $form_data['fields'] ?? null ) || empty( $form_data['fields'] ) ) {
+		return array();
+	}
+	$definitions[ $form_id ] = array( 'signature' => $signature, 'definition' => $form_data );
+	wp_cache_set( $cache_key, $definitions[ $form_id ], 'gnf_wpforms', 4 * 60 * 60 );
+	return $form_data;
 }
 
 function gnf_is_wpforms_layout_field( $type ) {

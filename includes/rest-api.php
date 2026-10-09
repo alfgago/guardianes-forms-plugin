@@ -2430,16 +2430,7 @@ function gnf_rest_build_saved_form_state( $entry, $anio ) {
 }
 
 function gnf_rest_get_wpforms_conditional_rules( $form_id ) {
-	if ( ! function_exists( 'wpforms' ) ) {
-		return array();
-	}
-
-	$form = wpforms()->form->get( absint( $form_id ) );
-	if ( ! $form || empty( $form->post_content ) ) {
-		return array();
-	}
-
-	$form_data = json_decode( $form->post_content, true );
+	$form_data = gnf_get_wpforms_form_definition( $form_id );
 	$fields    = $form_data['fields'] ?? array();
 	if ( empty( $fields ) || ! is_array( $fields ) ) {
 		return array();
@@ -2526,8 +2517,16 @@ function gnf_rest_docente_form_html( WP_REST_Request $request ) {
 		);
 	}
 
-	$html = do_shortcode( '[wpforms id="' . $form_id . '"]' );
 	$form_definition = gnf_get_wpforms_form_definition( $form_id );
+	$form_error = '';
+	$html = '';
+	if ( ! empty( $form_definition['fields'] ) ) {
+		$html = do_shortcode( '[wpforms id="' . $form_id . '"]' );
+	}
+	if ( ! preg_match( '/<form\b/i', $html ) ) {
+		$html = '';
+		$form_error = 'No se pueden mostrar las preguntas en este momento. Tus respuestas y evidencias guardadas siguen disponibles.';
+	}
 	$required_field_ids = gnf_required_evidence_field_ids( gnf_get_reto_canonical_slug( get_the_title( $reto_id ) ), $form_definition['fields'] ?? array() );
 	if ( function_exists( 'gnf_feature_is_enabled_for_center' ) && ! gnf_feature_is_enabled_for_center( 'impact', $centro_id, false ) ) {
 		$field_ids = function_exists( 'gnf_get_created_impact_field_ids' ) ? gnf_get_created_impact_field_ids( $form_id, $reto_id, $anio ) : array();
@@ -2535,6 +2534,7 @@ function gnf_rest_docente_form_html( WP_REST_Request $request ) {
 	}
 	return array(
 		'html'        => $html,
+		'formError'   => $form_error,
 		'formId'      => (int) $form_id,
 		'fieldPoints' => $field_points,
 		'requiredEvidenceFieldIds' => $required_field_ids,
@@ -2571,6 +2571,15 @@ function gnf_rest_docente_autosave_reto( WP_REST_Request $request ) {
 
 	if ( empty( $fields ) || ! is_array( $fields ) ) {
 		return new WP_Error( 'missing_fields', 'No hay datos para guardar.', array( 'status' => 400 ) );
+	}
+
+	$form_id = gnf_get_reto_form_id_for_year( $reto_id, $anio );
+	$definition = $form_id ? gnf_get_wpforms_form_definition( $form_id ) : array();
+	if ( empty( $definition['fields'] ) ) {
+		return new WP_Error( 'form_unavailable', 'El formulario no esta disponible. Tus datos guardados no se han modificado.', array( 'status' => 409 ) );
+	}
+	if ( (int) $request->get_param( 'formId' ) !== (int) $form_id ) {
+		return new WP_Error( 'form_changed', 'El formulario cambio. Recarga las preguntas antes de guardar.', array( 'status' => 409 ) );
 	}
 
 	$raw_fields = array();

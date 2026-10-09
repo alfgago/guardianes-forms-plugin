@@ -45,22 +45,9 @@ function gnf_get_vite_manifest() {
  * @return array|null
  */
 function gnf_get_wpforms_form_data( $form_id ) {
-	if ( ! function_exists( 'wpforms' ) ) {
-		return null;
-	}
-
 	$form_id = absint( $form_id );
-	if ( ! $form_id ) {
-		return null;
-	}
-
-	$form_post = wpforms()->form->get( $form_id );
-	if ( ! $form_post || empty( $form_post->post_content ) ) {
-		return null;
-	}
-
-	$form_data = json_decode( $form_post->post_content, true );
-	if ( ! is_array( $form_data ) ) {
+	$form_data = gnf_get_wpforms_form_definition( $form_id );
+	if ( empty( $form_data ) ) {
 		return null;
 	}
 
