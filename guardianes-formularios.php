@@ -89,6 +89,7 @@ require_once 'includes/registros.php';
 require_once 'includes/react-loader.php';
 require_once 'includes/feedback.php';
 require_once 'includes/rest-api.php';
+require_once 'includes/panel-cache.php';
 
 if ( defined( 'WP_CLI' ) && WP_CLI ) {
 	require_once 'includes/cli/class-gnf-merge-centros-command.php';

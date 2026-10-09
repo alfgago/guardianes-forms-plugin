@@ -44,6 +44,14 @@ try {
   await verify(`Array.from(document.querySelectorAll('button')).some(b => b.innerText.includes('Guardar ahora') && !b.disabled)`, 'Restored form enables saving');
   await verify(`document.querySelectorAll('.gnf-wpforms-shell .gnf-required-evidence__badge').length === 1`, 'Retry preserves required evidence marking without duplication');
   browser('screenshot', join(screenshots, 'restored-mobile.png'), '--full');
+  evaluate(`window.__editedForm = document.querySelector('#wpforms-form-10'); document.querySelector('#wpforms-10-field_2').value = 'Comentario sin enviar'; window.__beforeRevision = window.__formRequests.length; true`);
+  evaluate(`(async () => { const api = await import('/src/api/client.ts'); await api.get('/notifications'); return true; })()`);
+  await verify(`window.__formRequests.length === window.__beforeRevision + 1`, 'Unchanged notification revision does not refetch teacher summaries');
+  evaluate(`window.__panelRevision = 'preview-external-review'; window.__beforeRevision = window.__formRequests.length; window.__beforeForms = window.__formRequests.filter(r => r.path.endsWith('/form-html')).length; true`);
+  evaluate(`(async () => { const api = await import('/src/api/client.ts'); await api.get('/notifications'); return true; })()`);
+  await verify(`window.__formRequests.slice(window.__beforeRevision).some(r => r.path.endsWith('/docente/dashboard'))`, 'An external review revision refetches the teacher dashboard');
+  await verify(`window.__editedForm === document.querySelector('#wpforms-form-10') && document.querySelector('#wpforms-10-field_2').value === 'Comentario sin enviar'`, 'Background revision preserves the live form DOM and unsaved text');
+  await verify(`window.__formRequests.filter(r => r.path.endsWith('/form-html')).length === window.__beforeForms`, 'Revision does not request a new personalized form');
   assert.equal(browser('errors'), '', 'No uncaught browser errors'); checks++;
   console.log(`${checks} browser checks passed`);
 } finally { browser('close'); }

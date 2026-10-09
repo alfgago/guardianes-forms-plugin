@@ -1,4 +1,5 @@
 import type { ApiError } from '@/types';
+import { PANEL_REVISION_EVENT } from './panel-cache';
 
 interface InitData {
   restUrl: string;
@@ -58,6 +59,7 @@ async function request<T>(
     method,
     headers,
     credentials: 'same-origin',
+    cache: 'no-store',
     signal,
   };
 
@@ -80,6 +82,12 @@ async function request<T>(
       };
     }
     throw new ApiRequestError(error);
+  }
+
+  const version = response.headers.get('X-GNF-Panel-Version');
+  const kind = response.headers.get('X-GNF-Panel-Kind');
+  if (version && (kind === 'docente' || kind === 'supervisor')) {
+    window.dispatchEvent(new CustomEvent(PANEL_REVISION_EVENT, { detail: { version, kind } }));
   }
 
   // Handle 204 No Content

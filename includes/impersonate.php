@@ -141,10 +141,11 @@ function gnf_build_impersonate_url( $target_user_id, $return_url = '' ) {
 		$args['return_to'] = wp_validate_redirect( $return_url, admin_url() );
 	}
 
-	return wp_nonce_url(
+	// REST/React navigate this URL directly; HTML callers escape it at output.
+	return html_entity_decode( wp_nonce_url(
 		add_query_arg( $args, admin_url( 'admin-post.php' ) ),
 		'gnf_impersonate'
-	);
+	), ENT_QUOTES, 'UTF-8' );
 }
 
 /**

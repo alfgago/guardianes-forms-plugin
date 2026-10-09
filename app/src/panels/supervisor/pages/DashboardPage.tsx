@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { AlertCircle, CheckCircle2, Clock, Download, School } from 'lucide-react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { AlertCircle, CheckCircle2, Clock, Download, RefreshCw, School } from 'lucide-react';
 import { supervisorApi } from '@/api/supervisor';
-import { get } from '@/api/client';
+import { get, post } from '@/api/client';
+import { Button } from '@/components/ui/Button';
 import { useYearStore } from '@/stores/useYearStore';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useInitData } from '@/hooks/useInitData';
@@ -39,6 +40,16 @@ function FilterField({ label, children, minWidth = 180 }: { label: string; child
 }
 
 export function DashboardPage({ onViewCentro }: DashboardPageProps) {
+  const queryClient = useQueryClient();
+  const refresh = useMutation({
+    mutationFn: () => post('/panel/cache-refresh'),
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['supervisor-dashboard'] }),
+        queryClient.invalidateQueries({ queryKey: ['supervisor-centros'] }),
+      ]);
+    },
+  });
   const year = useYearStore((s) => s.selectedYear);
   const user = useAuthStore((s) => s.user);
   const supervisorInit = useInitData('supervisor');
@@ -186,6 +197,9 @@ export function DashboardPage({ onViewCentro }: DashboardPageProps) {
           <p style={{ color: 'var(--gnf-muted)' }}>Año {year}{regionSummary ? ` | ${regionSummary}` : ''}</p>
         </div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+          <Button variant="outline" icon={<RefreshCw size={16} />} loading={refresh.isPending}
+            title="Consulta los cambios más recientes de tus centros asignados."
+            onClick={() => refresh.mutate()}>Actualizar</Button>
           <a
             href={isComite ? dreExportUrl : circuitoExportUrl}
             style={{
@@ -231,6 +245,7 @@ export function DashboardPage({ onViewCentro }: DashboardPageProps) {
         </div>
       </div>
 
+      {refresh.isError && <p role="alert" style={{ color: 'var(--gnf-coral)' }}>No se pudo actualizar. Puedes intentarlo de nuevo.</p>}
       {stats && (
         <StatsGrid>
           <StatCard label="Centros" value={stats.centros} icon={<School size={24} />} color="#0369a1" bg="#e0f2fe" />

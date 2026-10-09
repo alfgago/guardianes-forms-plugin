@@ -1,0 +1,34 @@
+import fs from 'node:fs';
+import vm from 'node:vm';
+import assert from 'node:assert/strict';
+import { createRequire } from 'node:module';
+const root = new URL('../', import.meta.url);
+const require = createRequire(new URL('app/package.json', root));
+const path = new URL('app/src/api/panel-cache.ts', root);
+assert.ok(fs.existsSync(path), 'Panel browser cache policy exists');
+const code = require('typescript').transpileModule(fs.readFileSync(path, 'utf8'), {
+  compilerOptions: { module: require('typescript').ModuleKind.CommonJS },
+}).outputText;
+const exports = {};
+vm.runInNewContext(code, { exports, WeakSet });
+const defaults = new Map(); const invalidations = [];
+const client = { setQueryDefaults: ([key], options) => defaults.set(key, options), invalidateQueries: ({ queryKey }) => { invalidations.push(queryKey[0]); return Promise.resolve(); } };
+exports.configurePanelQueryCache(client);
+assert.equal(defaults.get('docente-dashboard').staleTime, 600000);
+assert.equal(defaults.get('docente-retos').gcTime, 600000);
+assert.equal(defaults.get('docente-dashboard').refetchOnWindowFocus, false);
+assert.equal(defaults.get('supervisor-centros').refetchInterval, 7200000);
+assert.equal(defaults.has('wpforms-form-html'), false, 'Active forms are not assigned summary caching');
+assert.equal(defaults.has('matricula-prefill'), false, 'Editable enrollment stays outside summary cache');
+assert.equal(defaults.has('supervisor-centro'), false, 'Review details remain fresh');
+exports.applyPanelRevision(client, undefined, { kind: 'docente', version: 'a' });
+assert.equal(invalidations.length, 0, 'Initial signal does not start a refetch loop');
+exports.applyPanelRevision(client, 'a', { kind: 'docente', version: 'a' });
+assert.equal(invalidations.length, 0, 'Unchanged version does not reload summaries');
+exports.applyPanelRevision(client, 'a', { kind: 'docente', version: 'b' });
+assert.deepEqual(invalidations, ['docente-dashboard', 'docente-retos', 'wizard-steps']);
+assert.equal(invalidations.includes('wpforms-form-html'), false, 'External review never replaces an edited form');
+invalidations.length = 0;
+exports.applyPanelRevision(client, 'a', { kind: 'supervisor', version: 'b' });
+assert.deepEqual(invalidations, ['supervisor-dashboard', 'supervisor-centros']);
+console.log('12 panel query/cache checks passed');

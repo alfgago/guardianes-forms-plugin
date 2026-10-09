@@ -327,19 +327,22 @@ function gnf_render_impact_pdf_html( $scoped, $detail = 'summary' ) {
 			foreach ( $groups as $metrics ) {
 				// Compact source tables bound row growth while retaining every measurement.
 				foreach ( array_chunk( $metrics, 4 ) as $columns ) {
-					$html .= '<h3>Fuente: ' . $e( gnf_impact_export_source_label( $columns[0] ) ) . '</h3><table class="data"><thead><tr><th style="width:28%">Territorio</th>';
-					foreach ( $columns as $metric ) { $html .= '<th style="width:' . ( 72 / count( $columns ) ) . '%">' . $e( $metric['title'] ) . '<br>' . $e( $metric['unit'] ?? '' ) . '</th>'; }
-					$html .= '</tr></thead><tbody>';
-					foreach ( (array) ( $scoped['impact'][ $collection ] ?? array() ) as $territory ) {
-						$label = ( 'circuits' === $collection ? ( $territory['regionName'] ?? '' ) . ' / ' : '' ) . ( $territory['label'] ?? '' );
-						$html .= '<tr><td>' . $e( $label ) . '</td>';
-						foreach ( $columns as $metric ) {
-							$value = false === ( $metric['available'] ?? true ) ? 'No disponible' : $n( $territory['values'][ $metric['key'] ] ?? null );
-							$html .= '<td class="numeric">' . $e( $value ) . '</td>';
+					// Small tables avoid repeatedly laying out hundreds of rows during pagination.
+					foreach ( array_chunk( (array) ( $scoped['impact'][ $collection ] ?? array() ), 25 ) as $territories ) {
+						$html .= '<h3>Fuente: ' . $e( gnf_impact_export_source_label( $columns[0] ) ) . '</h3><table class="data"><thead><tr><th style="width:28%">Territorio</th>';
+						foreach ( $columns as $metric ) { $html .= '<th style="width:' . ( 72 / count( $columns ) ) . '%">' . $e( $metric['title'] ) . '<br>' . $e( $metric['unit'] ?? '' ) . '</th>'; }
+						$html .= '</tr></thead><tbody>';
+						foreach ( $territories as $territory ) {
+							$label = ( 'circuits' === $collection ? ( $territory['regionName'] ?? '' ) . ' / ' : '' ) . ( $territory['label'] ?? '' );
+							$html .= '<tr><td>' . $e( $label ) . '</td>';
+							foreach ( $columns as $metric ) {
+								$value = false === ( $metric['available'] ?? true ) ? 'No disponible' : $n( $territory['values'][ $metric['key'] ] ?? null );
+								$html .= '<td class="numeric">' . $e( $value ) . '</td>';
+							}
+							$html .= '</tr>';
 						}
-						$html .= '</tr>';
+						$html .= '</tbody></table>';
 					}
-					$html .= '</tbody></table>';
 				}
 			}
 			$html .= '</div>';
@@ -504,17 +507,25 @@ function gnf_get_impact_pdf_job( $scoped, $detail = 'summary' ) {
 	catch ( Throwable $error ) { return gnf_impact_export_error( 'impact_pdf_persistence_failed', 'No se pudo guardar la preparación del PDF. Vuelva al panel y reintente.', 503 ); }
 }
 
+/** Ask WP-Cron to start due work without blocking the download request. */
+function gnf_dispatch_impact_pdf_cron() {
+	if ( ( defined( 'DISABLE_WP_CRON' ) && DISABLE_WP_CRON )
+		|| ( defined( 'ALTERNATE_WP_CRON' ) && ALTERNATE_WP_CRON )
+		|| ( defined( 'DOING_CRON' ) && DOING_CRON ) ) { return; }
+	if ( function_exists( 'spawn_cron' ) ) { spawn_cron(); }
+}
+
 function gnf_prepare_impact_pdf_job( $scoped, $detail ) {
 	$ready = gnf_impact_export_ready( $scoped ); if ( is_wp_error( $ready ) ) { return $ready; }
 	if ( ! in_array( $detail, array( 'summary', 'full' ), true ) ) { return gnf_impact_export_error( 'impact_invalid_detail', 'Detalle no admitido.', 400 ); }
 	$key = gnf_impact_pdf_job_key( $scoped, $detail );
 	$job = gnf_impact_pdf_read( $key );
 	if ( ! $job ) {
-		$new = array( 'generation' => bin2hex( random_bytes( 16 ) ), 'userId' => get_current_user_id(), 'status' => 'queued', 'created' => time(), 'deadline' => time() + 900, 'expires' => time() + 3600, 'detail' => $detail, 'payload' => gnf_impact_pdf_payload( $scoped ) );
+		$new = array( 'generation' => bin2hex( random_bytes( 16 ) ), 'userId' => get_current_user_id(), 'year' => (int) $scoped['year'], 'status' => 'queued', 'created' => time(), 'deadline' => time() + 900, 'expires' => time() + 7200, 'detail' => $detail, 'payload' => gnf_impact_pdf_payload( $scoped ) );
 		$inserted = gnf_impact_pdf_insert( $key, $new );
 		if ( false === $inserted ) { throw new RuntimeException( 'PDF job insert failed' ); }
 		if ( 1 === $inserted ) {
-			$scheduled = wp_schedule_single_event( time() + 1, 'gnf_run_impact_pdf_job', array( $key ) );
+			$scheduled = wp_schedule_single_event( time(), 'gnf_run_impact_pdf_job', array( $key ) );
 			$cleanup = wp_schedule_single_event( $new['expires'], 'gnf_cleanup_impact_pdf_job', array( $key ) );
 			if ( ! $scheduled || ! $cleanup ) { gnf_cleanup_impact_pdf_job( $key, true, $new ); return gnf_impact_export_error( 'impact_pdf_queue_failed', 'No se pudo programar el PDF. Vuelva al panel y reintente.', 503 ); }
 		}
@@ -535,8 +546,11 @@ function gnf_prepare_impact_pdf_job( $scoped, $detail ) {
 	}
 	$lock_key = str_replace( 'gnf_impact_pdf_job_', 'gnf_impact_pdf_lock_', $key );
 	$lock = gnf_impact_pdf_read( $lock_key );
-	if ( ( ! $lock || (int) $lock['expires'] < time() ) && ! wp_next_scheduled( 'gnf_run_impact_pdf_job', array( $key ) ) && ! wp_schedule_single_event( time() + 1, 'gnf_run_impact_pdf_job', array( $key ) ) ) { throw new RuntimeException( 'PDF worker scheduling failed' ); }
-	return array( 'key' => $key, 'status' => 'queued' );
+	if ( ! $lock || (int) $lock['expires'] < time() ) {
+		if ( ! wp_next_scheduled( 'gnf_run_impact_pdf_job', array( $key ) ) && ! wp_schedule_single_event( time(), 'gnf_run_impact_pdf_job', array( $key ) ) ) { throw new RuntimeException( 'PDF worker scheduling failed' ); }
+		gnf_dispatch_impact_pdf_cron();
+	}
+	return array( 'key' => $key, 'status' => $job['status'], 'record' => $job );
 }
 
 function gnf_run_impact_pdf_job( $key ) {
@@ -566,7 +580,7 @@ function gnf_run_impact_pdf_job( $key ) {
 		fclose( $handle );
 		@chmod( $path, 0600 );
 		// Persist the private path before rendering so TTL cleanup also handles fatal timeouts.
-		$working = $job; $working['status'] = 'working'; $working['path'] = $path;
+		$working = $job; $working['status'] = 'working'; $working['path'] = $path; $working['started'] = time();
 		if ( 1 !== gnf_impact_pdf_owned_update( $key, $job, $working, $lock_key, $lock ) ) { return; }
 		if ( gnf_impact_pdf_is_private_file( $job['path'] ?? null ) ) { @unlink( $job['path'] ); }
 		$job = $working; $claimed = true;
@@ -574,7 +588,7 @@ function gnf_run_impact_pdf_job( $key ) {
 		if ( is_wp_error( $result ) ) { throw new RuntimeException( 'PDF rendering failed' ); }
 		// Do not publish after cancellation, TTL expiry, or lease takeover.
 		if ( (int) $job['expires'] <= time() ) { return; }
-		$published = $job; $published['status'] = 'ready'; unset( $published['payload'] );
+		$published = $job; $published['status'] = 'ready'; $published['finished'] = time(); unset( $published['payload'] );
 		$saved = gnf_impact_pdf_owned_update( $key, $job, $published, $lock_key, $lock );
 		// On SQL failure the tracked working file remains recoverable; never claim ready.
 		if ( 1 === $saved || false === $saved ) { $path = null; }
@@ -589,12 +603,17 @@ function gnf_run_impact_pdf_job( $key ) {
 	}
 }
 
-function gnf_render_impact_export_waiting_html( $scoped ) {
+function gnf_render_impact_export_waiting_html( $scoped, $job = array() ) {
 	$panel = function_exists( 'gnf_rest_is_admin' ) && gnf_rest_is_admin() ? '/panel-admin/' : '/panel-supervisor/';
 	$filters = array_intersect_key( (array) ( $scoped['filters'] ?? array() ), array_flip( array( 'region', 'circuit', 'mode', 'sources' ) ) );
 	$filters['sources'] = implode( ',', (array) ( $filters['sources'] ?? array() ) );
 	$url = add_query_arg( array_merge( $filters, array( 'p' => 'reportes', 'year' => (int) $scoped['year'] ) ), home_url( $panel ) );
-	return '<!doctype html><html lang="es"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="refresh" content="5"><title>Preparando PDF</title></head><body style="font-family:system-ui,sans-serif;max-width:640px;margin:60px auto;padding:24px;color:#24343a"><h1>Preparando Panel de Impacto</h1><p>El PDF se esta generando en segundo plano. La descarga comenzara automaticamente cuando este listo.</p><p><a href="' . gnf_impact_export_escape( $url ) . '">Volver al panel</a></p></body></html>';
+	$working = 'working' === ( $job['status'] ?? 'queued' );
+	$elapsed = max( 0, time() - (int) ( $job['created'] ?? time() ) );
+	$status = $working ? 'Generando PDF' : 'En cola';
+	$notice = ! $working && $elapsed >= 60 ? '<p role="alert">La generación no ha iniciado. El servicio de tareas puede estar demorado; puede descargar el Excel mientras tanto.</p>' : '';
+	$exports = gnf_get_impact_export_urls( (int) $scoped['year'], (array) ( $scoped['filters'] ?? array() ) );
+	return '<!doctype html><html lang="es"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="refresh" content="5"><title>Preparando PDF</title></head><body style="font-family:system-ui,sans-serif;max-width:640px;margin:60px auto;padding:24px;color:#24343a"><h1>Preparando Panel de Impacto</h1><p role="status">' . $status . ' · ' . $elapsed . ' segundos</p><p>La descarga comenzara automaticamente cuando este listo.</p>' . $notice . '<p><a href="' . gnf_impact_export_escape( $url ) . '">Volver al panel</a></p><p><a href="' . gnf_impact_export_escape( $exports['indicators'] ) . '">Descargar Excel</a></p></body></html>';
 }
 
 function gnf_handle_export_impact() {
@@ -606,7 +625,7 @@ function gnf_handle_export_impact() {
 		if ( is_wp_error( $pdf_job ) ) { gnf_impact_export_die( $pdf_job ); return; }
 		if ( 'ready' !== $pdf_job['status'] ) {
 			nocache_headers(); header( 'Content-Type: text/html; charset=UTF-8' ); header( 'Cache-Control: private, no-store' );
-			echo gnf_render_impact_export_waiting_html( $prepared['scoped'] ); exit;
+			echo gnf_render_impact_export_waiting_html( $prepared['scoped'], $pdf_job['record'] ); exit;
 		}
 	}
 	$path = $pdf_job ? $pdf_job['path'] : wp_tempnam( 'gnf-impact-xlsx' );
@@ -630,8 +649,8 @@ function gnf_handle_export_impact() {
 	} catch ( Throwable $exception ) {
 		$error = gnf_impact_export_error( 'impact_download_failed', 'No se pudo entregar el archivo. Vuelva a intentar la descarga.' );
 	} finally {
-		if ( $pdf_job ) { gnf_cleanup_impact_pdf_job( $pdf_job['key'], true, $pdf_job['record'] ); }
-		else { @unlink( $path ); }
+		// Keep authorized PDFs reusable until their private TTL cleanup runs.
+		if ( ! $pdf_job ) { @unlink( $path ); }
 	}
 	// wp_die may exit; always clean up before invoking it.
 	if ( $error ) { gnf_impact_export_die( $error ); return; }

@@ -1,6 +1,8 @@
 <?php
 // Standalone scoped fixtures: php tests/test-impact-exports.php [--review-dir=PATH].
 define( 'ABSPATH', __DIR__ . '/../' );
+if ( in_array( '--disabled-cron', $argv, true ) ) { define( 'DISABLE_WP_CRON', true ); }
+if ( in_array( '--alternate-cron', $argv, true ) ) { define( 'ALTERNATE_WP_CRON', true ); }
 class WP_Error {
 	private $code; private $message; private $data;
 	public function __construct( $code, $message, $data = array() ) { $this->code = $code; $this->message = $message; $this->data = $data; }
@@ -28,6 +30,7 @@ function update_option( $key, $value, $autoload = false ) { $GLOBALS['job_option
 function delete_option( $key ) { unset( $GLOBALS['job_options'][ $key ] ); return true; }
 function wp_schedule_single_event( $time, $hook, $args ) { $GLOBALS['job_events'][ $hook . json_encode( $args ) ] = $time; return true; }
 function wp_next_scheduled( $hook, $args ) { return $GLOBALS['job_events'][ $hook . json_encode( $args ) ] ?? false; }
+function spawn_cron() { $GLOBALS['cron_spawns'] = ( $GLOBALS['cron_spawns'] ?? 0 ) + 1; return true; }
 function wp_cache_delete( $key, $group ) {}
 function maybe_serialize( $value ) { return serialize( $value ); }
 function maybe_unserialize( $value ) { return unserialize( $value ); }
@@ -68,7 +71,7 @@ class Impact_Job_DB {
 		return $rows;
 	}
 }
-$wpdb = new Impact_Job_DB(); $job_options = array(); $job_events = array();
+$wpdb = new Impact_Job_DB(); $job_options = array(); $job_events = array(); $cron_spawns = 0;
 if ( ! in_array( '--real-scope', $argv, true ) ) {
 function gnf_get_report_snapshot( $year ) { $GLOBALS['requested_year'] = $year; return $GLOBALS['snapshot']; }
 function gnf_scope_report_snapshot( $snapshot, $region = 0, $circuit = '', $mode = 'active', $sources = array() ) {
@@ -242,6 +245,9 @@ for ( $i = 0; $i < 100; $i++ ) { $large['impact']['circuits'][ '2|' . $i ] = arr
 for ( $i = 0; $i < 30; $i++ ) { $large['impact']['regions'][ $i ] = array( 'label' => 'Region ' . $i, 'values' => $many['impact']['total']['values'] ); }
 $large_html = gnf_render_impact_pdf_html( $large, 'full' );
 check_impact_export( substr_count( $large_html, '<tr>' ) < 800, 'Full report groups metric columns instead of multiplying a row for every territory/metric' );
+$territorial_html = substr( $large_html, strpos( $large_html, '<div class="territorial">' ) );
+preg_match_all( '/<table class="data">(.*?)<\/table>/s', $territorial_html, $territorial_tables );
+check_impact_export( ! array_filter( $territorial_tables[1], static function ( $table ) { return substr_count( $table, '<tr>' ) > 26; } ), 'Territorial tables bound layout to 25 data rows without omitting circuits' );
 $empty = $scoped; $empty['centros'] = array(); $empty['impact']['catalog'] = array(); $empty['impact']['regions'] = array(); $empty['impact']['circuits'] = array();
 check_impact_export( false !== strpos( gnf_render_impact_pdf_html( $empty, 'full' ), 'Sin indicadores' ), 'Empty catalog has explicit PDF state' );
 require_once ABSPATH . 'includes/xlsx-writer.php';
@@ -311,6 +317,9 @@ if ( function_exists( 'gnf_get_impact_pdf_job' ) ) {
 	$again = gnf_get_impact_pdf_job( $scoped, 'full' );
 	check_impact_export( $job['key'] === $again['key'] && 2 === count( $job_events ), 'Atomic dedupe schedules one worker and one TTL cleanup' );
 	$record = get_option( $job['key'] ); $serialized = serialize( $record );
+	$automatic_dispatch = ! ( defined( 'DISABLE_WP_CRON' ) && DISABLE_WP_CRON ) && ! ( defined( 'ALTERNATE_WP_CRON' ) && ALTERNATE_WP_CRON );
+	check_impact_export( wp_next_scheduled( 'gnf_run_impact_pdf_job', array( $job['key'] ) ) <= time() && ( $automatic_dispatch ? $cron_spawns > 0 : 0 === $cron_spawns ), 'PDF worker is immediately due; nonblocking dispatch respects disabled or alternate cron configuration' );
+	check_impact_export( $record['expires'] - $record['created'] === 7200, 'Private PDF cache lasts two hours instead of rebuilding after each download' );
 	check_impact_export( ! isset( $record['payload']['centros'] ) && false === strpos( $serialized, 'PERSONAL_PRIVATE' ) && false === strpos( $serialized, 'private@example.test' ) && false === strpos( $serialized, 'nonce' ) && false === strpos( $serialized, 'https://' ), 'Queued PDF payload excludes PII URLs and nonces' );
 	$allowed_regions = array( 2, 9 ); $changed = gnf_get_impact_pdf_job( $scoped, 'full' );
 	check_impact_export( $changed['key'] !== $job['key'], 'Changed region assignment cannot reuse cached PDF' ); $allowed_regions = array( 2 );
@@ -332,6 +341,10 @@ if ( function_exists( 'gnf_get_impact_pdf_job' ) ) {
 	check_impact_export( $movement_key !== gnf_impact_pdf_job_key( $movement, 'full' ), 'Per-center live region movement invalidates signature independently of territory keyset' );
 	$waiting = gnf_render_impact_export_waiting_html( $scoped );
 	check_impact_export( false !== strpos( $waiting, 'content="5"' ) && false !== strpos( $waiting, 'Volver al panel' ) && false === strpos( $waiting, 'PERSONAL_PRIVATE' ), 'Waiting page refreshes every five seconds and links back without PII' );
+	$delayed = gnf_render_impact_export_waiting_html( $scoped, array( 'status' => 'queued', 'created' => time() - 310 ) );
+	check_impact_export( false !== strpos( $delayed, 'En cola' ) && false !== strpos( $delayed, 'no ha iniciado' ) && false !== strpos( $delayed, 'Descargar Excel' ), 'Long queued wait exposes actual state and offers a scoped XLSX alternative' );
+	$working = gnf_render_impact_export_waiting_html( $scoped, array( 'status' => 'working', 'created' => time() - 30 ) );
+	check_impact_export( false !== strpos( $working, 'Generando PDF' ) && false === strpos( $working, 'no ha iniciado' ), 'Waiting page distinguishes active rendering from a stalled queue' );
 	preg_match( '/href="([^"]+)"/', $waiting, $backlink );
 	parse_str( parse_url( html_entity_decode( $backlink[1], ENT_QUOTES, 'UTF-8' ), PHP_URL_QUERY ), $back_filters );
 	check_impact_export( '2026' === $back_filters['year'] && '2' === ( $back_filters['region'] ?? '' ) && '01' === ( $back_filters['circuit'] ?? '' ) && 'approved' === ( $back_filters['mode'] ?? '' ) && implode( ',', $scoped['filters']['sources'] ) === ( $back_filters['sources'] ?? '' ), 'Waiting backlink preserves filters in the panels comma-separated source format' );
@@ -345,6 +358,11 @@ if ( function_exists( 'gnf_get_impact_pdf_job' ) ) {
 	check_impact_export( 'ready' === $ready_job['status'] && is_file( $ready_job['path'] ) && '%PDF-' === substr( file_get_contents( $ready_job['path'] ), 0, 5 ), 'Cron recovers stale lock and prepares private PDF' );
 	check_impact_export( strpos( realpath( $ready_job['path'] ), realpath( sys_get_temp_dir() ) ) === 0 && strpos( $ready_job['path'], 'uploads' ) === false, 'Prepared PDF is outside public uploads' );
 	check_impact_export( ! get_option( $lock_key ), 'Worker releases its own lock' );
+	$events_before = $job_events; $spawns_before = $cron_spawns;
+	$cached = gnf_get_impact_pdf_job( $scoped, 'full' );
+	check_impact_export( 'ready' === $cached['status'] && $cached['path'] === $ready_job['path'] && $job_events === $events_before && $cron_spawns === $spawns_before, 'Repeated authorized requests reuse the prepared artifact without scheduling another render' );
+	$handler = substr( file_get_contents( $module ), strpos( file_get_contents( $module ), 'function gnf_handle_export_impact()' ) );
+	check_impact_export( false === strpos( $handler, 'gnf_cleanup_impact_pdf_job(' ), 'Download handler leaves cached private PDF for TTL cleanup instead of deleting it on delivery' );
 	$sql_failure = 'DELETE job'; $last_good = get_option( $job['key'] );
 	check_impact_export( false === gnf_cleanup_impact_pdf_job( $job['key'], true, $last_good ) && is_file( $ready_job['path'] ) && get_option( $job['key'] ) === $last_good, 'SQL cleanup failure retains ready artifact and persistent state' );
 	$scope_result = new WP_Error( 'forbidden', 'Sin alcance.', array( 'status' => 403 ) );

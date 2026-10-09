@@ -15,6 +15,9 @@ function maybe_unserialize( $v ) { return unserialize( $v ); }
 function wp_cache_delete() {}
 function wp_next_scheduled( $hook, $args = array() ) { return $GLOBALS['scheduled'][$hook . json_encode($args)] ?? false; }
 function wp_schedule_single_event( $t, $hook, $args ) { $GLOBALS['scheduled'][$hook . json_encode($args)] = $t; }
+function wp_get_scheduled_event( $hook ) { return $GLOBALS['recurring'] ?? false; }
+function wp_clear_scheduled_hook( $hook ) { $GLOBALS['recurring'] = false; unset( $GLOBALS['scheduled'][$hook . '[]'] ); $GLOBALS['cleared']++; }
+function wp_schedule_event( $time, $schedule, $hook ) { $GLOBALS['recurring'] = (object) array( 'schedule' => $schedule ); $GLOBALS['scheduled'][$hook . '[]'] = $time; }
 function current_time() { return '2026-10-08 10:30:00'; }
 function gnf_get_active_year() { return 2026; }
 function gnf_get_centros_with_matricula() { if ( ! empty( $GLOBALS['fail_ids'] ) ) { $GLOBALS['wpdb']->last_error = 'Simulated enrollment SQL failure'; return array(); } return range( 1, 201 ); }
@@ -55,6 +58,13 @@ $wpdb = new ReportDB(); $options = array(); $scheduled = array(); $batches = arr
 require ABSPATH . 'includes/report-snapshots.php';
 $tests = 0; $fails = 0;
 function check_cron( $ok, $message ) { global $tests, $fails; $tests++; if ( ! $ok ) { $fails++; } echo ( $ok ? 'ok: ' : 'FAIL: ' ) . $message . "\n"; }
+$cleared = 0; $recurring = (object) array( 'schedule' => 'gnf_four_hours' );
+$scheduled['gnf_report_snapshots_tick[]'] = time();
+gnf_schedule_report_snapshots();
+check_cron( 1 === $cleared && 'gnf_two_hours' === $recurring->schedule, 'Existing four-hour cron is migrated to two hours' );
+gnf_schedule_report_snapshots();
+check_cron( 1 === $cleared, 'Repeated initialization does not replace or duplicate the new schedule' );
+check_cron( 7200 === gnf_report_cron_schedules( array() )['gnf_two_hours']['interval'], 'Background reporting cadence is two hours' );
 $old = array( 'ready' => true, 'generatedTimestamp' => 1, 'centros' => array() );
 $options['gnf_report_snapshot_2026_v1'] = $old;
 gnf_refresh_report_snapshot( 2026 );

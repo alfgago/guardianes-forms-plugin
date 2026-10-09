@@ -11,6 +11,7 @@
   const reportPreview = new URLSearchParams(location.search).has('report-preview');
   let formMode = new URLSearchParams(location.search).get('form-mode');
   window.__formRequests = [];
+  window.__panelRevision = 'preview-initial';
   window.__restorePreviewForm = () => { formMode = null; };
   window.__GNF_DOCENTE__ = {
     restUrl: '/mock-api', nonce: '', anio: 2026, selectedYear: 2026, availableYears: [2026], logoUrl: new URL(logoUrl, location.href).pathname,
@@ -68,7 +69,8 @@
       payload.html = formMode === 'missing' ? '<div>No se pudo renderizar.</div>' : formMode === 'no-fields' ? '<form></form>' : '';
       if (formMode === 'broken') payload.formError = 'No se pueden mostrar las preguntas en este momento. Tus respuestas y evidencias guardadas siguen disponibles.';
     }
-    return new Response(JSON.stringify(payload), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    return new Response(JSON.stringify(payload), { status: 200, headers: { 'Content-Type': 'application/json',
+      'X-GNF-Panel-Version': window.__panelRevision, 'X-GNF-Panel-Kind': 'docente' } });
   };
   await import('/src/entries/docente.tsx');
 </script>

@@ -16,7 +16,7 @@ function check_definition( $condition, $label ) { global $tests, $fails; $tests+
 $definition = array( 'fields' => array( 1 => array( 'id' => 1, 'type' => 'radio', 'label' => 'Plantaron arboles', 'choices' => array( 1 => array( 'label' => 'Si' ) ) ) ) );
 $content = json_encode( $definition );
 check_definition( gnf_get_wpforms_form_definition( 77530 ) === $definition, 'Returns the live form definition' );
-check_definition( 1 === count( $cache ) && array( 14400 ) === $ttls, 'Shared definition is cached for four hours' );
+check_definition( 1 === count( $cache ) && array( 7200 ) === $ttls, 'Shared definition is cached for two hours' );
 $reads = $cache_reads;
 check_definition( gnf_get_wpforms_form_definition( 77530 ) === $definition && $reads === $cache_reads, 'Repeated reads reuse the request cache' );
 $definition['fields'][1]['label'] = 'Pregunta corregida'; $content = json_encode( $definition );

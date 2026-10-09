@@ -21,6 +21,7 @@ export function CentroDetailPage({ centroId, onBack }: CentroDetailPageProps) {
   const { data, isLoading, error } = useQuery({
     queryKey: ['supervisor-centro', centroId, year],
     queryFn: () => supervisorApi.getCentroDetail(centroId, year),
+    staleTime: 0,
   });
 
   if (isLoading) return <Spinner />;

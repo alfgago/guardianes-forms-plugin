@@ -51,7 +51,7 @@ check_impact_ui( false !== strpos( $panel, 'availableSources' ) && false !== str
 check_impact_ui( false !== strpos( $model, "params.get('mode') === 'active' ? 'active' : 'approved'" ) && false !== strpos( $panel, 'getInitialReportFilters(window.location.search)' ), 'quicklink conserva filtros y modo inicial aprobado' );
 check_impact_ui( false !== strpos( $model, "'Sin datos'" ) && false !== strpos( $table, 'scope.coverage' ), 'nulos sin datos y cobertura por centro' );
 check_impact_ui( false !== strpos( $panel, 'canRefresh' ) && false !== strpos( $panel, 'useMutation' ), 'refresh solamente segun permiso del servidor' );
-check_impact_ui( false !== strpos( $panel, 'refetchInterval' ) && false !== strpos( $model, '!data.ready || data.refreshing' ) && false !== strpos( $model, '5000' ), 'poll de 5s solo preparando o actualizando' );
+check_impact_ui( false !== strpos( $panel, 'refetchInterval' ) && false !== strpos( $model, 'manuallyRefreshing && data.refreshing' ) && false !== strpos( $model, 'REPORT_REFRESH_INTERVAL' ), 'poll rapido solo sin corte o despues de actualizacion manual; corte disponible cada dos horas' );
 check_impact_ui( false !== strpos( $panel, 'Preparando indicadores' ) && false !== strpos( $panel, 'stale' ) && false !== strpos( $panel, 'generatedAt' ), 'estados frio desactualizado y timestamp visibles' );
 check_impact_ui( false !== strpos( $panel, 'Reintentar' ) && false !== strpos( $panel, 'refetch()' ), 'errores recuperables' );
 check_impact_ui( false !== strpos( $table, '<table' ) && false !== strpos( $table, 'groupIndicators' ) && false !== strpos( $table, 'Total del alcance' ), 'tabla agrupa todos los indicadores y total seleccionado' );

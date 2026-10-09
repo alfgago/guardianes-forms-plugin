@@ -37,9 +37,12 @@ export function comparisonScopes(impact: Pick<ReportImpact, 'regions' | 'circuit
     (a.regionName ?? '').localeCompare(b.regionName ?? '', 'es') || a.label.localeCompare(b.label, 'es'));
 }
 
-export function getPollInterval(data: ReportsOverview | undefined, isError: boolean): number | false {
+export const REPORT_CACHE_TIME = 10 * 60 * 1000;
+export const REPORT_REFRESH_INTERVAL = 2 * 60 * 60 * 1000;
+
+export function getPollInterval(data: ReportsOverview | undefined, isError: boolean, manuallyRefreshing = false): number | false {
   if (isError || !data) return false;
-  return !data.ready || data.refreshing ? 5000 : false;
+  return !data.ready || (manuallyRefreshing && data.refreshing) ? 5000 : REPORT_REFRESH_INTERVAL;
 }
 
 export function paginateScopes<T>(scopes: T[], requestedPage: number) {

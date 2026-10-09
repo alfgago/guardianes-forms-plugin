@@ -23,7 +23,7 @@ function gnf_get_report_snapshot( $year ) {
 	$snapshot = is_array( $snapshot ) ? $snapshot : array();
 	$snapshot['ready'] = ! empty( $snapshot['ready'] );
 	$snapshot['year'] = $year;
-	$snapshot['stale'] = ! $snapshot['ready'] || time() - (int) ( $snapshot['generatedTimestamp'] ?? 0 ) >= 4 * HOUR_IN_SECONDS;
+	$snapshot['stale'] = ! $snapshot['ready'] || time() - (int) ( $snapshot['generatedTimestamp'] ?? 0 ) >= 2 * HOUR_IN_SECONDS;
 	if ( $snapshot['stale'] ) {
 		gnf_queue_report_refresh( $year );
 	}
@@ -32,13 +32,17 @@ function gnf_get_report_snapshot( $year ) {
 }
 
 function gnf_report_cron_schedules( $schedules ) {
-	$schedules['gnf_four_hours'] = array( 'interval' => 4 * HOUR_IN_SECONDS, 'display' => 'Guardianes: cada 4 horas' );
+	$schedules['gnf_two_hours'] = array( 'interval' => 2 * HOUR_IN_SECONDS, 'display' => 'Guardianes: cada 2 horas' );
 	return $schedules;
 }
 
 function gnf_schedule_report_snapshots() {
+	$event = wp_get_scheduled_event( 'gnf_report_snapshots_tick' );
+	if ( $event && 'gnf_two_hours' !== $event->schedule ) {
+		wp_clear_scheduled_hook( 'gnf_report_snapshots_tick' );
+	}
 	if ( ! wp_next_scheduled( 'gnf_report_snapshots_tick' ) ) {
-		wp_schedule_event( time() + 30, 'gnf_four_hours', 'gnf_report_snapshots_tick' );
+		wp_schedule_event( time() + 30, 'gnf_two_hours', 'gnf_report_snapshots_tick' );
 	}
 	$year = gnf_get_active_year();
 	// Init runs on every WordPress page: never load the large private snapshot here.
@@ -365,6 +369,7 @@ function gnf_rest_reports_refresh( $request ) {
 	if ( ! gnf_rest_is_admin() ) { return new WP_Error( 'gnf_report_forbidden', 'Solo administración puede solicitar una actualización.', array( 'status' => 403 ) ); }
 	$year = gnf_normalize_year( $request->get_param( 'year' ) );
 	gnf_queue_report_refresh( $year );
+	if ( function_exists( 'gnf_invalidate_supervisor_panel_cache' ) ) { gnf_invalidate_supervisor_panel_cache(); }
 	return array( 'success' => true, 'refreshing' => true );
 }
 

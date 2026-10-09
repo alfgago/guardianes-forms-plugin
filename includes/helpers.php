@@ -827,6 +827,9 @@ function gnf_set_centro_anual_data($centro_id, $anio, $data)
 	if (function_exists('update_field')) {
 		update_field('centro_datos_anuales', array_values($rows), $centro_id);
 	}
+	if ( function_exists( 'gnf_invalidate_docente_panel_cache' ) ) {
+		gnf_invalidate_docente_panel_cache( $centro_id );
+	}
 	if ( function_exists( 'gnf_clear_impact_cache' ) ) {
 		gnf_clear_impact_cache( $anio );
 	}
@@ -1893,7 +1896,7 @@ function gnf_get_wpforms_form_definition( $form_id ) {
 		return array();
 	}
 	$definitions[ $form_id ] = array( 'signature' => $signature, 'definition' => $form_data );
-	wp_cache_set( $cache_key, $definitions[ $form_id ], 'gnf_wpforms', 4 * 60 * 60 );
+	wp_cache_set( $cache_key, $definitions[ $form_id ], 'gnf_wpforms', 2 * 60 * 60 );
 	return $form_data;
 }
 

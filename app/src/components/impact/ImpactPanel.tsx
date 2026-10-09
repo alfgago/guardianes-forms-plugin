@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/Input';
 import { ImpactTable } from './ImpactTable';
 import { ImpactChart } from './ImpactChart';
 import { ImpactExports } from './ImpactExports';
-import { comparisonScopes, formatGeneratedAt, formatValue, getInitialReportFilters, getInitialReportYear, getPollInterval, paginateScopes, type ComparisonLevel } from './model';
+import { comparisonScopes, formatGeneratedAt, formatValue, getInitialReportFilters, getInitialReportYear, getPollInterval, paginateScopes, REPORT_CACHE_TIME, type ComparisonLevel } from './model';
 import './impact.css';
 
 export function ImpactPanel() {
@@ -47,21 +47,28 @@ function ImpactOverview({ year, yearControl }: { year: number; yearControl: Reac
   const [filterOptions, setFilterOptions] = useState<Pick<ReportsOverview, 'availableRegions' | 'availableCircuits' | 'availableSources'> | null>(null);
   const id = useId();
   const queryClient = useQueryClient();
+  const [manuallyRefreshing, setManuallyRefreshing] = useState(false);
   const query = useQuery({
     queryKey: ['reports-overview', year, region, circuit, mode, sources.join(',')],
     queryFn: ({ signal }) => reportsApi.getOverview({ year, region, circuit, mode, sources }, signal),
-    staleTime: 60_000,
+    staleTime: REPORT_CACHE_TIME,
+    gcTime: REPORT_CACHE_TIME,
     refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
     retry: 1,
-    refetchInterval: (current) => getPollInterval(current.state.data, current.state.status === 'error'),
+    refetchInterval: (current) => getPollInterval(current.state.data, current.state.status === 'error', manuallyRefreshing),
   });
   const { data } = query;
   useEffect(() => {
     if (data) setFilterOptions({ availableRegions: data.availableRegions, availableCircuits: data.availableCircuits, availableSources: data.availableSources });
+    if (data?.ready && !data.refreshing) setManuallyRefreshing(false);
   }, [data]);
   const refresh = useMutation({
     mutationFn: () => reportsApi.refresh(year),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['reports-overview', year] }),
+    onSuccess: () => {
+      setManuallyRefreshing(true);
+      return queryClient.invalidateQueries({ queryKey: ['reports-overview', year] });
+    },
   });
   const impact = data?.ready ? data.impact : null;
   const scopes = useMemo(() => impact ? comparisonScopes(impact, level, scopeSearch) : [], [impact, level, scopeSearch]);
@@ -102,7 +109,7 @@ function ImpactOverview({ year, yearControl }: { year: number; yearControl: Reac
           {data?.stale && <span className="gnf-impact-status gnf-impact-status-stale">Datos pendientes de actualizar</span>}
         </div>
       </div>
-      {data?.canRefresh && <Button variant="outline" size="sm" icon={<RefreshCw size={16} />} title="Actualizar indicadores"
+      {data?.canRefresh && <Button variant="outline" size="sm" icon={<RefreshCw size={16} />} title="Solicita un nuevo cálculo de las estadísticas. Los datos actuales permanecen disponibles mientras se prepara la actualización."
         loading={refresh.isPending} disabled={data.refreshing || query.isFetching}
         onClick={() => refresh.mutate()}>Actualizar</Button>}
     </header>
@@ -151,7 +158,7 @@ function ImpactOverview({ year, yearControl }: { year: number; yearControl: Reac
         onClick={() => query.isError ? void query.refetch() : refresh.mutate()}>Reintentar</Button>
     </div>}
 
-    <ImpactExports exports={data?.exports} enabled={usable && !query.isFetching && !query.isError} />
+    <ImpactExports exports={data?.exports} enabled={usable && !query.isError} />
 
     <section className="gnf-impact-indicators" aria-labelledby={`${id}-indicators`} aria-busy={pending}>
       <div className="gnf-impact-section-heading">

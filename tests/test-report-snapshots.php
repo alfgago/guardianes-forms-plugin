@@ -44,6 +44,10 @@ if ( function_exists( 'gnf_get_report_snapshot' ) ) {
 	check_snapshot( empty( $empty['ready'] ) && 1 === count( $scheduled ), 'Cold reads enqueue generation instead of calculating synchronously' );
 	gnf_get_report_snapshot( 2026 );
 	check_snapshot( 1 === count( $scheduled ), 'Cold concurrent reads reuse the queued event' );
+	$options['gnf_report_snapshot_2026_v1'] = array( 'ready' => true, 'generatedTimestamp' => time() - 3 * HOUR_IN_SECONDS, 'centros' => array() );
+	check_snapshot( gnf_get_report_snapshot( 2026 )['stale'], 'A three-hour snapshot is now stale under the two-hour policy' );
+	$options['gnf_report_snapshot_2026_v1']['generatedTimestamp'] = time() - HOUR_IN_SECONDS;
+	check_snapshot( ! gnf_get_report_snapshot( 2026 )['stale'], 'An hour-old snapshot is still immediately usable' );
 	$options['gnf_report_snapshot_2026_v1'] = array( 'ready' => true, 'generatedTimestamp' => time() - 5 * HOUR_IN_SECONDS, 'centros' => array(), 'impact' => array() );
 	$old = gnf_get_report_snapshot( 2026 );
 	check_snapshot( $old['ready'] && $old['stale'], 'Expired snapshots remain available during refresh' );
