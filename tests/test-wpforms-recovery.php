@@ -121,5 +121,60 @@ for ( $i = 300; $i < 500; $i++ ) { $posts[$i] = (object) array( 'ID' => $i, 'pos
 $report = null;
 try { $report = gnf_recover_wpforms_form( 2026, 101, 201, false, true ); } catch ( RuntimeException $error ) {}
 check_recovery( isset( $report['historial']['revisiones_compatibles'][0] ) && 200 === $report['historial']['revisiones_compatibles'][0]['id'] && 202 === $report['historial']['revisiones_revisadas'], 'Historical lookup examines revisions beyond the first batch' );
+
+function historical_recovery_fixture() {
+	reset_recovery();
+	$old = json_decode( $GLOBALS['posts'][201]->post_content, true );
+	$old['fields'][7] = array( 'id' => 7, 'type' => 'text', 'label' => 'Retired quantity' );
+	$old['fields'][8] = array( 'id' => 8, 'type' => 'file-upload', 'label' => 'Retired evidence' );
+	$GLOBALS['posts'][200] = (object) array( 'ID' => 200, 'post_parent' => 101, 'post_type' => 'revision', 'post_content' => json_encode( $old ) );
+	$GLOBALS['entries'][0]->data = '{"__raw_values__":{"6":"","7":"25","8":"private.jpg"}}';
+	$GLOBALS['entries'][0]->evidencias = '[{"field_id":6,"replaced":false},{"field_id":8,"replaced":false,"estado":"en_pausa","puntos":5},{"field_id":150,"replaced":true}]';
+}
+historical_recovery_fixture(); $refs = array( 7 => 200, 8 => 200 ); $preview = null;
+try { $preview = gnf_recover_wpforms_form( 2026, 101, 201, false, false, $refs ); } catch ( RuntimeException $error ) {}
+check_recovery( isset( $preview['campos_historicos'][7], $preview['campos_historicos'][8] ) && 'simulacion' === $preview['resultado'] && 0 === $writes && empty( $options ), 'Explicit historical references permit a read-only preview without inventing fields' );
+$before_entries = json_encode( $entries ); $result = null;
+try { $result = gnf_recover_wpforms_form( 2026, 101, 201, true, false, $refs ); } catch ( RuntimeException $error ) {}
+$saved = json_decode( $posts[101]->post_content, true );
+check_recovery( isset( $result['resultado'] ) && 'restaurado' === $result['resultado'] && array( 6 ) === array_keys( $saved['fields'] ) && 151 === $saved['field_id'], 'Historical recovery restores current questions without republishing retired fields or reusing their IDs' );
+check_recovery( $before_entries === json_encode( $entries ), 'Historical recovery preserves every response, evidence, review state and stored evidence points byte for byte' );
+$backup = reset( $options );
+check_recovery( isset( $backup['campos_historicos'][8] ) && 200 === $backup['campos_historicos'][8]['revision_id'] && 'file-upload' === $backup['campos_historicos'][8]['tipo'], 'Recovery backup records the explicit original revisions for historical references' );
+foreach ( array( 'incomplete_refs', 'wrong_parent', 'corrupt_source', 'field_not_in_source', 'file_wrong_type', 'not_older', 'current_field', 'unused_field' ) as $failure ) {
+	historical_recovery_fixture(); $refs = array( 7 => 200, 8 => 200 );
+	if ( 'incomplete_refs' === $failure ) { unset( $refs[8] ); }
+	elseif ( 'wrong_parent' === $failure ) { $posts[200]->post_parent = 999; }
+	elseif ( 'corrupt_source' === $failure ) { $posts[200]->post_content = '{bad'; }
+	elseif ( 'not_older' === $failure ) { $posts[202] = clone $posts[200]; $posts[202]->ID = 202; $refs[8] = 202; }
+	elseif ( 'current_field' === $failure ) { $refs[6] = 200; }
+	elseif ( 'unused_field' === $failure ) { $refs[99] = 200; }
+	else { $old = json_decode( $posts[200]->post_content, true ); if ( 'field_not_in_source' === $failure ) { unset( $old['fields'][8] ); } else { $old['fields'][8]['type'] = 'text'; } $posts[200]->post_content = json_encode( $old ); }
+	$blocked = false;
+	try { gnf_recover_wpforms_form( 2026, 101, 201, true, false, $refs ); } catch ( RuntimeException $error ) { $blocked = true; }
+	check_recovery( $blocked && 0 === $writes && empty( $options ), $failure . ': historical references cannot bypass unrelated validation or mutate data' );
+}
+$parsed = null;
+if ( function_exists( 'gnf_recovery_parse_historical_refs' ) ) { $parsed = gnf_recovery_parse_historical_refs( 'historicos=7:200,8:199' ); }
+check_recovery( array( 7 => 200, 8 => 199 ) === $parsed, 'CLI parses exact field-to-revision historical references' );
+foreach ( array( '7,8', 'historicos=', 'historicos=7:200,7:199', 'historicos=0:200', 'historicos=7:bad', 'historicos=7:200,' ) as $bad_arg ) {
+	$blocked = false;
+	if ( function_exists( 'gnf_recovery_parse_historical_refs' ) ) { try { gnf_recovery_parse_historical_refs( $bad_arg ); } catch ( RuntimeException $error ) { $blocked = true; } }
+	check_recovery( $blocked, 'Malformed historical option rejected: ' . $bad_arg );
+}
+
+// Exercise the existing merge functions: subsequent saves must retain retired data.
+function current_time( $type ) { return '2026-10-08 15:00:00'; }
+$hooks = file_get_contents( dirname( __DIR__ ) . '/includes/wpforms-hooks.php' );
+foreach ( array( 'gnf_merge_reto_entry_data', 'gnf_merge_reto_evidencias' ) as $name ) {
+	$start = strpos( $hooks, 'function ' . $name . '(' );
+	eval( substr( $hooks, $start, strpos( $hooks, "\n}", $start ) + 2 - $start ) );
+}
+$old_values = array( '__raw_values__' => array( 6 => 'Old current answer', 7 => '25', 8 => 'private.jpg' ), '__fields__' => array( 7 => '25', 8 => 'private.jpg' ) );
+$merged = gnf_merge_reto_entry_data( $old_values, array( 'anio' => 2026 ), array( 6 => 'Updated' ), array( 6 => 'Updated' ) );
+check_recovery( '25' === $merged['__raw_values__'][7] && 'private.jpg' === $merged['__raw_values__'][8] && 'Updated' === $merged['__raw_values__'][6] && $old_values['__fields__'][8] === $merged['__fields__'][8], 'Normal autosaves retain answers and summaries belonging to retired fields' );
+$old_evidence = array( array( 'field_id' => 8, 'ruta' => 'legacy.jpg', 'estado' => 'en_pausa', 'review_reason' => 'No es concluyente', 'puntos' => 5 ) );
+$merged = gnf_merge_reto_evidencias( $old_evidence, array( array( 'field_id' => 6, 'ruta' => 'current.jpg', 'estado' => 'pendiente' ) ) );
+check_recovery( 2 === count( $merged ) && $old_evidence[0] === $merged[0], 'Uploads to current questions retain retired evidence and its review metadata unchanged' );
 echo "{$tests} checks, {$fails} failures\n";
 exit( $fails ? 1 : 0 );

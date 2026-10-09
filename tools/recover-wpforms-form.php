@@ -27,6 +27,34 @@ function gnf_recovery_record_usage( &$usage, $id, $kind, $entry_id ) {
 	if ( count( $usage[$id]['entradas_ejemplo'] ) < 3 && ! in_array( $entry_id, $usage[$id]['entradas_ejemplo'], true ) ) { $usage[$id]['entradas_ejemplo'][] = $entry_id; }
 }
 
+function gnf_recovery_parse_historical_refs( $argument ) {
+	if ( '' === $argument ) { return array(); }
+	if ( ! preg_match( '/^historicos=([1-9][0-9]*:[1-9][0-9]*)(,[1-9][0-9]*:[1-9][0-9]*)*$/D', $argument ) ) { throw new RuntimeException( 'Usa historicos=<campo>:<revision>,<campo>:<revision>; no se admiten excepciones sin revision original.' ); }
+	$refs = array();
+	foreach ( explode( ',', substr( $argument, strlen( 'historicos=' ) ) ) as $pair ) {
+		list( $id, $revision_id ) = array_map( 'intval', explode( ':', $pair ) );
+		if ( isset( $refs[$id] ) ) { throw new RuntimeException( 'No se admite repetir un campo historico.' ); }
+		$refs[$id] = $revision_id;
+	}
+	return $refs;
+}
+
+/** Explicitly acknowledge retired IDs without adding questions or touching entries. */
+function gnf_recovery_validate_historical_refs( $form_id, $revision_id, $missing, $file_ids, $refs ) {
+	$validated = array();
+	foreach ( $refs as $id => $source_id ) {
+		if ( ! ctype_digit( (string) $id ) || (int) $id < 1 || ! ctype_digit( (string) $source_id ) || (int) $source_id < 1 || (int) $source_id >= $revision_id || ! isset( $missing[ (int) $id ] ) ) { throw new RuntimeException( 'Referencia historica invalida: debe ser un campo ausente usado y una revision anterior a la que se restaura.' ); }
+		$source = get_post( (int) $source_id );
+		if ( ! $source || (int) $source->post_parent !== $form_id || ! in_array( $source->post_type, array( 'revision', 'wpforms_revision' ), true ) ) { throw new RuntimeException( 'La revision historica no pertenece al formulario solicitado.' ); }
+		$data = gnf_recovery_decode_definition( $source->post_content );
+		if ( ! $data || ! isset( $data['fields'][ (int) $id ] ) ) { throw new RuntimeException( 'La revision historica no contiene el campo solicitado en una definicion valida.' ); }
+		$type = $data['fields'][ (int) $id ]['type'];
+		if ( isset( $file_ids[ (int) $id ] ) && 'file-upload' !== $type ) { throw new RuntimeException( 'El campo historico tiene evidencias activas pero no era de carga de archivos.' ); }
+		$validated[ (int) $id ] = array( 'revision_id' => (int) $source_id, 'tipo' => $type );
+	}
+	return $validated;
+}
+
 /** Counts and question labels only; never emits saved values or full definitions. */
 function gnf_recovery_revision_history( $form_id, $used, $file_ids, $problem_ids ) {
 	global $wpdb;
@@ -67,7 +95,7 @@ function gnf_recovery_revision_history( $form_id, $used, $file_ids, $problem_ids
 	return $history;
 }
 
-function gnf_recover_wpforms_form( $year, $form_id, $revision_id, $apply = false, $diagnose = false ) {
+function gnf_recover_wpforms_form( $year, $form_id, $revision_id, $apply = false, $diagnose = false, $historical_refs = array() ) {
 	global $wpdb;
 	if ( $apply && $diagnose ) { throw new RuntimeException( 'El diagnostico es de solo lectura y no puede aplicar cambios.' ); }
 	$form = get_post( $form_id );
@@ -125,7 +153,10 @@ function gnf_recover_wpforms_form( $year, $form_id, $revision_id, $apply = false
 			'historial' => gnf_recovery_revision_history( $form_id, $used, $file_ids, $problems ),
 		) );
 	}
+	$historical = gnf_recovery_validate_historical_refs( $form_id, $revision_id, $missing, $file_ids, $historical_refs );
+	$missing = array_diff_key( $missing, $historical );
 	if ( $missing || $wrong_type ) { throw new RuntimeException( 'Revision incompatible: campos ausentes [' . implode( ',', array_keys( $missing ) ) . '], campos de archivo con otro tipo [' . implode( ',', array_keys( $wrong_type ) ) . ']. No se modifico el formulario.' ); }
+	if ( $historical ) { $summary['campos_historicos'] = $historical; }
 	$data['field_id'] = max( (int) ( $data['field_id'] ?? 1 ), $max_id + 1 );
 	$summary['campos'] = count( $data['fields'] ); $summary['entradas_verificadas'] = $entries_checked;
 	if ( ! $apply ) { return array_merge( $summary, array( 'resultado' => 'simulacion' ) ); }
@@ -137,9 +168,10 @@ function gnf_recover_wpforms_form( $year, $form_id, $revision_id, $apply = false
 	$backup = get_option( $backup_key, false );
 	if ( false === $backup ) {
 		$backup = array( 'form_id' => $form_id, 'revision_id' => $revision_id, 'created_at' => time(), 'post_content' => (string) $form->post_content );
+		if ( $historical ) { $backup['campos_historicos'] = $historical; }
 		add_option( $backup_key, $backup, '', false );
 	}
-	if ( get_option( $backup_key, false ) !== $backup || ! is_array( $backup ) || $backup['post_content'] !== $form->post_content ) { throw new RuntimeException( 'No se pudo verificar el respaldo previo. No se modifico el formulario.' ); }
+	if ( get_option( $backup_key, false ) !== $backup || ! is_array( $backup ) || ( $backup['post_content'] ?? null ) !== $form->post_content || ( $historical && ( $backup['campos_historicos'] ?? array() ) !== $historical ) ) { throw new RuntimeException( 'No se pudo verificar el respaldo previo. No se modifico el formulario.' ); }
 	$result = wp_update_post( wp_slash( array( 'ID' => $form_id, 'post_content' => $content ) ), true );
 	if ( is_wp_error( $result ) || ! $result ) { throw new RuntimeException( 'WordPress no pudo guardar el formulario. El respaldo previo se conserva.' ); }
 	$saved = get_post( $form_id );
@@ -150,7 +182,9 @@ function gnf_recover_wpforms_form( $year, $form_id, $revision_id, $apply = false
 if ( ! function_exists( 'gnf_get_available_retos_for_year' ) ) { WP_CLI::error( 'Guardianes debe estar activo.' ); }
 $year = (int) ( $args[0] ?? 0 ); $form_id = (int) ( $args[1] ?? 0 ); $revision_id = (int) ( $args[2] ?? 0 );
 $mode = $args[3] ?? 'simular';
-if ( $year < 2020 || $year > 2100 || $form_id < 1 || $revision_id < 1 || ! in_array( $mode, array( 'simular', 'aplicar', 'diagnosticar' ), true ) ) { WP_CLI::error( 'Uso: wp eval-file <archivo> 2026 <formulario_id> <revision_id> [simular|aplicar|diagnosticar]' ); }
+if ( $year < 2020 || $year > 2100 || $form_id < 1 || $revision_id < 1 || count( $args ) > 5 || ! in_array( $mode, array( 'simular', 'aplicar', 'diagnosticar' ), true ) ) { WP_CLI::error( 'Uso: wp eval-file <archivo> 2026 <formulario_id> <revision_id> [simular|aplicar|diagnosticar] [historicos=<campo>:<revision>,...]' ); }
 try {
-	WP_CLI::log( wp_json_encode( gnf_recover_wpforms_form( $year, $form_id, $revision_id, 'aplicar' === $mode, 'diagnosticar' === $mode ), JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES ) );
+	$historical_refs = gnf_recovery_parse_historical_refs( (string) ( $args[4] ?? '' ) );
+	if ( 'diagnosticar' === $mode && $historical_refs ) { throw new RuntimeException( 'Las referencias historicas solo se usan al simular o aplicar una restauracion, no al diagnosticar.' ); }
+	WP_CLI::log( wp_json_encode( gnf_recover_wpforms_form( $year, $form_id, $revision_id, 'aplicar' === $mode, 'diagnosticar' === $mode, $historical_refs ), JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES ) );
 } catch ( Throwable $error ) { WP_CLI::error( $error->getMessage() ); }

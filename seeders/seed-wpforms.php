@@ -789,14 +789,20 @@ class GNF_WPForms_Seeder
             }
         }
 
-        $form_id = wp_insert_post(array(
+        $form_id = wp_insert_post(wp_slash(array(
             'post_title'   => $title,
             'post_status'  => 'publish',
             'post_type'    => 'wpforms',
             'post_content' => $json_content,
-        ));
+        )), true);
 
-        if (is_wp_error($form_id)) {
+        if (is_wp_error($form_id) || ! $form_id) {
+            return false;
+        }
+
+        $saved_form = get_post($form_id);
+        if (! $saved_form || json_decode((string) $saved_form->post_content, true) !== json_decode($json_content, true)) {
+            $this->log('Error: El formulario guardado no conserva su definicion. No se asociara al reto.', 'error');
             return false;
         }
 

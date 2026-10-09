@@ -36,5 +36,8 @@ $result = gnf_rest_docente_form_html( new WP_REST_Request() );
 check_blank( empty( $result['formError'] ) && $html === $result['html'], 'A valid form renders normally after restoration' );
 $user = 2; $other = gnf_rest_docente_form_html( new WP_REST_Request() );
 check_blank( '20' === $other['savedValues'][2] && 20 === $other['entry']['center'], 'Responses are loaded live for the current user, never shared' );
+$definition = array( 'fields' => array( 3 => array( 'id' => 3, 'type' => 'text' ) ) );
+$result = gnf_rest_docente_form_html( new WP_REST_Request() );
+check_blank( empty( $result['formError'] ) && $html === $result['html'] && '20' === $result['savedValues'][2] && 1 === count( $result['entry']['evidencias'] ), 'Retiring an old question never blocks current questions or removes historical answers and evidence' );
 echo "{$tests} checks, {$fails} failures\n";
 exit( $fails ? 1 : 0 );
