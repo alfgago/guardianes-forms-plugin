@@ -18,11 +18,18 @@ function wp_update_post( $data, $return_error = false ) {
 	return 101;
 }
 class RecoveryDatabase {
-	public $prefix = 'wp_'; public $last_error = '';
+	public $prefix = 'wp_'; public $posts = 'wp_posts'; public $last_error = '';
 	function prepare( $sql, ...$args ) { return vsprintf( $sql, $args ); }
 	function get_results( $sql ) {
 		if ( strpos( $sql, 'SELECT ' ) !== 0 ) { throw new RuntimeException( 'Unexpected database write' ); }
 		if ( $GLOBALS['db_failure'] ) { $this->last_error = 'failed'; return null; }
+		if ( false !== strpos( $sql, 'FROM wp_posts' ) ) {
+			if ( $GLOBALS['revision_db_failure'] ) { $this->last_error = 'failed'; return null; }
+			preg_match( '/ID < (\d+)/', $sql, $match ); $before = (int) ( $match[1] ?? PHP_INT_MAX );
+			$rows = array_filter( $GLOBALS['posts'], static function ( $post ) use ( $before ) { return 101 === ( $post->post_parent ?? null ) && in_array( $post->post_type, array( 'revision', 'wpforms_revision' ), true ) && $post->ID < $before; } );
+			usort( $rows, static function ( $a, $b ) { return $b->ID <=> $a->ID; } );
+			return array_slice( $rows, 0, 200 );
+		}
 		preg_match( '/id > (\d+)/', $sql, $match );
 		$cursor = (int) ( $match[1] ?? 0 );
 		return array_slice( array_values( array_filter( $GLOBALS['entries'], static function ( $row ) use ( $cursor ) { return $row->id > $cursor; } ) ), 0, 200 );
@@ -37,7 +44,7 @@ function reset_recovery() {
 	);
 	$GLOBALS['entries'] = array( (object) array( 'id' => 1, 'data' => '{"__raw_values__":{"6":""}}', 'evidencias' => '[{"field_id":6,"replaced":false},{"field_id":150,"replaced":true}]' ) );
 	$GLOBALS['options'] = array(); $GLOBALS['writes'] = 0;
-	foreach ( array( 'db_failure', 'backup_failure', 'save_failure', 'saved_corruption' ) as $key ) { $GLOBALS[$key] = false; }
+	foreach ( array( 'db_failure', 'backup_failure', 'save_failure', 'saved_corruption', 'revision_db_failure' ) as $key ) { $GLOBALS[$key] = false; }
 	$GLOBALS['wpdb']->last_error = '';
 }
 reset_recovery(); $args = array( '2026', '101', '201' );
@@ -81,5 +88,38 @@ check_recovery( 201 === $preview['entradas_verificadas'] && 0 === $writes, 'Simu
 $entries[200]->evidencias = '[{"field_id":99}]'; $blocked = false;
 try { gnf_recover_wpforms_form( 2026, 101, 201, true ); } catch ( RuntimeException $error ) { $blocked = true; }
 check_recovery( $blocked && 0 === $writes, 'An incompatibility in a later batch prevents restoration' );
+
+reset_recovery();
+$entries[0]->data = '{"__raw_values__":{"6":"","7":"","8":"CONFIDENTIAL RESPONSE","9":0,"10":false,"11":[]}}';
+$entries[0]->evidencias = '[{"field_id":7,"replaced":false,"ruta":"https://private.test/secret.jpg"},{"field_id":150,"replaced":true}]';
+$historical = json_decode( $posts[201]->post_content, true );
+foreach ( array( 7 => 'file-upload', 8 => 'text', 9 => 'number', 10 => 'checkbox', 11 => 'text' ) as $id => $type ) { $historical['fields'][$id] = array( 'id' => $id, 'type' => $type, 'label' => '<b>Original question ' . $id . '</b>' ); }
+$posts[200] = (object) array( 'ID' => 200, 'post_parent' => 101, 'post_type' => 'wpforms_revision', 'post_modified_gmt' => '2026-09-01', 'post_content' => json_encode( $historical ) );
+$report = null;
+try { $report = gnf_recover_wpforms_form( 2026, 101, 201, false, true ); } catch ( RuntimeException $error ) {}
+check_recovery( is_array( $report ) && 'diagnostico' === $report['resultado'] && 0 === $writes && empty( $options ), 'Diagnostic mode reports incompatibility without writing forms or backups' );
+check_recovery( isset( $report['uso_campos'][7] ) && 1 === $report['uso_campos'][7]['respuestas_vacias'] && 1 === $report['uso_campos'][7]['evidencias_activas'], 'Diagnostic distinguishes empty answers from active evidence using the same field' );
+check_recovery( isset( $report['uso_campos'][8] ) && 1 === $report['uso_campos'][8]['respuestas_con_valor'] && 1 === $report['uso_campos'][9]['respuestas_con_valor'] && 1 === $report['uso_campos'][10]['respuestas_con_valor'] && 1 === $report['uso_campos'][11]['respuestas_vacias'], 'Diagnostic counts nonempty answers including zero and false without disclosing values' );
+check_recovery( isset( $report['historial']['revisiones_compatibles'][0] ) && 200 === $report['historial']['revisiones_compatibles'][0]['id'], 'Diagnostic finds an older compatible revision rather than merging fields or choosing it automatically' );
+check_recovery( isset( $report['historial']['campos_en_revisiones'][7][0] ) && 'file-upload' === $report['historial']['campos_en_revisiones'][7][0]['tipo'] && 'Original question 7' === $report['historial']['campos_en_revisiones'][7][0]['etiqueta'], 'Diagnostic reports original field labels and types from valid revisions' );
+$json = json_encode( $report );
+check_recovery( false === strpos( $json, 'CONFIDENTIAL RESPONSE' ) && false === strpos( $json, 'secret.jpg' ) && false === strpos( $json, 'post_content' ), 'Diagnostic output excludes response values, file names and full definitions' );
+$blocked = false;
+try { gnf_recover_wpforms_form( 2026, 101, 201, true, true ); } catch ( RuntimeException $error ) { $blocked = true; }
+check_recovery( $blocked && 0 === $writes, 'Diagnostic mode cannot be combined with application' );
+$posts[200]->post_content = '{bad';
+$report = null;
+try { $report = gnf_recover_wpforms_form( 2026, 101, 201, false, true ); } catch ( RuntimeException $error ) {}
+check_recovery( isset( $report['historial'] ) && empty( $report['historial']['revisiones_compatibles'] ) && 1 === $report['historial']['revisiones_ilegibles'], 'Corrupt historical revisions are reported but never proposed as compatible' );
+$revision_db_failure = true; $blocked = false;
+try { gnf_recover_wpforms_form( 2026, 101, 201, false, true ); } catch ( RuntimeException $error ) { $blocked = true; }
+check_recovery( $blocked && 0 === $writes, 'Revision lookup failures are explicit and cannot change data' );
+reset_recovery(); $entries[0]->data = '{"__raw_values__":{"7":"Si"}}';
+$base = json_decode( $posts[201]->post_content, true ); $base['fields'][7] = array( 'id' => 7, 'type' => 'text', 'label' => 'Older question' );
+$posts[200] = (object) array( 'ID' => 200, 'post_parent' => 101, 'post_type' => 'revision', 'post_content' => json_encode( $base ) );
+for ( $i = 300; $i < 500; $i++ ) { $posts[$i] = (object) array( 'ID' => $i, 'post_parent' => 101, 'post_type' => 'revision', 'post_content' => '{bad' ); }
+$report = null;
+try { $report = gnf_recover_wpforms_form( 2026, 101, 201, false, true ); } catch ( RuntimeException $error ) {}
+check_recovery( isset( $report['historial']['revisiones_compatibles'][0] ) && 200 === $report['historial']['revisiones_compatibles'][0]['id'] && 202 === $report['historial']['revisiones_revisadas'], 'Historical lookup examines revisions beyond the first batch' );
 echo "{$tests} checks, {$fails} failures\n";
 exit( $fails ? 1 : 0 );

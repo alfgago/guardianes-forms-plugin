@@ -7,10 +7,11 @@ No elimina directamente entradas de `gn_reto_entries` ni archivos de evidencias.
 La version anterior guardaba JSON sin `wp_slash`, aunque WordPress elimina un
 nivel de escapes al persistirlo. Textos con comillas, HTML y otros escapes pueden
 quedar corruptos. Ademas podia mostrar preparado aun cuando fallaban guardados.
-Se reprodujo localmente. El diagnostico compartido el 8 de octubre confirma
-JSON invalido en Jardines y Polinizadores (formulario 77530) y 55 evidencias
-activas con sus 55 archivos presentes en el centro Salvador Villar. La copia
-empieza a mitad del reporte; no permite evaluar todas las definiciones.
+Se reprodujo localmente. El diagnostico completo compartido el 8 de octubre
+confirma ocho definiciones ilegibles y 55 evidencias activas con sus 55 archivos
+presentes en el centro Salvador Villar. Son formularios compartidos por los
+centros, no definiciones exclusivas de esa escuela. Esta verificacion no prueba
+la integridad de todos los archivos historicos ni de otros centros.
 
 ## Diagnostico de solo lectura
 
@@ -74,18 +75,17 @@ formularios validos, no modifica las entradas ni mueve/elimina archivos.
 Primero comprobar la revision candidata con simulacion (no hace escrituras):
 
 ```sh
-wp eval-file wp-content/plugins/guardianes-formularios/tools/recover-wpforms-form.php 2026 77530 87979
+wp eval-file wp-content/plugins/guardianes-formularios/tools/recover-wpforms-form.php 2026 77468 88128 simular
 ```
 
-Estos IDs corresponden a Jardines y Polinizadores y a la revision valida mas
-reciente que figura en el reporte recibido. Para otros retos se deben usar
-sus propios IDs del resumen, no estos valores.
+Estos IDs corresponden a Residuos. Para otros retos se deben usar sus propios
+IDs del resumen, no estos valores.
 
 Despues de respaldar la base de datos y revisar que la revision elegida es la
 correcta, la aplicacion explicita se solicita agregando `aplicar`:
 
 ```sh
-wp eval-file wp-content/plugins/guardianes-formularios/tools/recover-wpforms-form.php 2026 77530 87979 aplicar
+wp eval-file wp-content/plugins/guardianes-formularios/tools/recover-wpforms-form.php 2026 77468 88128 aplicar
 ```
 
 Verifica en lotes de 200 las entradas de TODOS los centros asociados a ese
@@ -96,6 +96,53 @@ evitar reutilizarlos. Antes de guardar conserva el contenido actual en una
 opcion privada sin autoload y luego comprueba el JSON realmente persistido.
 Una simulacion compatible no demuestra que una pregunta conservara exactamente
 su significado; por eso es obligatorio revisar la revision antes de aplicar.
+
+### Simulaciones recibidas el 8 de octubre de 2026
+
+| Reto | Formulario | Revision | Resultado |
+| --- | --- | --- | --- |
+| Agua | 77446 | 88125 | Bloqueado: faltan campos 7 y 8 |
+| Electricidad | 77457 | 88127 | Compatible: 338 entradas verificadas |
+| Residuos | 77468 | 88128 | Compatible: 329 entradas verificadas |
+| Limpiezas | 77479 | 87509 | Bloqueado: falta campo 17 |
+| Siembra de Arboles | 77490 | 87625 | Compatible: 168 entradas verificadas |
+| Eco Gira | 77528 | 87703 | Bloqueado: falta campo 3 |
+| Bienestar Animal | 77542 | 87976 | Compatible: 66 entradas verificadas |
+| Jardines y Polinizadores | 77530 | 87979 | Bloqueado: falta campo 6 |
+
+No se han aplicado restauraciones desde este entorno. No ignorar campos
+ausentes ni combinar preguntas de revisiones diferentes automaticamente.
+Un ID que falte puede corresponder a una pregunta retirada legitimamente o
+a una revision incompleta para los datos guardados; es necesario investigarlo.
+
+### Diagnostico de revisiones bloqueadas
+
+Actualizar `tools/recover-wpforms-form.php` en el servidor y ejecutar desde la
+raiz de WordPress:
+
+```sh
+tool="wp-content/plugins/guardianes-formularios/tools/recover-wpforms-form.php"
+wp eval-file "$tool" 2026 77446 88125 diagnosticar
+wp eval-file "$tool" 2026 77479 87509 diagnosticar
+wp eval-file "$tool" 2026 77528 87703 diagnosticar
+wp eval-file "$tool" 2026 77530 87979 diagnosticar
+```
+
+Este modo no escribe formularios, respaldos ni entradas. Cuenta las respuestas
+vacias, respuestas con valor y evidencias activas de cada campo incompatible,
+y muestra hasta tres IDs de entradas como referencia, nunca sus valores ni
+nombres/rutas de archivos. Cero y falso cuentan como valores, no como vacios.
+Las respuestas vacias siguen bloqueando la restauracion: no se descartan.
+
+Revisa todas las revisiones disponibles en lotes de 200, incluidas las anteriores
+a las 50 que muestra el diagnostico general. Devuelve hasta diez revisiones
+compatibles con todos los IDs usados y los tipos de archivo, y hasta tres
+variantes de tipo/etiqueta por campo incompatible para su revision manual.
+Ignora las revisiones ilegibles como candidatas y cuenta las que encuentra.
+No selecciona ni restaura ninguna revision automaticamente. Las fechas de
+revision y etiquetas se deben contrastar con las preguntas y reglas originales
+antes de decidir. Si no existe una revision compatible, revisar respaldos antes
+de reconstruir; no reasignar IDs ni ejecutar seeders.
 
 ## Cache y panel
 
