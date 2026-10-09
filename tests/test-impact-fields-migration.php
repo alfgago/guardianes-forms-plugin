@@ -82,9 +82,9 @@ check_impact_field( false !== strpos( $seeder, "'gnf_metric_key'" ), 'seeder con
 
 $module = file_get_contents( __DIR__ . '/../includes/impact-metrics.php' );
 check_impact_field( false === strpos( $module, "add_action( 'admin_init', 'gnf_maybe_ensure_impact_fields'" ), 'la migracion no modifica formularios al abrir wp-admin' );
-check_impact_field( false !== strpos( $module, 'admin_post_gnf_prepare_impact_fields' ), 'la preparacion se ejecuta mediante una accion administrativa explicita' );
-check_impact_field( false !== strpos( $module, "check_admin_referer( 'gnf_prepare_impact_fields_2026'" ), 'la accion manual exige nonce' );
-check_impact_field( false !== strpos( $module, "current_user_can( 'manage_options' )" ), 'la accion manual exige permisos administrativos' );
+check_impact_field( false !== strpos( $module, 'admin_post_gnf_prepare_impact_fields' ), 'el endpoint anterior se conserva para rechazar envios de pestanas antiguas' );
+check_impact_field( false === strpos( $module, '<input type="hidden" name="action" value="gnf_prepare_impact_fields">' ), 'la configuracion no ofrece un formulario de preparacion' );
+check_impact_field( false !== strpos( $module, "current_user_can( 'manage_options' )" ), 'el estado de configuracion exige permisos administrativos' );
 check_impact_field( function_exists( 'gnf_impact_field_visibility_css' ), 'existe supresion estructurada de campos fuera del rollout' );
 if ( function_exists( 'gnf_impact_field_visibility_css' ) ) {
 	$css = gnf_impact_field_visibility_css( 45, array( 7, 9 ) );

@@ -201,14 +201,16 @@ function gnf_prepare_impact_form_fields( $fields, $definitions, $next_id = 1 ) {
 }
 
 /**
- * Migra formularios publicados una sola vez, conservando post e IDs de campos.
+ * Builds a read-only migration plan. Entries and uploads are never consulted.
  */
-function gnf_ensure_impact_fields_for_year( $anio = 2026 ) {
+function gnf_plan_impact_fields_for_year( $anio = 2026 ) {
 	$anio = (int) $anio;
+	$plan = array( 'year' => $anio, 'forms' => array(), 'errors' => array() );
 	if ( 2026 !== $anio || ! function_exists( 'wpforms' ) || ! function_exists( 'gnf_get_available_retos_for_year' ) ) {
-		return false;
+		$plan['errors'][] = 'La preparacion solo esta disponible para 2026 con WPForms y Guardianes activos.';
+		$plan['signature'] = hash( 'sha256', wp_json_encode( $plan ) );
+		return $plan;
 	}
-	$schema_key = 'gnf_impact_fields_schema_' . $anio;
 	$definitions = gnf_get_impact_field_definitions( $anio );
 	$by_reto     = array();
 	$award_by_reto = array();
@@ -220,59 +222,88 @@ function gnf_ensure_impact_fields_for_year( $anio = 2026 ) {
 			$award_by_reto[ $definition['reto'] ][] = $definition;
 		}
 	}
-	$processed = 0;
-	$failed = false;
+	$seen = array();
 	foreach ( gnf_get_available_retos_for_year( $anio ) as $reto ) {
 		$slug = gnf_get_reto_canonical_slug( $reto->post_title );
 		if ( empty( $by_reto[ $slug ] ) && empty( $award_by_reto[ $slug ] ) ) {
 			continue;
 		}
-		$form_id   = gnf_get_reto_form_id_for_year( $reto->ID, $anio );
-		$form_post = $form_id ? get_post( $form_id ) : null;
-		$form_data = $form_post ? json_decode( (string) $form_post->post_content, true ) : null;
-		if ( ! $form_post || 'wpforms' !== $form_post->post_type || ! is_array( $form_data ) || ! is_array( $form_data['fields'] ?? null ) || empty( $form_data['fields'] ) ) {
-			$failed = true;
+		$form_id   = (int) gnf_get_reto_form_id_for_year( $reto->ID, $anio );
+		if ( $form_id && isset( $seen[$form_id] ) ) {
+			$plan['errors'][] = 'El formulario ' . $form_id . ' tiene mas de un reto asociado; revisar el mapeo antes de migrar.';
 			continue;
 		}
+		$seen[$form_id] = true;
+		$form_post = $form_id ? get_post( $form_id ) : null;
+		$form_data = $form_post ? json_decode( (string) $form_post->post_content, true ) : null;
+		if ( ! $form_post || 'wpforms' !== $form_post->post_type || 'publish' !== ( $form_post->post_status ?? 'publish' ) || ! is_array( $form_data ) || ! is_array( $form_data['fields'] ?? null ) || empty( $form_data['fields'] ) ) {
+			$plan['errors'][] = 'Formulario ' . $form_id . ' de ' . $reto->post_title . ': definicion ilegible, sin preguntas o no publicada.';
+			continue;
+		}
+		foreach ( $form_data['fields'] as $id => $field ) {
+			if ( ! is_array( $field ) || ! ctype_digit( (string) $id ) || ! isset( $field['id'] ) || ! ctype_digit( (string) $field['id'] ) || (int) $id !== (int) $field['id'] || ! is_string( $field['type'] ?? null ) || '' === $field['type'] ) {
+				$plan['errors'][] = 'Formulario ' . $form_id . ': IDs o tipos de preguntas incoherentes.';
+				continue 2;
+			}
+		}
+		$original = (string) $form_post->post_content;
 		$prepared       = gnf_prepare_impact_form_fields( $form_data['fields'], $by_reto[ $slug ] ?? array(), $form_data['field_id'] ?? 1 );
 		$award_prepared = function_exists( 'gnf_prepare_award_form_fields' )
 			? gnf_prepare_award_form_fields( $prepared['fields'], $award_by_reto[ $slug ] ?? array() )
 			: array( 'fields' => $prepared['fields'], 'changed' => false );
-		if ( $prepared['changed'] || $award_prepared['changed'] ) {
+		$changed = $prepared['changed'] || $award_prepared['changed'];
+		if ( $changed ) {
 			$form_data['fields']   = $award_prepared['fields'];
 			$form_data['field_id'] = $prepared['next_id'];
 			$content = wp_json_encode( $form_data, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES );
-			if ( ! is_string( $content ) || ! is_array( json_decode( $content, true ) ) ) { $failed = true; continue; }
-			// Preserve the first valid definition before changing a shared live form.
-			$backup_key = 'gnf_impact_form_backup_' . $anio . '_' . $form_id;
-			if ( false === get_option( $backup_key, false ) ) {
-				$backup = array( 'form_id' => (int) $form_id, 'created_at' => time(), 'post_content' => (string) $form_post->post_content );
-				add_option( $backup_key, $backup, '', false );
-				if ( get_option( $backup_key, false ) !== $backup ) { $failed = true; continue; }
-			}
-			// wp_update_post unslashes input: protect JSON quotes and backslashes.
-			$result = wp_update_post(
-				wp_slash( array(
-					'ID'           => $form_id,
-					'post_content' => $content,
-				) ),
-				true
-			);
-			if ( is_wp_error( $result ) || ! $result ) { $failed = true; continue; }
-			$saved_post = get_post( $form_id );
-			if ( ! $saved_post || json_decode( (string) $saved_post->post_content, true ) !== $form_data ) {
-				$failed = true;
+			if ( ! is_string( $content ) || json_decode( $content, true ) !== $form_data ) {
+				$plan['errors'][] = 'No se pudo codificar correctamente el formulario ' . $form_id . '.';
 				continue;
 			}
+		} else {
+			$content = $original;
 		}
-		$processed++;
+		$plan['forms'][] = array( 'form_id' => $form_id, 'reto_id' => (int) $reto->ID, 'reto_title' => $reto->post_title, 'original' => $original, 'definition' => $form_data, 'content' => $content, 'changed' => (bool) $changed );
 	}
-	if ( $processed > 0 && ! $failed ) {
-		update_option( $schema_key, 1, false );
-		return true;
+	if ( ! $plan['forms'] && ! $plan['errors'] ) { $plan['errors'][] = 'No hay formularios elegibles para preparar en este anio.'; }
+	$plan['signature'] = hash( 'sha256', wp_json_encode( array( 'version' => 1, 'plan' => $plan ) ) );
+	return $plan;
+}
+
+/** Applies a preflighted plan; callers may pin the signature reviewed in CLI. */
+function gnf_ensure_impact_fields_for_year( $anio = 2026, $expected_signature = null ) {
+	$plan = gnf_plan_impact_fields_for_year( $anio );
+	if ( null !== $expected_signature && ! hash_equals( $plan['signature'], (string) $expected_signature ) ) { return false; }
+	$schema_key = 'gnf_impact_fields_schema_' . (int) $anio;
+	if ( $plan['errors'] ) { update_option( $schema_key, 0, false ); return false; }
+	// Check the entire batch before taking backups or changing the first form.
+	foreach ( $plan['forms'] as $form ) {
+		$current = get_post( $form['form_id'] );
+		if ( ! $current || (string) $current->post_content !== $form['original'] ) { return false; }
 	}
-	update_option( $schema_key, 0, false );
-	return false;
+	foreach ( $plan['forms'] as $form ) {
+		if ( ! $form['changed'] ) { continue; }
+		$baseline_key = 'gnf_impact_form_backup_' . (int) $anio . '_' . $form['form_id'];
+		$snapshot_key = $baseline_key . '_' . md5( $form['original'] );
+		foreach ( array( $baseline_key, $snapshot_key ) as $key ) {
+			$backup = get_option( $key, false );
+			if ( false === $backup ) {
+				$backup = array( 'form_id' => $form['form_id'], 'created_at' => time(), 'post_content' => $form['original'] );
+				add_option( $key, $backup, '', false );
+			}
+			if ( get_option( $key, false ) !== $backup || ( $key === $snapshot_key && ( ! is_array( $backup ) || ( $backup['post_content'] ?? null ) !== $form['original'] ) ) ) { update_option( $schema_key, 0, false ); return false; }
+		}
+	}
+	foreach ( $plan['forms'] as $form ) {
+		if ( ! $form['changed'] ) { continue; }
+		$current = get_post( $form['form_id'] );
+		if ( ! $current || (string) $current->post_content !== $form['original'] ) { update_option( $schema_key, 0, false ); return false; }
+		$result = wp_update_post( wp_slash( array( 'ID' => $form['form_id'], 'post_content' => $form['content'] ) ), true );
+		$saved_post = get_post( $form['form_id'] );
+		if ( is_wp_error( $result ) || ! $result || ! $saved_post || json_decode( (string) $saved_post->post_content, true ) !== $form['definition'] ) { update_option( $schema_key, 0, false ); return false; }
+	}
+	update_option( $schema_key, 1, false );
+	return true;
 }
 
 /**
@@ -325,51 +356,27 @@ function gnf_get_created_impact_field_ids( $form_id, $reto_id, $anio ) {
 }
 
 /**
- * Procesa la preparacion manual e idempotente de formularios.
+ * Retired web mutation endpoint: old links and submitted tabs cannot migrate forms.
  */
 function gnf_handle_prepare_impact_fields() {
 	if ( ! current_user_can( 'manage_options' ) ) {
 		wp_die( 'No tienes permisos para preparar los formularios.', 'Acceso denegado', array( 'response' => 403 ) );
 	}
-	check_admin_referer( 'gnf_prepare_impact_fields_2026' );
-	$prepared = gnf_ensure_impact_fields_for_year( 2026 );
-	$url      = add_query_arg(
-		array(
-			'page'                     => 'guardianes-config',
-			'gnf_impact_fields_result' => $prepared ? 'success' : 'unavailable',
-		),
-		admin_url( 'admin.php' )
-	);
-	wp_safe_redirect( $url );
-	exit;
+	wp_die( 'La preparacion de campos se retiro de esta pantalla. No se ha modificado ningun formulario.', 'Accion retirada', array( 'response' => 410 ) );
 }
 
 /**
- * Muestra el estado y la accion manual solo en Configuracion.
+ * Read-only live status, never the stale migration success flag.
  */
 function gnf_render_impact_fields_admin_notice() {
 	if ( ! current_user_can( 'manage_options' ) || 'guardianes-config' !== ( $_GET['page'] ?? '' ) ) {
 		return;
 	}
-	$result   = sanitize_key( (string) ( $_GET['gnf_impact_fields_result'] ?? '' ) );
-	$prepared = (bool) get_option( 'gnf_impact_fields_schema_2026', false );
-	if ( 'success' === $result ) {
-		echo '<div class="notice notice-success is-dismissible"><p>Los formularios 2026 quedaron preparados para recopilar indicadores de impacto.</p></div>';
-	} elseif ( 'unavailable' === $result ) {
-		echo '<div class="notice notice-error is-dismissible"><p>No se pudieron preparar todos los formularios 2026. Puede faltar un formulario o existir una definición inválida. Revisa los formularios y sus respaldos antes de volver a ejecutar esta acción.</p></div>';
-	}
-	?>
-	<div class="notice notice-info">
-		<p><strong>Campos de indicadores 2026:</strong> <?php echo esc_html( $prepared ? 'preparados' : 'pendientes de preparación' ); ?>.</p>
-		<p>Esta acción conserva los campos existentes y agrega únicamente las cantidades faltantes. Los campos nuevos estarán disponibles para todos los centros.</p>
-		<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
-			<input type="hidden" name="action" value="gnf_prepare_impact_fields">
-			<?php wp_nonce_field( 'gnf_prepare_impact_fields_2026' ); ?>
-			<?php submit_button( $prepared ? 'Comprobar campos nuevamente' : 'Preparar campos de impacto 2026', 'secondary', 'submit', false ); ?>
-		</form>
-		<p></p>
-	</div>
-	<?php
+	$plan = gnf_plan_impact_fields_for_year( 2026 );
+	$pending = count( array_filter( $plan['forms'], static function ( $form ) { return $form['changed']; } ) );
+	$status = $plan['errors'] ? 'requiere revisión' : ( $pending ? 'pendiente de actualización' : 'actualizada' );
+	echo '<div class="notice notice-' . ( $plan['errors'] ? 'warning' : 'info' ) . '"><p><strong>Configuración de indicadores 2026:</strong> ' . esc_html( $status ) . '.</p>';
+	echo '<p>Formularios válidos: ' . esc_html( count( $plan['forms'] ) ) . '. Actualizaciones pendientes: ' . esc_html( $pending ) . '. Incidencias: ' . esc_html( count( $plan['errors'] ) ) . '.</p></div>';
 }
 
 if ( function_exists( 'add_action' ) ) {

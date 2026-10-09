@@ -1,5 +1,52 @@
 # Incidente: formularios despues de Preparar campos
 
+## Preparacion retirada de la pantalla administrativa
+
+Desde la correccion del 9 de octubre de 2026, `guardianes-config` solo muestra
+el estado actual de los campos de indicadores. No contiene botones ni formularios
+de preparacion. El endpoint web anterior se mantiene para rechazar solicitudes
+de pestanas antiguas: devuelve 410 para administradores y 403 sin permisos,
+sin modificar formularios. Los flags o parametros de exito antiguos no sustituyen
+la comprobacion de las definiciones actuales.
+
+La preparacion se utiliza para incorporar cantidades o etiquetas de indicadores
+y galardones, no para recuperar formularios ni como parte de la operacion diaria.
+Queda disponible exclusivamente como herramienta de WP-CLI controlada:
+
+```sh
+wp eval-file wp-content/plugins/guardianes-formularios/tools/prepare-impact-fields.php 2026 simular
+```
+
+La simulacion no escribe opciones, respaldos, preguntas, respuestas ni archivos.
+Muestra preguntas nuevas, IDs que recibirian etiquetas y una firma SHA-256 del
+plan. Si hay un formulario ilegible, incoherente, sin preguntas, no publicado o
+con un mapeo ambiguo, informa `simulacion_bloqueada`; no intenta reconstruirlo.
+Validar primero en una copia de pruebas y revisar los cambios de preguntas.
+
+Despues de un respaldo externo de base de datos/uploads y de aprobar el plan,
+la aplicacion exige la firma exacta recibida en la simulacion:
+
+```sh
+wp eval-file wp-content/plugins/guardianes-formularios/tools/prepare-impact-fields.php 2026 aplicar "firma=<firma_recibida_en_la_simulacion>"
+```
+
+Si algun formulario o el plan cambia, la firma anterior no se acepta. La aplicacion
+valida TODO el lote antes de modificar el primer formulario, verifica respaldos
+del contenido realmente vigente de todos los formularios que cambiarian, conserva
+el primer respaldo y crea snapshots privados por firma del contenido original.
+Respeta IDs y contadores, protege escapes y valida la definicion persistida.
+No se ejecuta automaticamente al abrir paneles, actualizar el plugin o desplegarlo.
+
+Esto no es una transaccion atomica entre todos los posts. Un fallo de guardado
+o una edicion concurrente durante la escritura detiene el proceso, conserva los
+respaldos y no muestra exito. Puede haber formularios ya actualizados: ejecutar
+la auditoria global y revisar el estado antes de reintentar. No se revierte
+automaticamente sobre posibles ediciones de otros administradores.
+
+La retirada del boton no recupera las cuatro definiciones que continuaban
+ilegibles en el ultimo reporte: se recuperan con la herramienta independiente
+`recover-wpforms-form.php`, descrita mas adelante.
+
 El boton modifica las definiciones compartidas de WPForms de los retos 2026:
 identifica preguntas de indicadores y galardones y agrega cantidades faltantes.
 No elimina directamente entradas de `gn_reto_entries` ni archivos de evidencias.
