@@ -435,5 +435,8 @@ if ( file_exists( ABSPATH . 'vendor/autoload.php' ) ) {
 		}
 		check_impact_export( is_wp_error( gnf_generate_impact_pdf( $scoped, sys_get_temp_dir() . '/gnf-missing-' . uniqid() . '/file.pdf', 'summary' ) ), 'PDF write failure informative' );
 }
+$mode_center = array( 'retos' => array( array( 'id' => 1, 'source' => 'reto-agua', 'points' => 20, 'validatedPoints' => 5 ) ) );
+check_impact_export( 5 === gnf_impact_export_retos( $mode_center, array( 'filters' => array( 'mode' => 'approved' ) ) )[0]['points'], 'Validated challenge export uses approved points, not projected points' );
+check_impact_export( 20 === gnf_impact_export_retos( $mode_center, array( 'filters' => array( 'mode' => 'active' ) ) )[0]['points'], 'Reported challenge export preserves projected points' );
 echo "\n{$tests} checks, {$fails} failures\n";
 exit( $fails ? 1 : 0 );

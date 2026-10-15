@@ -7,41 +7,41 @@
       "_search-DD9P_8gW.js"
     ]
   },
-  "_FeedbackBubble-FPCui-xN.js": {
-    "file": "chunks/FeedbackBubble-FPCui-xN.js",
+  "_FeedbackBubble-V1cBDCpa.js": {
+    "file": "chunks/FeedbackBubble-V1cBDCpa.js",
     "name": "FeedbackBubble",
     "imports": [
       "_components-Do3uU8af.js",
       "_query-D6iAQj8b.js",
-      "_formatters-BCVqHJe3.js"
-    ]
-  },
-  "_ImpactPanel-CduXa53A.js": {
-    "file": "chunks/ImpactPanel-CduXa53A.js",
-    "name": "ImpactPanel",
-    "imports": [
-      "_components-Do3uU8af.js",
-      "_query-D6iAQj8b.js",
-      "_formatters-BCVqHJe3.js",
-      "_search-DD9P_8gW.js"
-    ],
-    "css": [
-      "assets/ImpactPanel-ohZbkUEW.css"
+      "_formatters-CtgeaItd.js"
     ]
   },
   "_ImpactPanel-ohZbkUEW.css": {
     "file": "assets/ImpactPanel-ohZbkUEW.css",
     "src": "_ImpactPanel-ohZbkUEW.css"
   },
-  "_SupervisorPanel-DzhH41Db.js": {
-    "file": "chunks/SupervisorPanel-DzhH41Db.js",
+  "_ImpactPanel-v_0Yeyxo.js": {
+    "file": "chunks/ImpactPanel-v_0Yeyxo.js",
+    "name": "ImpactPanel",
+    "imports": [
+      "_components-Do3uU8af.js",
+      "_query-D6iAQj8b.js",
+      "_formatters-CtgeaItd.js",
+      "_search-DD9P_8gW.js"
+    ],
+    "css": [
+      "assets/ImpactPanel-ohZbkUEW.css"
+    ]
+  },
+  "_SupervisorPanel-BJk1na7p.js": {
+    "file": "chunks/SupervisorPanel-BJk1na7p.js",
     "name": "SupervisorPanel",
     "imports": [
       "_query-D6iAQj8b.js",
-      "_formatters-BCVqHJe3.js",
+      "_formatters-CtgeaItd.js",
       "_components-Do3uU8af.js",
-      "_FeedbackBubble-FPCui-xN.js",
-      "_ImpactPanel-CduXa53A.js",
+      "_FeedbackBubble-V1cBDCpa.js",
+      "_ImpactPanel-v_0Yeyxo.js",
       "_search-DD9P_8gW.js"
     ]
   },
@@ -60,8 +60,8 @@
       "assets/components-AELHnBVJ.css"
     ]
   },
-  "_formatters-BCVqHJe3.js": {
-    "file": "chunks/formatters-BCVqHJe3.js",
+  "_formatters-CtgeaItd.js": {
+    "file": "chunks/formatters-CtgeaItd.js",
     "name": "formatters",
     "imports": [
       "_components-Do3uU8af.js",
@@ -95,15 +95,15 @@
     ]
   },
   "src/entries/admin.tsx": {
-    "file": "admin-CcdSVlDi.js",
+    "file": "admin-CBfpqPaY.js",
     "name": "admin",
     "src": "src/entries/admin.tsx",
     "isEntry": true,
     "imports": [
       "_query-D6iAQj8b.js",
       "_components-Do3uU8af.js",
-      "_formatters-BCVqHJe3.js",
-      "_ImpactPanel-CduXa53A.js",
+      "_formatters-CtgeaItd.js",
+      "_ImpactPanel-v_0Yeyxo.js",
       "_useDebounce-C2On484e.js",
       "_CentroSearch-CY5mkZnN.js",
       "_search-DD9P_8gW.js",
@@ -124,48 +124,48 @@
     ]
   },
   "src/entries/comite.tsx": {
-    "file": "comite-B18F6HYW.js",
+    "file": "comite-C33k86T8.js",
     "name": "comite",
     "src": "src/entries/comite.tsx",
     "isEntry": true,
     "imports": [
       "_query-D6iAQj8b.js",
       "_components-Do3uU8af.js",
-      "_SupervisorPanel-DzhH41Db.js",
-      "_formatters-BCVqHJe3.js",
+      "_SupervisorPanel-BJk1na7p.js",
+      "_formatters-CtgeaItd.js",
       "_react-BGA4by52.js",
-      "_FeedbackBubble-FPCui-xN.js",
-      "_ImpactPanel-CduXa53A.js",
+      "_FeedbackBubble-V1cBDCpa.js",
+      "_ImpactPanel-v_0Yeyxo.js",
       "_search-DD9P_8gW.js"
     ]
   },
   "src/entries/docente.tsx": {
-    "file": "docente-Bvx4NCwX.js",
+    "file": "docente-czq2egY3.js",
     "name": "docente",
     "src": "src/entries/docente.tsx",
     "isEntry": true,
     "imports": [
       "_query-D6iAQj8b.js",
       "_components-Do3uU8af.js",
-      "_formatters-BCVqHJe3.js",
-      "_FeedbackBubble-FPCui-xN.js",
+      "_formatters-CtgeaItd.js",
+      "_FeedbackBubble-V1cBDCpa.js",
       "_useDebounce-C2On484e.js",
       "_react-BGA4by52.js"
     ]
   },
   "src/entries/supervisor.tsx": {
-    "file": "supervisor-DyXQgDGV.js",
+    "file": "supervisor-B4mfB8sD.js",
     "name": "supervisor",
     "src": "src/entries/supervisor.tsx",
     "isEntry": true,
     "imports": [
       "_query-D6iAQj8b.js",
       "_components-Do3uU8af.js",
-      "_SupervisorPanel-DzhH41Db.js",
-      "_formatters-BCVqHJe3.js",
+      "_SupervisorPanel-BJk1na7p.js",
+      "_formatters-CtgeaItd.js",
       "_react-BGA4by52.js",
-      "_FeedbackBubble-FPCui-xN.js",
-      "_ImpactPanel-CduXa53A.js",
+      "_FeedbackBubble-V1cBDCpa.js",
+      "_ImpactPanel-v_0Yeyxo.js",
       "_search-DD9P_8gW.js"
     ]
   }

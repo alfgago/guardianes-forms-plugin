@@ -35,7 +35,7 @@ check_pilot_ux( false !== strpos( $modal, 'aria-labelledby' ) && false !== strpo
 check_pilot_ux( false !== strpos( $modal, 'overscrollBehavior' ), 'modal contiene el desplazamiento' );
 check_pilot_ux( false !== strpos( $styles, '.gnf-modal-dialog' ) && false !== strpos( $styles, 'prefers-reduced-motion' ), 'animacion del modal respeta movimiento reducido' );
 check_pilot_ux( false !== strpos( $docente, 'disabled={!reportAvailable}' ) && false !== strpos( $docente, 'Descargar reporte final PDF' ), 'docente descarga el reporte al estar disponible' );
-check_pilot_ux( false !== strpos( $admin, 'reportPdfStatus' ) && false !== strpos( $supervisor, 'reportPdfStatus' ), 'revisores ven el estado del reporte' );
+check_pilot_ux( false !== strpos( $admin, 'reportPdfStatus' ) && false === strpos( $supervisor, 'reportPdfUrl' ), 'administracion conserva el reporte; revisores no reciben un boton de descarga' );
 
 echo "\n{$tests} checks, {$fails} failures\n";
 exit( $fails ? 1 : 0 );

@@ -34,6 +34,8 @@ function admin_url( $url ) { return '/wp-admin/' . $url; }
 function add_query_arg( $args, $url ) { return $url . '?' . http_build_query( $args ); }
 class WP_Error { public $code; function __construct( $code, $message, $data = array() ) { $this->code = $code; } }
 function is_wp_error( $v ) { return $v instanceof WP_Error; }
+function gnf_get_stored_center_award_result( $center, $year, $mode ) { return array( 'score' => 99, 'stars' => 5 ); }
+function gnf_get_center_award_result( $center, $year, $mode ) { return array( 'score' => 4, 'stars' => 1 ); }
 require ABSPATH . 'includes/impact-metrics.php';
 if ( file_exists( ABSPATH . 'includes/report-snapshots.php' ) ) { require ABSPATH . 'includes/report-snapshots.php'; }
 $tests = 0; $fails = 0; $options = array(); $scheduled = array(); $is_admin = false; $reviewer = true; $circuit = '';
@@ -47,6 +49,7 @@ if ( function_exists( 'gnf_get_report_snapshot' ) ) {
 	$options['gnf_report_snapshot_2026_v1'] = array( 'ready' => true, 'generatedTimestamp' => time() - 3 * HOUR_IN_SECONDS, 'centros' => array() );
 	check_snapshot( gnf_get_report_snapshot( 2026 )['stale'], 'A three-hour snapshot is now stale under the two-hour policy' );
 	$options['gnf_report_snapshot_2026_v1']['generatedTimestamp'] = time() - HOUR_IN_SECONDS;
+	$options['gnf_report_snapshot_2026_v1']['statsVersion'] = 2;
 	check_snapshot( ! gnf_get_report_snapshot( 2026 )['stale'], 'An hour-old snapshot is still immediately usable' );
 	$options['gnf_report_snapshot_2026_v1'] = array( 'ready' => true, 'generatedTimestamp' => time() - 5 * HOUR_IN_SECONDS, 'centros' => array(), 'impact' => array() );
 	$old = gnf_get_report_snapshot( 2026 );
@@ -59,6 +62,10 @@ if ( function_exists( 'gnf_get_report_snapshot' ) ) {
 			array( 'profile' => array( 'centro_id' => 2, 'nombre' => 'Heredia 01', 'region_id' => 2, 'region_name' => 'Heredia', 'circuito' => '01' ), 'values' => array( 'active' => array( 'trees' => 10 ), 'approved' => array( 'trees' => 7 ) ), 'stats' => array( 'puntaje' => 15, 'aprobados' => 2, 'estrellas' => 2 ) ),
 			array( 'profile' => array( 'centro_id' => 3, 'nombre' => 'Heredia 02', 'region_id' => 2, 'region_name' => 'Heredia', 'circuito' => '02' ), 'values' => array( 'active' => array( 'trees' => 20 ), 'approved' => array( 'trees' => 12 ) ), 'stats' => array( 'puntaje' => 25, 'aprobados' => 3, 'estrellas' => 3 ) ),
 		) );
+	foreach ( $snapshot['centros'] as &$center ) {
+		$center['statsByMode'] = array( 'active' => $center['stats'], 'approved' => array_merge( $center['stats'], array( 'puntaje' => 4, 'estrellas' => 1 ) ) );
+	}
+	unset( $center );
 	$options['gnf_report_snapshot_2026_v1'] = $snapshot;
 	$r = gnf_scope_report_snapshot( $snapshot, 0, '', 'active' );
 	check_snapshot( 30 === $r['impact']['total']['values']['trees'] && 2 === $r['summary']['totalCentros'] && 1 === count( $r['impact']['regions'] ), 'DRE totals and territories include only assigned regions' );
@@ -67,6 +74,18 @@ if ( function_exists( 'gnf_get_report_snapshot' ) ) {
 	check_snapshot( 7 === $r['impact']['total']['values']['trees'] && 1 === count( $r['centros'] ), 'Supervisor circuit restriction applies to all totals and downloads' );
 	check_snapshot( is_wp_error( gnf_scope_report_snapshot( $snapshot, 2, '02' ) ), 'Forged circuit is forbidden' );
 	$circuit = ''; $is_admin = true;
+	$validated = gnf_scope_report_snapshot( $snapshot, 2, '', 'approved' );
+	check_snapshot( 4.0 === $validated['summary']['promedioPuntaje'] && 1.0 === $validated['summary']['promedioEstrellas'], 'Validated averages never reuse projected scores or stars' );
+	$legacy = $snapshot;
+	foreach ( $legacy['centros'] as &$legacy_center ) { unset( $legacy_center['statsByMode'] ); }
+	unset( $legacy_center );
+	$legacy_scoped = gnf_scope_report_snapshot( $legacy, 2, '', 'approved' );
+	check_snapshot( null === $legacy_scoped['summary']['promedioPuntaje'] && null === $legacy_scoped['summary']['promedioEstrellas'], 'Old snapshots do not misrepresent projected values as validated' );
+	check_snapshot( function_exists( 'gnf_report_mode_stats' ), 'Cron builds explicit per-mode score summaries' );
+	if ( function_exists( 'gnf_report_mode_stats' ) ) {
+		$modes = gnf_report_mode_stats( array( 'profile' => array( 'centro_id' => 2 ), 'stats' => array( 'puntaje' => 95, 'estrellas' => 4 ) ), 2026 );
+		check_snapshot( 95 === $modes['active']['puntaje'] && 4 === $modes['approved']['puntaje'] && 1 === $modes['approved']['estrellas'], 'Background calculation separates reported and validated awards' );
+	}
 	$r = gnf_scope_report_snapshot( $snapshot, 2 );
 	check_snapshot( 30 === $r['impact']['total']['values']['trees'] && 20.0 === $r['summary']['promedioPuntaje'], 'Admin regional filter recalculates totals and averages' );
 	$all = gnf_scope_report_snapshot( $snapshot );

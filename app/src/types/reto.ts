@@ -44,6 +44,7 @@ export interface Evidencia {
   size?: number;
   field_id?: number;
   puntos?: number | null;
+  reviewable?: boolean;
   estado?: 'pendiente' | 'aprobada' | 'rechazada' | 'en_pausa' | null;
   supervisor_comment?: string | null;
   review_reason?: string | null;

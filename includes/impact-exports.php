@@ -158,9 +158,14 @@ function gnf_impact_export_add_row( $writer, $row, $header = false ) {
 /** The snapshot's center list is territorial, but its challenge list is not source-filtered. */
 function gnf_impact_export_retos( $center, $scoped ) {
 	$sources = (array) ( $scoped['filters']['sources'] ?? array() );
-	return array_values( array_filter( (array) ( $center['retos'] ?? array() ), static function ( $reto ) use ( $sources ) {
+	$retos = array_values( array_filter( (array) ( $center['retos'] ?? array() ), static function ( $reto ) use ( $sources ) {
 		return ! $sources || in_array( (string) ( $reto['source'] ?? '' ), $sources, true );
 	} ) );
+	if ( 'approved' === ( $scoped['filters']['mode'] ?? '' ) ) {
+		foreach ( $retos as &$reto ) { $reto['points'] = $reto['validatedPoints'] ?? null; }
+		unset( $reto );
+	}
+	return $retos;
 }
 
 /** @return string|WP_Error Final path; input must already be scoped by the caller. */
@@ -181,7 +186,7 @@ function gnf_write_impact_xlsx( $scoped, $path, $dataset = 'indicators' ) {
 		gnf_impact_export_add_row( $writer, array( 'Panel de Impacto', 'Valor' ), true );
 		foreach ( gnf_impact_export_metadata( $scoped ) as $label => $value ) { gnf_impact_export_add_row( $writer, array( $label, $value ) ); }
 		$summary_labels = array( 'totalCentros' => 'Centros participantes', 'totalAprobados' => 'Retos aprobados', 'promedioPuntaje' => 'Promedio de puntaje', 'promedioEstrellas' => 'Promedio de estrellas', 'centrosConEvidencias' => 'Centros con evidencias' );
-		foreach ( $summary_labels as $key => $label ) { gnf_impact_export_add_row( $writer, array( $label, gnf_impact_export_number( $scoped['summary'][ $key ] ?? 0 ) ) ); }
+		foreach ( $summary_labels as $key => $label ) { gnf_impact_export_add_row( $writer, array( $label, null === ( $scoped['summary'][ $key ] ?? null ) ? 'Pendiente de actualización' : gnf_impact_export_number( $scoped['summary'][ $key ] ) ) ); }
 		$writer->add_sheet( 'Indicadores' );
 		$first = true;
 		foreach ( gnf_report_indicator_export_rows( $scoped ) as $row ) {
@@ -201,8 +206,11 @@ function gnf_write_impact_xlsx( $scoped, $path, $dataset = 'indicators' ) {
 		gnf_impact_export_add_row( $writer, $headers, true );
 		foreach ( (array) ( $scoped['centros'] ?? array() ) as $center ) {
 			$row = array();
-			foreach ( $map as $key ) { $row[] = $center['profile'][ $key ] ?? ''; }
-			foreach ( array( 'puntaje', 'aprobados', 'estrellas', 'evidencias' ) as $key ) { $row[] = gnf_impact_export_number( $center['stats'][ $key ] ?? 0 ); }
+			foreach ( $map as $key ) {
+				$stat_key = array( 'puntaje_total' => 'puntaje', 'estrella_final' => 'estrellas' )[ $key ] ?? '';
+				$row[] = $stat_key ? ( $center['stats'][ $stat_key ] ?? '' ) : ( $center['profile'][ $key ] ?? '' );
+			}
+			foreach ( array( 'puntaje', 'aprobados', 'estrellas', 'evidencias' ) as $key ) { $row[] = $center['stats'][ $key ] ?? ''; }
 			foreach ( $catalog as $metric ) {
 				$value = $center['values'][ $mode ][ $metric['key'] ] ?? null;
 				$row[] = false === ( $metric['available'] ?? true ) ? 'No disponible' : ( null === $value ? 'Sin datos' : gnf_impact_export_number( $value ) );
@@ -224,7 +232,7 @@ function gnf_write_impact_xlsx( $scoped, $path, $dataset = 'indicators' ) {
 			foreach ( (array) ( $scoped['centros'] ?? array() ) as $center ) {
 				$p = $center['profile'];
 				foreach ( gnf_impact_export_retos( $center, $scoped ) as $reto ) {
-					$row = array( (int) $scoped['year'], $scoped['generatedAt'] ?? '', $mode, $p['centro_id'] ?? 0, $p['nombre'] ?? '', $p['region_name'] ?? '', $p['circuito'] ?? '', $reto['id'] ?? 0, $reto['title'] ?? '', $reto['source'] ?? '', $reto['state'] ?? '', gnf_impact_export_number( $reto['points'] ?? 0 ) );
+					$row = array( (int) $scoped['year'], $scoped['generatedAt'] ?? '', $mode, $p['centro_id'] ?? 0, $p['nombre'] ?? '', $p['region_name'] ?? '', $p['circuito'] ?? '', $reto['id'] ?? 0, $reto['title'] ?? '', $reto['source'] ?? '', $reto['state'] ?? '', $reto['points'] ?? '' );
 					foreach ( $count_keys as $key => $unused ) { $row[] = gnf_impact_export_number( $reto['evidenceCounts'][ $key ] ?? 0 ); }
 					gnf_impact_export_add_row( $writer, $row );
 				}
@@ -283,7 +291,7 @@ function gnf_render_impact_pdf_html( $scoped, $detail = 'summary' ) {
 	foreach ( $metadata as $label => $value ) { $html .= '<div><strong>' . $e( $label ) . ':</strong> ' . $e( $value ) . '</div>'; }
 	$html .= '</div><table class="kpis"><tr>';
 	foreach ( array( 'totalCentros' => 'Centros participantes', 'totalAprobados' => 'Retos aprobados', 'promedioPuntaje' => 'Puntaje promedio', 'promedioEstrellas' => 'Estrellas promedio' ) as $key => $label ) {
-		$html .= '<td><div class="kpi-number">' . $n( $scoped['summary'][ $key ] ?? 0 ) . '</div><div class="kpi-label">' . $e( $label ) . '</div></td>';
+		$html .= '<td><div class="kpi-number">' . ( null === ( $scoped['summary'][ $key ] ?? null ) ? '-' : $n( $scoped['summary'][ $key ] ) ) . '</div><div class="kpi-label">' . $e( $label ) . '</div></td>';
 	}
 	$html .= '</tr></table><p class="muted">Centros con evidencias: ' . $n( $scoped['summary']['centrosConEvidencias'] ?? 0 ) . '</p>';
 	if ( ! empty( $scoped['stale'] ) ) { $html .= '<p class="note">Corte anterior disponible mientras se actualiza el reporte.</p>'; }
@@ -420,7 +428,7 @@ function gnf_impact_pdf_job_key( $scoped, $detail ) {
 	sort( $centers );
 	$filters = (array) ( $scoped['filters'] ?? array() );
 	$filters['sources'] = (array) ( $filters['sources'] ?? array() ); sort( $filters['sources'] ); ksort( $filters );
-	$signature = array( $user, $admin, $regions, function_exists( 'gnf_get_user_circuito' ) ? gnf_get_user_circuito( $user ) : '', $territories, $centers, $scoped['year'], $scoped['generatedAt'] ?? '', $filters, $detail );
+	$signature = array( 2, $user, $admin, $regions, function_exists( 'gnf_get_user_circuito' ) ? gnf_get_user_circuito( $user ) : '', $territories, $centers, $scoped['year'], $scoped['generatedAt'] ?? '', $filters, $detail );
 	return 'gnf_impact_pdf_job_' . hash( 'sha256', serialize( $signature ) );
 }
 

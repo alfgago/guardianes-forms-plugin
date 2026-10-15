@@ -60,8 +60,8 @@ export interface ReportsOverview {
   summary?: {
     totalCentros: number;
     totalAprobados: number;
-    promedioEstrellas: number;
-    promedioPuntaje: number;
+    promedioEstrellas: number | null;
+    promedioPuntaje: number | null;
     centrosConEvidencias: number;
   } | null;
   exports?: ReportExports | null;

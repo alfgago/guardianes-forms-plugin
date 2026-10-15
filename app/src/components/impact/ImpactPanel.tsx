@@ -90,8 +90,8 @@ function ImpactOverview({ year, yearControl }: { year: number; yearControl: Reac
   const stats = [
     { label: 'Centros en el alcance', value: summary?.totalCentros, Icon: School, color: 'ocean' },
     { label: 'Retos aprobados', value: summary?.totalAprobados, Icon: Award, color: 'forest' },
-    { label: 'Promedio de estrellas', value: summary?.promedioEstrellas, Icon: Star, color: 'gold' },
-    { label: 'Promedio de puntaje', value: summary?.promedioPuntaje, Icon: BarChart3, color: 'ocean' },
+    { label: mode === 'approved' ? 'Promedio de estrellas validadas' : 'Promedio de estrellas estimadas', value: summary?.promedioEstrellas, Icon: Star, color: 'gold' },
+    { label: mode === 'approved' ? 'Promedio de puntaje validado' : 'Promedio de puntaje reportado', value: summary?.promedioPuntaje, Icon: BarChart3, color: 'ocean' },
     { label: 'Centros con evidencias', value: summary?.centrosConEvidencias, Icon: Camera, color: 'forest' },
   ];
 

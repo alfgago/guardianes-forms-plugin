@@ -87,7 +87,7 @@ function gnf_panel_cache_dispatch( $result, $request, $route, $handler ) {
 	$params = $request->get_params();
 	unset( $params['_wpnonce'], $params['_fields'], $params['_embed'] );
 	ksort( $params );
-	$key = 'gnf_panel_v1_' . hash( 'sha256', wp_json_encode( array( $route, $params, $context ) ) );
+	$key = 'gnf_panel_v2_' . hash( 'sha256', wp_json_encode( array( $route, $params, $context ) ) );
 	$cached = get_transient( $key );
 	if ( is_array( $cached ) && isset( $cached['data'] ) ) {
 		$response = new WP_REST_Response( gnf_panel_cache_restore_actions( $cached['data'], $route, $context ), 200 );

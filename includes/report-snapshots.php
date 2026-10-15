@@ -23,7 +23,7 @@ function gnf_get_report_snapshot( $year ) {
 	$snapshot = is_array( $snapshot ) ? $snapshot : array();
 	$snapshot['ready'] = ! empty( $snapshot['ready'] );
 	$snapshot['year'] = $year;
-	$snapshot['stale'] = ! $snapshot['ready'] || time() - (int) ( $snapshot['generatedTimestamp'] ?? 0 ) >= 2 * HOUR_IN_SECONDS;
+	$snapshot['stale'] = ! $snapshot['ready'] || 2 !== (int) ( $snapshot['statsVersion'] ?? 0 ) || time() - (int) ( $snapshot['generatedTimestamp'] ?? 0 ) >= 2 * HOUR_IN_SECONDS;
 	if ( $snapshot['stale'] ) {
 		gnf_queue_report_refresh( $year );
 	}
@@ -132,7 +132,7 @@ function gnf_refresh_report_snapshot( $year ) {
 	$job_key = 'gnf_report_job_' . $year;
 	try {
 		$job = get_option( $job_key, array() );
-		if ( empty( $job ) || time() - (int) ( $job['started'] ?? 0 ) > 2 * HOUR_IN_SECONDS ) {
+		if ( empty( $job ) || 2 !== (int) ( $job['statsVersion'] ?? 0 ) || time() - (int) ( $job['started'] ?? 0 ) > 2 * HOUR_IN_SECONDS ) {
 			$catalog = gnf_get_impact_metric_catalog( $year );
 			$map = gnf_impact_reto_map( $year );
 			foreach ( $catalog as &$metric ) {
@@ -144,7 +144,7 @@ function gnf_refresh_report_snapshot( $year ) {
 			$wpdb->last_error = '';
 			$center_ids = gnf_get_centros_with_matricula( $year );
 			if ( ! empty( $wpdb->last_error ) ) { throw new RuntimeException( 'Report enrollment query failed' ); }
-			$job = array( 'started' => time(), 'cursor' => 0, 'ids' => array_values( array_unique( array_map( 'absint', $center_ids ) ) ), 'catalog' => array_values( $catalog ), 'centros' => array() );
+			$job = array( 'statsVersion' => 2, 'started' => time(), 'cursor' => 0, 'ids' => array_values( array_unique( array_map( 'absint', $center_ids ) ) ), 'catalog' => array_values( $catalog ), 'centros' => array() );
 		}
 		$ids = array_slice( $job['ids'], $job['cursor'], 200 );
 		if ( $ids ) {
@@ -159,7 +159,7 @@ function gnf_refresh_report_snapshot( $year ) {
 			gnf_queue_report_refresh( $year );
 			return;
 		}
-		$snapshot = array( 'ready' => true, 'year' => $year, 'generatedTimestamp' => time(), 'generatedAt' => current_time( 'mysql' ), 'centros' => $job['centros'], 'impact' => array() );
+		$snapshot = array( 'statsVersion' => 2, 'ready' => true, 'year' => $year, 'generatedTimestamp' => time(), 'generatedAt' => current_time( 'mysql' ), 'centros' => $job['centros'], 'impact' => array() );
 		foreach ( array( 'active', 'approved' ) as $mode ) {
 			$snapshot['impact'][ $mode ] = gnf_aggregate_report_centers( $job['centros'], $job['catalog'], $mode );
 			$snapshot['impact'][ $mode ]['year'] = $year;
@@ -210,6 +210,14 @@ function gnf_report_yes_response( $value ) {
 	return null;
 }
 
+function gnf_report_mode_stats( $record, $year ) {
+	$active = (array) ( $record['stats'] ?? array() );
+	$id = (int) ( $record['profile']['centro_id'] ?? 0 );
+	// Runs in the background worker: rubric/profile edits must not reuse an old award.
+	$validated = $id && function_exists( 'gnf_get_center_award_result' ) ? gnf_get_center_award_result( $id, $year, 'validated' ) : array();
+	return array( 'active' => $active, 'approved' => array_merge( $active, array( 'puntaje' => $validated['score'] ?? null, 'estrellas' => $validated['stars'] ?? null ) ) );
+}
+
 function gnf_report_center_snapshot( $record, $year, $display_catalog ) {
 	$catalog = gnf_get_impact_metric_catalog( $year );
 	$availability = array_column( $display_catalog, 'available', 'key' );
@@ -228,7 +236,7 @@ function gnf_report_center_snapshot( $record, $year, $display_catalog ) {
 			$values[ $mode ][ $key ] = $value;
 		}
 	}
-	return array( 'profile' => $record['profile'], 'values' => $values, 'stats' => $record['stats'], 'retos' => array_values( $record['retos'] ?? array() ) );
+	return array( 'profile' => $record['profile'], 'values' => $values, 'stats' => $record['stats'], 'statsByMode' => gnf_report_mode_stats( $record, $year ), 'retos' => array_values( $record['retos'] ?? array() ) );
 }
 
 /** Two indexed bulk queries refresh access boundaries without recomputing statistics. */
@@ -324,20 +332,23 @@ function gnf_scope_report_snapshot( $snapshot, $region = 0, $circuit = '', $mode
 		if ( $region && $region !== $rid ) { continue; }
 		if ( $cv ) { $available_circuits[ $rid . '|' . $cv ] = array( 'regionId' => $rid, 'value' => $cv, 'label' => 'Circuito ' . $cv ); }
 		if ( $circuit && $cv !== $circuit ) { continue; }
+		$center['stats'] = $center['statsByMode'][ $mode ] ?? ( 'active' === $mode ? $center['stats'] : array_merge( $center['stats'], array( 'puntaje' => null, 'estrellas' => null ) ) );
 		$centers[] = $center;
 	}
 	$report = gnf_aggregate_report_centers( $centers, $catalog, $mode );
 	$report['year'] = (int) ( $snapshot['year'] ?? 0 );
 	$report['generatedAt'] = (string) ( $snapshot['generatedAt'] ?? '' );
 	$summary = array( 'totalCentros' => count( $centers ), 'totalAprobados' => 0, 'promedioEstrellas' => 0, 'promedioPuntaje' => 0, 'centrosConEvidencias' => 0 );
+	$missing_averages = false;
 	foreach ( $centers as $center ) {
 		$stats = $center['stats'];
+		if ( ! is_numeric( $stats['estrellas'] ?? null ) || ! is_numeric( $stats['puntaje'] ?? null ) ) { $missing_averages = true; }
 		$summary['totalAprobados'] += (int) ( $stats['aprobados'] ?? 0 );
 		$summary['promedioEstrellas'] += (int) ( $stats['estrellas'] ?? 0 );
 		$summary['promedioPuntaje'] += (int) ( $stats['puntaje'] ?? 0 );
 		$summary['centrosConEvidencias'] += ! empty( $center['values'][ $mode ]['centros_con_evidencias'] ) ? 1 : 0;
 	}
-	foreach ( array( 'promedioEstrellas', 'promedioPuntaje' ) as $key ) { $summary[ $key ] = count( $centers ) ? round( $summary[ $key ] / count( $centers ), 2 ) : 0; }
+	foreach ( array( 'promedioEstrellas', 'promedioPuntaje' ) as $key ) { $summary[ $key ] = $missing_averages ? null : ( count( $centers ) ? round( $summary[ $key ] / count( $centers ), 2 ) : 0 ); }
 	return array( 'ready' => ! empty( $snapshot['ready'] ), 'year' => $report['year'], 'generatedAt' => $report['generatedAt'], 'stale' => ! empty( $snapshot['stale'] ), 'refreshing' => ! empty( $snapshot['refreshing'] ), 'canRefresh' => $admin, 'centros' => $centers, 'summary' => $summary, 'impact' => $report, 'availableSources' => array_values( $available_sources ), 'availableRegions' => array_values( $available_regions ), 'availableCircuits' => array_values( $available_circuits ), 'filters' => array( 'region' => $region, 'circuit' => $circuit, 'mode' => $mode, 'sources' => $sources ) );
 }
 

@@ -630,7 +630,7 @@ function gnf_build_impact_entry_record( $entry, $anio ) {
 		if ( ! in_array( $state, array( 'rechazada', 'en_pausa' ), true ) ) {
 			$active = true;
 		}
-		if ( ! array_key_exists( 'puntos', $evidence ) || null !== $evidence['puntos'] ) {
+		if ( function_exists( 'gnf_evidence_is_reviewable' ) ? gnf_evidence_is_reviewable( $evidence ) : ( (int) ( $evidence['field_id'] ?? 0 ) > 0 || ! array_key_exists( 'puntos', $evidence ) || null !== $evidence['puntos'] ) ) {
 			$reviewable++;
 			if ( 'aprobada' !== $state ) { $approved = false; }
 		}
@@ -738,7 +738,7 @@ function gnf_get_impact_center_records( $anio, $only_ids = null, $with_profiles 
 					$records[ $centro_id ]['stats']['aprobados'] += $entry_record['approved'] ? 1 : 0;
 					$records[ $centro_id ]['stats']['evidencias'] += $summary['evidenceCounts']['total'];
 					$state = $entry_record['approved'] ? 'aprobado' : ( $summary['evidenceCounts']['paused'] ? 'en_pausa' : ( $summary['evidenceCounts']['rejected'] ? 'correccion' : ( $summary['evidenceCounts']['total'] ? 'enviado' : 'no_iniciado' ) ) );
-					$records[ $centro_id ]['retos'][] = array( 'id' => (int) $entry->reto_id, 'title' => get_the_title( (int) $entry->reto_id ), 'source' => 'reto-' . $slug, 'state' => $state, 'points' => (int) $entry->puntaje, 'evidenceCounts' => $summary['evidenceCounts'] );
+					$records[ $centro_id ]['retos'][] = array( 'id' => (int) $entry->reto_id, 'title' => get_the_title( (int) $entry->reto_id ), 'source' => 'reto-' . $slug, 'state' => $state, 'points' => (int) $entry->puntaje, 'validatedPoints' => function_exists( 'gnf_award_validated_entry_score' ) ? gnf_award_validated_entry_score( $entry ) : null, 'evidenceCounts' => $summary['evidenceCounts'] );
 				}
 			}
 		}

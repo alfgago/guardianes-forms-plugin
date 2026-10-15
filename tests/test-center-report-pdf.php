@@ -35,9 +35,9 @@ check_center_report_pdf( false !== strpos( $module, 'check_admin_referer' ) && f
 check_center_report_pdf( false !== strpos( $rest, "'reportPdfUrl'" ), 'REST publica URL firmada del reporte' );
 check_center_report_pdf( false !== strpos( $docente, 'Descargar reporte final PDF' ), 'panel docente ofrece el reporte' );
 check_center_report_pdf( false !== strpos( $admin, 'Descargar reporte final PDF' ), 'detalle administrativo ofrece el reporte' );
-check_center_report_pdf( false !== strpos( $supervisor, 'Descargar reporte final PDF' ), 'detalle supervisor ofrece el reporte' );
+check_center_report_pdf( false === strpos( $supervisor, 'reportPdfUrl' ), 'detalle supervisor no ofrece reportes individuales ni usa enlaces antiguos' );
 check_center_report_pdf( false !== strpos( $module, 'function gnf_center_report_status_from_entries' ), 'reporte determina si es borrador o final' );
-check_center_report_pdf( false !== strpos( $module, "gnf_feature_is_enabled_for_center( 'reports'" ), 'descarga respeta el lanzamiento por centro' );
+check_center_report_pdf( false !== strpos( $module, 'gnf_is_admin_docente_report_preview()' ), 'reporte docente permanece limitado a previsualizacion administrativa' );
 
 if ( file_exists( $root . '/includes/report-pdf.php' ) ) {
 	if ( ! defined( 'ABSPATH' ) ) {

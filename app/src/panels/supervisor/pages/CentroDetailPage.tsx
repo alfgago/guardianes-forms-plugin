@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/Button';
 import { CentroCard } from '@/components/domain/CentroCard';
 import { EntryReviewCard } from '../components/EntryReviewCard';
 import { StatusBadge } from '@/components/domain/StatusBadge';
-import { ArrowLeft, Download } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 import { AwardSummary } from '@/components/domain/AwardSummary';
 
 interface CentroDetailPageProps {
@@ -43,16 +43,6 @@ export function CentroDetailPage({ centroId, onBack }: CentroDetailPageProps) {
             {centro.annual.puntajeTotal} pts
           </span>
         </div>
-        {centro.annual.reportPdfUrl && (
-          <Button
-            variant="outline"
-            size="sm"
-            icon={<Download size={16} />}
-            onClick={() => { window.location.href = centro.annual.reportPdfUrl ?? ''; }}
-          >
-            {centro.annual.reportPdfStatus === 'final' ? 'Descargar reporte final PDF' : 'Descargar borrador PDF'}
-          </Button>
-        )}
       </div>
 
       <AwardSummary award={centro.annual.award} year={year} />

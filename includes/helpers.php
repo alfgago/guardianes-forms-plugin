@@ -2085,13 +2085,14 @@ function gnf_enrich_evidencias( $evidencias, $reto_id, $anio = null ) {
 		if ( ! array_key_exists( 'puntos', $ev ) || null === $ev['puntos'] ) {
 			$ev['puntos'] = isset( $field_points[ $fid ] ) ? absint( $field_points[ $fid ]['puntos'] ) : null;
 		}
+		$ev['reviewable'] = gnf_evidence_is_reviewable( $ev );
 		// Backfill estado if missing.
 		if ( ! array_key_exists( 'estado', $ev ) ) {
 			if ( function_exists( 'gnf_evidence_has_verifiable_date_issue' ) && gnf_evidence_has_verifiable_date_issue( $ev ) ) {
 				$ev['estado']            = 'rechazada';
 				$ev['supervisor_comment'] = $ev['warning'] ?? 'Rechazada: fecha EXIF no coincide con el año activo.';
 				$ev['reviewed_by']        = 0;
-			} elseif ( $ev['puntos'] !== null ) {
+			} elseif ( $ev['reviewable'] ) {
 				$ev['estado'] = 'pendiente';
 			} else {
 				$ev['estado'] = null;
@@ -4332,7 +4333,7 @@ function gnf_get_reto_entry_computed_status( $entry ) {
 		if ( ! empty( $ev['replaced'] ) ) {
 			continue;
 		}
-		if ( null === ( $ev['puntos'] ?? null ) ) {
+		if ( ! gnf_evidence_is_reviewable( $ev ) ) {
 			continue;
 		}
 		$total++;
@@ -4594,7 +4595,7 @@ function gnf_build_notification_evidence_items( $item, $entry ) {
 			'originalDate'           => $evidencia['original_date'] ?? $evidencia['photo_date'] ?? null,
 			'dateSource'             => $evidencia['date_source'] ?? null,
 			'requiresYearValidation' => ! empty( $evidencia['requires_year_validation'] ),
-			'canReview'              => null !== ( $evidencia['puntos'] ?? null ) && 'pendiente' === $current_status,
+			'canReview'              => gnf_evidence_is_reviewable( $evidencia ) && 'pendiente' === $current_status,
 		);
 	}
 

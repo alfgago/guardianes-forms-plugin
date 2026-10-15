@@ -1,5 +1,37 @@
 # Panel de Impacto: operación
 
+## Revision de cierre (octubre 2026)
+
+Los reportes individuales de centros quedan disponibles solo para administracion
+y administracion impersonando a un docente activo de ese mismo centro. Se bloquea
+la descarga directa de supervisores y DRE/comite, incluso con un nonce valido.
+Las exportaciones colectivas del Panel de Impacto conservan sus permisos territoriales.
+
+Los cortes usan `statsVersion: 2` y guardan puntaje/estrellas por criterio. El cron
+recalcula la rubrica validada con los datos actuales, sin reutilizar un galardon
+guardado antes de un cambio de tipologia. Un corte anterior sigue disponible,
+pero los promedios validados incompatibles muestran dato pendiente, no proyecciones
+ni ceros ficticios. Solicitar Actualizar o esperar al cron de dos horas publica
+el nuevo corte. El XLSX conserva estos mismos valores y el PDF colectivo no reutiliza
+archivos preparados con la version anterior de los calculos.
+
+Las evidencias asociadas a una actividad (`field_id > 0`) admiten revision aunque
+no tengan puntaje configurado. Revisar no inventa puntos ni cambia preguntas.
+Los anexos sin actividad ni puntos siguen siendo informativos. Los archivos de
+actividades retiradas tambien tienen acciones de revision en Archivos adicionales.
+
+Auditoria de solo lectura, con salida agregada y sin archivos ni datos personales:
+
+```sh
+wp eval-file wp-content/plugins/guardianes-formularios/tools/audit-evidence-review.php 2026
+wp eval-file wp-content/plugins/guardianes-formularios/tools/audit-evidence-review.php 2026 83856
+```
+
+El segundo comando limita el diagnostico a CINDEA Santa Cruz. La auditoria informa
+retos, formularios y campos sin configuracion de puntaje; no asigna puntajes,
+restaura formularios ni altera respuestas. Revisar la configuracion con Guardianes
+antes de asignar puntos a actividades que no los tenian.
+
 ## Actualización
 
 Los resultados estadísticos se conservan en una opción no autoload por año.

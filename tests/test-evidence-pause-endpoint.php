@@ -80,5 +80,11 @@ check_pause_endpoint( 'aprobada' === $result['evidence']['estado'] && 10 === $re
 review_pause( 'pausar', 'subir_requisito' );
 $result = review_pause( 'rechazar', 'no_corresponde' );
 check_pause_endpoint( 'rechazada' === $result['evidence']['estado'] && 0 === $result['entry_puntaje'], 'pausa puede rechazarse' );
+$wpdb->row->evidencias = json_encode( array( array( 'field_id' => 99, 'puntos' => null, 'nombre' => 'actividad.jpeg', 'estado' => 'pendiente' ) ) );
+$result = review_pause( 'aprobar', '', 'Actividad verificada' );
+check_pause_endpoint( is_array( $result ) && 'aprobada' === $result['evidence']['estado'] && null === $result['evidence']['puntos'] && 0 === $result['entry_puntaje'], 'revisa actividad sin configuracion de puntos sin inventar puntaje' );
+$wpdb->row->evidencias = json_encode( array( array( 'field_id' => 0, 'puntos' => null, 'nombre' => 'anexo.pdf' ) ) );
+$result = review_pause( 'aprobar' );
+check_pause_endpoint( $result instanceof WP_Error && 'informational' === $result->code, 'anexo sin actividad sigue siendo informativo' );
 echo "\n{$tests} checks, {$fails} failures\n";
 exit( $fails ? 1 : 0 );

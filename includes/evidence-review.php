@@ -7,6 +7,12 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+/** Activity uploads can be reviewed even when their points mapping is missing. */
+function gnf_evidence_is_reviewable( $evidence ) {
+	return is_array( $evidence ) && empty( $evidence['replaced'] )
+		&& ( (int) ( $evidence['field_id'] ?? 0 ) > 0 || null !== ( $evidence['puntos'] ?? null ) );
+}
+
 /**
  * Canonical reasons supervisors can use when observing evidence.
  *

@@ -304,7 +304,7 @@ function gnf_report_build_matricula_fields( $data ) {
 		if ( '' === $label ) {
 			$label = ucwords( str_replace( '_', ' ', $key ) );
 		}
-		$rows[] = array( 'label' => $label, 'value' => $value );
+		$rows[] = array( 'key' => $key, 'label' => $label, 'value' => $value );
 	}
 
 	return $rows;
@@ -361,9 +361,10 @@ function gnf_build_center_report_data( $centro_id, $anio ) {
 			foreach ( (array) ( $formatted['responses'] ?? array() ) as $response ) {
 				$field_labels[ absint( $response['fieldId'] ?? 0 ) ] = (string) ( $response['label'] ?? '' );
 			}
+			$field_points = gnf_get_reto_field_points( $reto_id, $anio );
 			foreach ( $evidencias as &$evidencia ) {
 				$field_id                    = absint( $evidencia['field_id'] ?? 0 );
-				$evidencia['questionLabel']  = $field_labels[ $field_id ] ?? sprintf( 'Evidencia del campo %d', $field_id );
+				$evidencia['questionLabel']  = gnf_report_evidence_label( $evidencia, $field_labels, $field_points );
 				$evidencia['url']            = (string) ( $evidencia['ruta'] ?? $evidencia['url'] ?? '' );
 				$image_data = gnf_report_image_data_uri( $evidencia['path_local'] ?? '' );
 				$image_size = $image_data ? (int) floor( strlen( $image_data ) * 0.75 ) : 0;
@@ -417,6 +418,30 @@ function gnf_build_center_report_data( $centro_id, $anio ) {
  * @param array $rows Filas.
  * @return string
  */
+function gnf_report_evidence_label( $evidence, $labels, $points ) {
+	$id = (int) ( $evidence['field_id'] ?? 0 );
+	foreach ( array( $labels[ $id ] ?? '', $points[ $id ]['label'] ?? '', $evidence['questionLabel'] ?? '', $evidence['field_label'] ?? '' ) as $label ) {
+		if ( '' !== trim( (string) $label ) && ! preg_match( '/^(evidencia del campo|campo)\s+\d+$/iu', trim( (string) $label ) ) ) { return trim( (string) $label ); }
+	}
+	return $id ? 'Evidencia de actividad (pregunta retirada o sin descripción disponible)' : 'Archivo adicional';
+}
+
+/** Remove only semantically identical enrollment fields, not coincidentally equal values. */
+function gnf_report_additional_matricula_fields( $fields, $center ) {
+	$aliases = array( 'centro_nombre' => 'nombre', 'centro_id_existente' => 'nombre', 'centro_region' => 'region_name', 'coordinador_celular' => 'coordinador_telefono',
+		'docente_nombre' => 'matricula_docente_nombre', 'docente_cargo' => 'matricula_docente_cargo', 'docente_telefono' => 'matricula_docente_telefono' );
+	$rendered = array( 'nombre', 'codigo_mep', 'codigo_presupuestario', 'region_name', 'circuito', 'provincia', 'canton', 'distrito', 'poblado', 'direccion', 'dependencia', 'zona', 'nivel_educativo', 'jornada', 'tipo_centro', 'tipologia', 'telefono', 'telefono2', 'correo_institucional', 'total_estudiantes', 'estudiantes_hombres', 'estudiantes_mujeres', 'estudiantes_migrantes', 'coordinador_nombre', 'coordinador_cargo', 'coordinador_telefono', 'matricula_docente_nombre', 'matricula_docente_cargo', 'matricula_docente_telefono' );
+	return array_values( array_filter( (array) $fields, static function( $field ) use ( $aliases, $center, $rendered ) {
+		$key = str_replace( '-', '_', (string) ( $field['key'] ?? '' ) );
+		$target = $aliases[ $key ] ?? preg_replace( '/^centro_/', '', $key );
+		$value = trim( gnf_report_format_value( $field['value'] ?? '' ) );
+		if ( 'centro_region' === $key && ! empty( $center['region_id'] ) && (string) $center['region_id'] === $value ) { return false; }
+		if ( in_array( $target, $rendered, true ) && '' !== $value && $value === trim( gnf_report_format_value( $center[ $target ] ?? '' ) ) ) { return false; }
+		if ( in_array( $key, array( 'docente_email', 'docente_email_confirm' ), true ) && in_array( $value, array_merge( (array) ( $center['contact_emails'] ?? array() ), array( $center['correo_institucional'] ?? '' ) ), true ) ) { return false; }
+		return true;
+	} ) );
+}
+
 function gnf_report_render_pairs( $rows ) {
 	$html = '<table class="pairs"><tbody>';
 	foreach ( (array) $rows as $row ) {
@@ -444,7 +469,7 @@ function gnf_render_center_report_html( $report ) {
 	$retos     = (array) ( $report['retos'] ?? array() );
 	$year      = (int) ( $report['year'] ?? 0 );
 	$name      = (string) ( $center['nombre'] ?? 'Centro educativo' );
-	$emails    = gnf_report_format_value( $center['contact_emails'] ?? array() );
+	$emails    = gnf_report_format_value( array_diff( array_unique( (array) ( $center['contact_emails'] ?? array() ) ), array( $center['correo_institucional'] ?? '' ) ) );
 	$status    = 'final' === (string) ( $report['status'] ?? '' ) ? 'final' : 'draft';
 	$title     = 'final' === $status ? 'Reporte final de participación' : 'Borrador de participación';
 	$provisional = (bool) ( $report['provisional'] ?? ( 'draft' === $status ) );
@@ -490,6 +515,17 @@ function gnf_render_center_report_html( $report ) {
 		array( 'Fecha de matrícula', gnf_report_format_date( $center['matricula_created_at'] ?? '', true ) ),
 		array( 'Última actualización', gnf_report_format_date( $center['matricula_updated_at'] ?? '', true ) ),
 	);
+	$same_contact = ! empty( $center['coordinador_nombre'] ) && $center['coordinador_nombre'] === ( $center['matricula_docente_nombre'] ?? '' )
+		&& ( $center['coordinador_cargo'] ?? '' ) === ( $center['matricula_docente_cargo'] ?? '' )
+		&& ( $center['coordinador_telefono'] ?? '' ) === ( $center['matricula_docente_telefono'] ?? '' );
+	if ( $same_contact ) {
+		$matricula_rows = array_values( array_filter( $matricula_rows, static function( $row ) { return ! in_array( $row[0], array( 'Persona que inscribió', 'Cargo de quien inscribió', 'Teléfono de quien inscribió' ), true ); } ) );
+		foreach ( $matricula_rows as &$contact_row ) {
+			if ( 'Coordinación PBAE' === $contact_row[0] ) { $contact_row[0] = 'Coordinación PBAE y persona que inscribió'; }
+		}
+		unset( $contact_row );
+	}
+	$matricula_rows = array_values( array_filter( $matricula_rows, static function( $row ) { return '' !== gnf_report_format_value( $row[1] ); } ) );
 
 	$special_awards = array();
 	foreach ( (array) ( $assigned['awards'] ?? array() ) as $award ) {
@@ -506,14 +542,18 @@ function gnf_render_center_report_html( $report ) {
 	);
 
 	$html = '<!doctype html><html lang="es"><head><meta charset="utf-8"><style>';
-	$html .= '@page{margin:18mm 14mm 17mm;}*{box-sizing:border-box}body{font-family:"DejaVu Sans",sans-serif;color:#24342e;font-size:9.5pt;line-height:1.42;margin:0}.footer{position:fixed;bottom:-11mm;left:0;right:0;border-top:1px solid #d7dfdb;padding-top:4px;color:#69766f;font-size:7.5pt}.cover{page-break-after:always;padding-top:12mm}.brand{color:#176b55;font-size:10pt;font-weight:bold;text-transform:uppercase;letter-spacing:.6px}.document-status{display:inline-block;margin-bottom:12px;padding:5px 8px;border:1px solid #d6b56b;background:#fff8e7;color:#7c5709;font-size:8pt;font-weight:bold;text-transform:uppercase}.accent{width:44px;height:5px;background:#e8b63d;margin:11px 0 20px}.cover h1{font-size:29pt;line-height:1.12;margin:0 0 8px;color:#173f35}.cover h2{font-size:15pt;margin:0;color:#50645c;font-weight:normal}.cover-meta{margin-top:20mm;border-left:5px solid #db654f;padding:10px 14px;background:#f5f7f6}.score-grid{margin-top:12mm;width:100%;border-collapse:separate;border-spacing:8px}.score-grid td{width:33.33%;border:1px solid #d7dfdb;padding:12px;background:#fff}.score-number{font-size:23pt;font-weight:bold;color:#176b55}.score-label{font-size:8pt;color:#69766f;text-transform:uppercase}.section{margin:0 0 14px}.section-title{font-size:15pt;color:#173f35;border-bottom:2px solid #e8b63d;padding-bottom:5px;margin:0 0 9px}.pairs{width:100%;border-collapse:collapse}.pairs th,.pairs td{border-bottom:1px solid #e5eae7;padding:5px 6px;vertical-align:top}.pairs th{width:35%;text-align:left;color:#52635c;background:#f6f8f7;font-weight:600}.pairs td{overflow-wrap:anywhere}.award-box{border:1px solid #cbd8d2;background:#f4f8f6;padding:10px 12px;margin-bottom:14px}.award-grid{width:100%;border-collapse:collapse}.award-grid td{width:33.33%;text-align:center;padding:7px;border-right:1px solid #d7dfdb}.award-grid td:last-child{border-right:0}.award-value{font-size:18pt;font-weight:bold;color:#176b55}.reto{page-break-before:auto;margin:0 0 16px}.reto-head{background:#173f35;color:#fff;padding:9px 11px}.reto-title{font-size:13pt;font-weight:bold}.reto-meta{font-size:8.5pt;margin-top:3px;color:#dce9e4}.response-table{width:100%;border-collapse:collapse;margin-top:8px}.response-table th,.response-table td{border:1px solid #dfe6e2;padding:5px;text-align:left;vertical-align:top}.response-table th{background:#f2f6f4}.evidence{page-break-inside:avoid;border:1px solid #d7dfdb;margin-top:8px;padding:8px}.evidence.rejected{border-left:4px solid #db654f}.evidence.approved{border-left:4px solid #176b55}.evidence.pending{border-left:4px solid #e8b63d}.evidence img{display:block;max-width:190px;max-height:135px;margin:7px 0;border:1px solid #d7dfdb}.evidence-name{font-weight:bold;color:#173f35;overflow-wrap:anywhere}.muted{color:#69766f}.note{background:#fff7e4;padding:6px 8px;margin-top:6px}.empty{color:#69766f;font-style:italic;padding:8px 0}.page-break{page-break-before:always}.raw-fields{font-size:8.5pt}.raw-fields tr{page-break-inside:avoid}</style></head><body>';
+	$html .= '@page{margin:18mm 14mm 17mm;}*{box-sizing:border-box}body{font-family:"DejaVu Sans",sans-serif;color:#24342e;font-size:9.5pt;line-height:1.42;margin:0}.footer{position:fixed;bottom:-11mm;left:0;right:0;border-top:1px solid #d7dfdb;padding-top:4px;color:#69766f;font-size:7.5pt}.report-brands{border-bottom:1px solid #d7dfdb;padding-bottom:10px;margin-bottom:14px}.report-brands{text-align:center}.report-brands img{display:inline-block;width:100%;max-width:500px;height:auto}.cover{padding-top:2mm;margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid #d7dfdb}.brand{color:#176b55;font-size:10pt;font-weight:bold;text-transform:uppercase;letter-spacing:.6px}.document-status{display:inline-block;margin-bottom:12px;padding:5px 8px;border:1px solid #d6b56b;background:#fff8e7;color:#7c5709;font-size:8pt;font-weight:bold;text-transform:uppercase}.accent{width:44px;height:5px;background:#e8b63d;margin:11px 0 20px}.cover h1{font-size:23pt;line-height:1.12;margin:0 0 8px;color:#173f35}.cover h2{font-size:15pt;margin:0;color:#50645c;font-weight:normal}.cover-meta{margin-top:7mm;border-left:5px solid #db654f;padding:10px 14px;background:#f5f7f6}.score-grid{margin-top:6mm;width:100%;border-collapse:separate;border-spacing:8px}.score-grid td{width:33.33%;border:1px solid #d7dfdb;padding:12px;background:#fff}.score-number{font-size:23pt;font-weight:bold;color:#176b55}.score-label{font-size:8pt;color:#69766f;text-transform:uppercase}.section{margin:0 0 14px}.section-title{page-break-after:avoid;font-size:15pt;color:#173f35;border-bottom:2px solid #e8b63d;padding-bottom:5px;margin:0 0 9px}.pairs{width:100%;border-collapse:collapse}.pairs th,.pairs td{border-bottom:1px solid #e5eae7;padding:5px 6px;vertical-align:top}.pairs th{width:35%;text-align:left;color:#52635c;background:#f6f8f7;font-weight:600}.pairs td{overflow-wrap:anywhere}.award-box{page-break-inside:avoid;border:1px solid #cbd8d2;background:#f4f8f6;padding:10px 12px;margin-bottom:14px}.award-grid{width:100%;border-collapse:collapse}.award-grid td{width:33.33%;text-align:center;padding:7px;border-right:1px solid #d7dfdb}.award-grid td:last-child{border-right:0}.award-value{font-size:18pt;font-weight:bold;color:#176b55}.reto{page-break-before:auto;margin:0 0 16px}.reto-head{background:#173f35;color:#fff;padding:9px 11px}.reto-title{font-size:13pt;font-weight:bold}.reto-meta{font-size:8.5pt;margin-top:3px;color:#dce9e4}.response-table{width:100%;border-collapse:collapse;margin-top:8px}.response-table th,.response-table td{border:1px solid #dfe6e2;padding:5px;text-align:left;vertical-align:top}.response-table th{background:#f2f6f4}.evidence{page-break-inside:avoid;border:1px solid #d7dfdb;margin-top:8px;padding:8px}.evidence.rejected{border-left:4px solid #db654f}.evidence.approved{border-left:4px solid #176b55}.evidence.paused{border-left:4px solid #357a8b}.evidence.pending{border-left:4px solid #e8b63d}.evidence-media{text-align:center;margin:8px auto}.evidence img{display:inline-block;max-width:190px;max-height:135px;margin:8px auto;border:1px solid #d7dfdb}.evidence-name{font-weight:bold;color:#173f35;overflow-wrap:anywhere}.muted{color:#69766f}.note{background:#fff7e4;padding:6px 8px;margin-top:6px}.empty{color:#69766f;font-style:italic;padding:8px 0}.page-break{page-break-before:always}.raw-fields{font-size:8.5pt}.raw-fields tr{page-break-inside:avoid}</style></head><body>';
 	$html .= '<div class="footer">Movimiento Guardianes de la Naturaleza · Reporte ' . gnf_report_html_escape( $year ) . ' · Generado ' . gnf_report_html_escape( gnf_report_format_date( $report['generatedAt'] ?? '', true ) ) . '</div>';
+	$brand_path = __DIR__ . '/../assets/report-logos.png';
+	if ( is_readable( $brand_path ) ) {
+		$html .= '<div class="report-brands"><img src="data:image/png;base64,' . base64_encode( file_get_contents( $brand_path ) ) . '" alt="MEP, Bandera Azul Ecológica y Guardianes"></div>';
+	}
 	$html .= '<section class="cover"><div class="brand">Bandera Azul Ecológica</div><div class="accent"></div>';
 	if ( $provisional ) {
 		$html .= '<div class="document-status">Reporte provisional · Documento preliminar · Pendiente de cierre o validación</div>';
 	}
 	$html .= '<h1>' . gnf_report_html_escape( $title ) . '</h1><h2>' . gnf_report_html_escape( $name ) . '</h2>';
-	$html .= '<div class="cover-meta"><strong>Participación ' . gnf_report_html_escape( $year ) . '</strong><br>' . gnf_report_html_escape( $center['region_name'] ?? '' ) . ' · Circuito ' . gnf_report_html_escape( $center['circuito'] ?? '' ) . '<br>Código MEP: ' . gnf_report_html_escape( $center['codigo_mep'] ?? '' ) . '</div>';
+	$html .= '<div class="cover-meta"><strong>Participación ' . gnf_report_html_escape( $year ) . '</strong></div>';
 	$html .= '<table class="score-grid"><tr><td><div class="score-number">' . gnf_report_html_escape( $validated['score'] ?? $center['puntaje_total'] ?? 0 ) . '</div><div class="score-label">Puntaje validado</div></td><td><div>' . gnf_report_html_escape( $visible_stars ) . '</div><div class="score-label">Galardón logrado</div></td><td><div class="score-number">' . count( $retos ) . '</div><div class="score-label">Eco retos inscritos</div></td></tr></table></section>';
 	$html .= '<section class="section"><h2 class="section-title">Información del centro educativo</h2>' . gnf_report_render_pairs( $center_rows ) . '</section>';
 	$html .= '<section class="section"><h2 class="section-title">Matrícula y contacto</h2>' . gnf_report_render_pairs( $matricula_rows ) . '</section>';
@@ -527,15 +567,16 @@ function gnf_render_center_report_html( $report ) {
 	}
 	$html .= '</div></section>';
 
-	if ( ! empty( $center['matriculaFields'] ) ) {
+	$additional_fields = gnf_report_additional_matricula_fields( $center['matriculaFields'] ?? array(), $center );
+	if ( $additional_fields ) {
 		$raw_rows = array();
-		foreach ( $center['matriculaFields'] as $field ) {
+		foreach ( $additional_fields as $field ) {
 			$raw_rows[] = array( $field['label'] ?? '', $field['value'] ?? '' );
 		}
 		$html .= '<section class="section raw-fields"><h2 class="section-title">Registro completo de matrícula</h2>' . gnf_report_render_pairs( $raw_rows ) . '</section>';
 	}
 
-	$html .= '<div class="page-break"></div><section class="section"><h2 class="section-title">Participación por eco reto</h2></section>';
+	$html .= '<section class="section"><h2 class="section-title">Participación por eco reto</h2></section>';
 	if ( empty( $retos ) ) {
 		$html .= '<p class="empty">No hay eco retos registrados para este período.</p>';
 	}
@@ -566,18 +607,18 @@ function gnf_render_center_report_html( $report ) {
 		}
 		foreach ( $evidences as $evidence ) {
 			$status = (string) ( $evidence['estado'] ?? 'pendiente' );
-			$class  = 'aprobada' === $status ? 'approved' : ( 'rechazada' === $status ? 'rejected' : 'pending' );
+			$class  = 'aprobada' === $status ? 'approved' : ( 'rechazada' === $status ? 'rejected' : ( 'en_pausa' === $status ? 'paused' : 'pending' ) );
 			if ( ! empty( $evidence['replaced'] ) ) {
 				$class = 'rejected';
 			}
 			$name_value = (string) ( $evidence['nombre'] ?? $evidence['filename'] ?? 'Archivo de evidencia' );
 			$url        = gnf_report_safe_url( $evidence['url'] ?? $evidence['ruta'] ?? '' );
 			$html .= '<div class="evidence ' . $class . '"><div class="muted">' . gnf_report_html_escape( $evidence['questionLabel'] ?? 'Evidencia' ) . '</div><div class="evidence-name">' . gnf_report_html_escape( $name_value ) . '</div>';
-			$html .= '<div><strong>Estado:</strong> ' . gnf_report_html_escape( ! empty( $evidence['replaced'] ) ? 'Reemplazada por el centro' : gnf_report_status_label( $status ) ) . ' · <strong>Puntos:</strong> ' . gnf_report_html_escape( $evidence['puntos'] ?? 0 ) . '</div>';
+			$html .= '<div><strong>Estado:</strong> ' . gnf_report_html_escape( ! empty( $evidence['replaced'] ) ? 'Reemplazada por el centro' : gnf_report_status_label( $status ) ) . ' · <strong>Puntos:</strong> ' . gnf_report_html_escape( $evidence['puntos'] ?? 'Sin puntaje configurado' ) . '</div>';
 			$html .= '<div><strong>Fecha original:</strong> ' . gnf_report_html_escape( gnf_report_format_date( $evidence['original_date'] ?? $evidence['photo_date'] ?? '' ) ) . '</div>';
 			$image_data = gnf_report_safe_image_data_uri( $evidence['imageDataUri'] ?? '' );
 			if ( '' !== $image_data ) {
-				$html .= '<img src="' . gnf_report_html_escape( $image_data ) . '" alt="Vista previa">';
+				$html .= '<div class="evidence-media"><img src="' . gnf_report_html_escape( $image_data ) . '" alt="Vista previa"></div>';
 			}
 			if ( '' !== $url ) {
 				$html .= '<div><a href="' . gnf_report_html_escape( $url ) . '">Abrir archivo original</a></div>';
@@ -651,8 +692,7 @@ function gnf_user_can_download_center_report( $centro_id, $anio = null ) {
 		return gnf_is_admin_docente_report_preview()
 			&& gnf_user_can_access_centro( $user_id, absint( $centro_id ) );
 	}
-	return gnf_user_can_access_centro( $user_id, absint( $centro_id ) )
-		&& ( ! function_exists( 'gnf_feature_is_enabled_for_center' ) || gnf_feature_is_enabled_for_center( 'reports', $centro_id, false ) );
+	return false;
 }
 
 /**

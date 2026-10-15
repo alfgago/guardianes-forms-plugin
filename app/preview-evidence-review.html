@@ -16,6 +16,7 @@
   const h = React.createElement;
   const params = new URLSearchParams(location.search);
   let evidence = { field_id: 1, nombre: 'mural.jpg', url: new URL(logo, location.href).pathname, tipo: 'imagen', puntos: 10, estado: params.get('state') || 'pendiente', review_reason: params.get('state') === 'en_pausa' ? 'reto_inconcluso' : null, supervisor_comment: 'Falta mostrar el mural terminado.' };
+  if (params.has('unscored')) evidence = { ...evidence, puntos: null, reviewable: true };
   window.reviewRequests = [];
   const nativeFetch = window.fetch.bind(window);
   window.fetch = async (input, options) => {

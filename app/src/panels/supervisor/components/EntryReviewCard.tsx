@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { CheckCircle2, FileText, PauseCircle, PencilLine, Upload, XCircle } from 'lucide-react';
 import { supervisorApi } from '@/api/supervisor';
-import { EvidenceViewer } from '@/components/domain/EvidenceViewer';
 import { Button } from '@/components/ui/Button';
 import { Select } from '@/components/ui/Select';
 import { Textarea } from '@/components/ui/Textarea';
@@ -66,7 +65,10 @@ export function EntryReviewCard({ entry }: EntryReviewCardProps) {
             }}
           >
             <h5 style={{ margin: '0 0 var(--gnf-space-3)', fontSize: '0.875rem' }}>Archivos adicionales</h5>
-            <EvidenceViewer evidencias={orphanEvidence as Evidencia[]} />
+            {orphanEvidence.map((evidence) => (
+              <EvidenceReviewItem key={`${evidence.field_id}-${evidence.nombre}`}
+                evidence={evidence} entryId={entry.id} evidenceIndex={allEvidencias.indexOf(evidence)} />
+            ))}
           </div>
         )}
       </div>
@@ -202,7 +204,6 @@ function EntryResponseBlock({
                 evidence={ev}
                 entryId={entryId}
                 evidenceIndex={realIndex >= 0 ? realIndex : idx}
-                fieldPuntos={response.puntos}
               />
             );
           })}
@@ -216,12 +217,10 @@ function EvidenceReviewItem({
   evidence,
   entryId,
   evidenceIndex,
-  fieldPuntos,
 }: {
   evidence: Evidencia;
   entryId: number;
   evidenceIndex: number;
-  fieldPuntos: number;
 }) {
   const [reviewComment, setReviewComment] = useState('');
   const [rejectReason, setRejectReason] = useState('');
@@ -229,8 +228,7 @@ function EvidenceReviewItem({
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
-  const effectivePuntos = evidence.puntos ?? fieldPuntos;
-  const hasPuntos = effectivePuntos != null && effectivePuntos >= 0;
+  const canReview = evidence.reviewable ?? ((evidence.field_id ?? 0) > 0 || evidence.puntos != null);
   const estado = getEvidenceReviewStatus(evidence);
   const isRejected = estado === 'rechazada';
   const isApproved = estado === 'aprobada';
@@ -302,7 +300,7 @@ function EvidenceReviewItem({
     mutation.mutate(isPaused ? 'pausar' : isRejected ? 'rechazar' : 'aprobar');
   };
 
-  if (entryId === 0 || !hasPuntos) {
+  if (entryId === 0 || !canReview) {
     return (
       <div
         style={{

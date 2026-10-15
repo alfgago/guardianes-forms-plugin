@@ -3180,8 +3180,8 @@ function gnf_rest_supervisor_review_evidence( WP_REST_Request $request ) {
 		? gnf_get_evidence_notification_relation_type( $ev )
 		: 'reto_entry';
 
-	// Check against enriched puntos (handles old data without puntos field).
-	if ( null === ( $ev['puntos'] ?? null ) ) {
+	// Reviewability is independent of whether this activity awards points.
+	if ( ! gnf_evidence_is_reviewable( $ev ) && empty( $ev['replaced'] ) ) {
 		return new WP_Error( 'informational', 'Esta evidencia es informativa y no puede ser revisada.', array( 'status' => 400 ) );
 	}
 	if ( ! empty( $ev['replaced'] ) ) {

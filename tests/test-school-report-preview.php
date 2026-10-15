@@ -115,10 +115,14 @@ check_school_preview( ! gnf_user_can_download_center_report( 10, 2026 ), 'Anonym
 $current_id = 2;
 check_school_preview( gnf_user_can_download_center_report( 20, 2026 ), 'Existing direct administrator downloads are preserved' );
 $current_id = 3;
-check_school_preview( gnf_user_can_download_center_report( 10, 2026 ), 'Existing scoped reviewer download is preserved' );
+check_school_preview( ! gnf_user_can_download_center_report( 10, 2026 ), 'Scoped reviewers cannot download an individual school report' );
+check_school_preview( '' === gnf_get_center_report_download_url( 10, 2026 ), 'Reviewer REST payloads expose no signed individual report URL' );
+$_GET = array( 'centro_id' => 10, 'year' => 2026, '_wpnonce' => 'gnf_download_center_report_10_2026' );
+check_school_preview( '403' === school_download_stop(), 'A reviewer direct URL is blocked even with a matching nonce' );
 $reports_enabled = false;
 check_school_preview( ! gnf_user_can_download_center_report( 10, 2026 ), 'Reviewer reports still obey their rollout gate' );
 $reports_enabled = true; $current_id = 1; school_cookie( 2 );
+unset( $_GET['_wpnonce'] );
 $complete = false;
 check_school_preview( 'nonce' === school_download_stop(), 'Authorized preview still requires the download nonce' );
 

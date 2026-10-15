@@ -46,8 +46,9 @@ export function AwardSummary({ award, year }: AwardSummaryProps) {
 
   return (
     <section
+      className="gnf-award-summary"
       aria-label={`Galardón ${year}`}
-      style={{ borderTop: '1px solid var(--gnf-border)', borderBottom: '1px solid var(--gnf-border)', padding: 'var(--gnf-space-5) 0', margin: 'var(--gnf-space-5) 0' }}
+      style={{ background: '#e9f5ef', borderTop: '1px solid #b7d6c5', borderBottom: '1px solid #b7d6c5', borderLeft: '4px solid #287a59', padding: 'var(--gnf-space-5)', margin: 'var(--gnf-space-5) 0', color: '#173f35' }}
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--gnf-space-2)', marginBottom: 'var(--gnf-space-4)', flexWrap: 'wrap' }}>
         <Award size={20} color="var(--gnf-forest)" aria-hidden="true" />
