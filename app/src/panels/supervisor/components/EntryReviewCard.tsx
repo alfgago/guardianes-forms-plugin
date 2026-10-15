@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { CheckCircle2, FileText, PauseCircle, PencilLine, Upload, XCircle } from 'lucide-react';
 import { supervisorApi } from '@/api/supervisor';
@@ -6,6 +6,9 @@ import { Button } from '@/components/ui/Button';
 import { Select } from '@/components/ui/Select';
 import { Textarea } from '@/components/ui/Textarea';
 import { useToast } from '@/components/ui/Toast';
+import { Modal } from '@/components/ui/Modal';
+import { evidenceAnchor, evidenceMatches, type ReviewFilter } from './reviewNavigation';
+import './challenge-review.css';
 import type { Evidencia, RetoEntry, RetoEntryResponse } from '@/types';
 import {
   formatEvidenceOriginalDate,
@@ -18,26 +21,46 @@ import {
 
 interface EntryReviewCardProps {
   entry: RetoEntry & { retoTitulo: string; retoColor: string; retoIconUrl?: string };
+  filter?: ReviewFilter;
+  onEditingChange?: (editing: boolean) => void;
 }
 
-export function EntryReviewCard({ entry }: EntryReviewCardProps) {
+export function EntryReviewCard({ entry, filter = 'all', onEditingChange }: EntryReviewCardProps) {
+  return <FilteredEntryReview key={filter} entry={entry} filter={filter} onEditingChange={onEditingChange} />;
+}
+
+function FilteredEntryReview({ entry, filter = 'all', onEditingChange }: EntryReviewCardProps) {
+  const [editingIndex, setEditingIndex] = useState<number | null>(null);
+  // Keep the just-reviewed item in place until the reviewer changes filter or reto.
+  const [retained, setRetained] = useState<number[]>([]);
   const responses = entry.responses ?? [];
   const allEvidencias = entry.evidencias ?? [];
+  const visible = (ev: Evidencia, index: number) => !ev.replaced && (evidenceMatches(ev, filter) || retained.includes(index));
+  const onEdit = (index: number, editing: boolean) => {
+    setEditingIndex(editing ? index : null);
+    onEditingChange?.(editing);
+  };
+  const onReviewed = (index: number) => setRetained(current => current.includes(index) ? current : [...current, index]);
+  const visibleResponses = filter === 'all' ? responses : responses.filter(response => allEvidencias.some((ev, index) => ev.field_id === response.fieldId && visible(ev, index)));
 
   const orphanEvidence = allEvidencias.filter(
-    (ev) => !ev.replaced && !responses.some((response) => response.fieldId === (ev.field_id ?? 0)),
+    (ev, index) => visible(ev, index) && !responses.some((response) => response.fieldId === (ev.field_id ?? 0)),
   );
 
   return (
     <div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--gnf-space-3)' }}>
-        {responses.length > 0 ? (
-          responses.map((response) => (
+        {visibleResponses.length > 0 ? (
+          visibleResponses.map((response) => (
             <EntryResponseBlock
               key={response.fieldId}
               response={response}
               entryId={entry.id}
               allEvidencias={allEvidencias}
+              visible={visible}
+              editingIndex={editingIndex}
+              onEdit={onEdit}
+              onReviewed={onReviewed}
             />
           ))
         ) : (
@@ -51,7 +74,7 @@ export function EntryReviewCard({ entry }: EntryReviewCardProps) {
               fontSize: '0.875rem',
             }}
           >
-            Este reto no tiene preguntas configuradas.
+            {filter === 'all' ? 'Este reto no tiene preguntas configuradas.' : orphanEvidence.length ? 'Evidencias de preguntas anteriores.' : 'No hay evidencias con este estado en el reto.'}
           </div>
         )}
 
@@ -64,10 +87,10 @@ export function EntryReviewCard({ entry }: EntryReviewCardProps) {
               background: 'var(--gnf-white)',
             }}
           >
-            <h5 style={{ margin: '0 0 var(--gnf-space-3)', fontSize: '0.875rem' }}>Archivos adicionales</h5>
+            <h5 style={{ margin: '0 0 var(--gnf-space-3)', fontSize: '0.875rem' }}>Evidencias de preguntas anteriores y archivos adicionales</h5>
             {orphanEvidence.map((evidence) => (
-              <EvidenceReviewItem key={`${evidence.field_id}-${evidence.nombre}`}
-                evidence={evidence} entryId={entry.id} evidenceIndex={allEvidencias.indexOf(evidence)} />
+              <EvidenceReviewItem key={`${evidence.field_id}-${evidence.nombre}-${allEvidencias.indexOf(evidence)}`}
+                evidence={evidence} entryId={entry.id} evidenceIndex={allEvidencias.indexOf(evidence)} editingIndex={editingIndex} onEdit={onEdit} onReviewed={onReviewed} />
             ))}
           </div>
         )}
@@ -96,12 +119,20 @@ function EntryResponseBlock({
   response,
   entryId,
   allEvidencias,
+  visible,
+  editingIndex,
+  onEdit,
+  onReviewed,
 }: {
   response: RetoEntryResponse;
   entryId: number;
   allEvidencias: Evidencia[];
+  visible: (ev: Evidencia, index: number) => boolean;
+  editingIndex: number | null;
+  onEdit: (index: number, editing: boolean) => void;
+  onReviewed: (index: number) => void;
 }) {
-  const activeEvidence = (response.evidencias ?? []).filter((ev) => !ev.replaced);
+  const activeEvidence = allEvidencias.map((ev, index) => ({ ev, index })).filter(({ ev, index }) => ev.field_id === response.fieldId && visible(ev, index));
   const hasEvidence = activeEvidence.length > 0;
   const hasTextValue = response.displayValue.trim().length > 0;
   const isEvidenceField = response.type === 'file-upload' || response.type === 'file';
@@ -126,7 +157,8 @@ function EntryResponseBlock({
           marginBottom: 'var(--gnf-space-3)',
         }}
       >
-        <div style={{ minWidth: 0 }}>
+        <div style={{ minWidth: 0, flex: 1 }} className={response.isRequiredEvidence ? 'gnf-review-requirement' : undefined}>
+          {response.isRequiredEvidence && <strong>REQUISITO PARA EL GALARDÓN</strong>}
           <h5 style={{ margin: 0, fontSize: '0.9375rem', color: 'var(--gnf-ocean-dark)' }}>
             {response.label}
           </h5>
@@ -193,17 +225,16 @@ function EntryResponseBlock({
 
       {activeEvidence.length > 0 && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--gnf-space-3)' }}>
-          {activeEvidence.map((ev, idx) => {
-            const realIndex = allEvidencias.findIndex(
-              (evidence) => evidence.field_id === ev.field_id && evidence.nombre === ev.nombre,
-            );
-
+          {activeEvidence.map(({ ev, index }) => {
             return (
               <EvidenceReviewItem
-                key={`${ev.field_id}-${ev.nombre}-${idx}`}
+                key={`${ev.field_id}-${ev.nombre}-${index}`}
                 evidence={ev}
                 entryId={entryId}
-                evidenceIndex={realIndex >= 0 ? realIndex : idx}
+                evidenceIndex={index}
+                editingIndex={editingIndex}
+                onEdit={onEdit}
+                onReviewed={onReviewed}
               />
             );
           })}
@@ -217,10 +248,16 @@ function EvidenceReviewItem({
   evidence,
   entryId,
   evidenceIndex,
+  editingIndex,
+  onEdit,
+  onReviewed,
 }: {
   evidence: Evidencia;
   entryId: number;
   evidenceIndex: number;
+  editingIndex: number | null;
+  onEdit: (index: number, editing: boolean) => void;
+  onReviewed: (index: number) => void;
 }) {
   const [reviewComment, setReviewComment] = useState('');
   const [rejectReason, setRejectReason] = useState('');
@@ -258,6 +295,8 @@ function EvidenceReviewItem({
         reviewReason: action !== 'aprobar' ? rejectReason : undefined,
       }),
     onSuccess: (_, action) => {
+      onReviewed(evidenceIndex);
+      onEdit(evidenceIndex, false);
       toast('success', action === 'aprobar' ? 'Evidencia aprobada.' : action === 'pausar' ? 'Evidencia en pausa.' : 'Evidencia rechazada.');
       queryClient.invalidateQueries({ queryKey: ['supervisor-centro'] });
       queryClient.invalidateQueries({ queryKey: ['supervisor-centros'] });
@@ -273,24 +312,29 @@ function EvidenceReviewItem({
   });
 
   const closeReviewForm = () => {
+    if (mutation.isPending) return;
+    onEdit(evidenceIndex, false);
     setReviewComment('');
     setRejectReason('');
     setReviewMode(null);
   };
 
   const openApproveForm = () => {
+    onEdit(evidenceIndex, true);
     setReviewComment(evidence.supervisor_comment ?? '');
     setRejectReason('');
     setReviewMode('aprobar');
   };
 
   const openRejectForm = () => {
+    onEdit(evidenceIndex, true);
     setReviewComment(evidence.supervisor_comment ?? '');
     setRejectReason(evidence.review_reason ?? '');
     setReviewMode('rechazar');
   };
 
   const openEditCommentForm = () => {
+    onEdit(evidenceIndex, true);
     setReviewComment(evidence.supervisor_comment ?? '');
     setRejectReason(evidence.review_reason ?? '');
     setReviewMode('editar');
@@ -305,19 +349,14 @@ function EvidenceReviewItem({
       <div
         style={{
           display: 'flex',
+          flexWrap: 'wrap',
           gap: 'var(--gnf-space-3)',
           alignItems: 'center',
           padding: 'var(--gnf-space-2) 0',
         }}
       >
         {isImage && imgUrl ? (
-          <a href={imgUrl} target="_blank" rel="noopener noreferrer">
-            <img
-              src={imgUrl}
-              alt={nombre}
-              style={{ width: 56, height: 56, borderRadius: 6, objectFit: 'cover' }}
-            />
-          </a>
+          <EvidencePhoto url={imgUrl} name={nombre} />
         ) : (
           <div
             style={{
@@ -333,7 +372,8 @@ function EvidenceReviewItem({
             <FileText size={20} style={{ color: 'var(--gnf-muted)' }} />
           </div>
         )}
-        <div style={{ display: 'grid', gap: 4 }}>
+        <div style={{ display: 'grid', gap: 4, minWidth: 0, flex: '1 1 180px', overflowWrap: 'anywhere' }}>
+          <span style={{ fontSize: '0.75rem', color: 'var(--gnf-muted)' }}>Archivo informativo</span>
           {imgUrl ? (
             <a
               href={imgUrl}
@@ -369,7 +409,7 @@ function EvidenceReviewItem({
     );
   }
 
-  const borderColor = isApproved ? 'var(--gnf-forest)' : isRejected ? 'var(--gnf-coral)' : 'var(--gnf-border)';
+  const borderColor = isApproved ? 'var(--gnf-forest)' : isRejected ? 'var(--gnf-coral)' : isPaused ? '#397ca9' : 'var(--gnf-border)';
   const bgColor = isApproved
     ? 'rgba(45, 138, 95, 0.04)'
     : isRejected
@@ -383,6 +423,9 @@ function EvidenceReviewItem({
 
   return (
     <div
+      id={evidenceAnchor(entryId, evidenceIndex)}
+      className="gnf-review-evidence"
+      tabIndex={-1}
       style={{
         display: 'flex',
         gap: 'var(--gnf-space-4)',
@@ -396,19 +439,7 @@ function EvidenceReviewItem({
     >
       <div style={{ flexShrink: 0 }}>
         {isImage && imgUrl ? (
-          <a href={imgUrl} target="_blank" rel="noopener noreferrer">
-            <img
-              src={imgUrl}
-              alt={nombre}
-              style={{
-                width: 80,
-                height: 80,
-                borderRadius: 8,
-                objectFit: 'cover',
-                border: `2px solid ${borderColor}`,
-              }}
-            />
-          </a>
+          <EvidencePhoto url={imgUrl} name={nombre} />
         ) : (
           <a
             href={imgUrl || '#'}
@@ -446,8 +477,8 @@ function EvidenceReviewItem({
               target="_blank"
               rel="noopener noreferrer"
               style={{
-                fontSize: '0.875rem',
-                fontWeight: 600,
+                fontSize: '0.75rem',
+                fontWeight: 400,
                 wordBreak: 'break-all',
                 color: 'var(--gnf-gray-800)',
                 textDecoration: 'none',
@@ -483,7 +514,7 @@ function EvidenceReviewItem({
               color: isApproved ? 'var(--gnf-forest)' : isRejected ? 'var(--gnf-coral)' : '#b45309',
             }}
           >
-            {isApproved ? 'Aprobada' : isRejected ? 'Rechazada' : isPaused ? 'En pausa' : 'Pendiente'}
+            {isApproved ? 'Aprobada' : isRejected ? 'Rechazada' : isPaused ? 'En pausa' : 'Por revisar'}
           </span>
         </div>
 
@@ -522,8 +553,8 @@ function EvidenceReviewItem({
               fontSize: '0.8125rem',
               padding: '6px 10px',
               marginBottom: 6,
-              background: 'rgba(239, 107, 74, 0.06)',
-              borderLeft: '3px solid var(--gnf-coral)',
+              background: isApproved ? '#eff8f2' : isPaused ? '#edf5fb' : 'rgba(239, 107, 74, 0.06)',
+              borderLeft: `3px solid ${borderColor}`,
               borderRadius: '0 var(--gnf-radius-sm) var(--gnf-radius-sm) 0',
               color: 'var(--gnf-gray-700)',
             }}
@@ -552,7 +583,7 @@ function EvidenceReviewItem({
                 <Button
                   size="sm"
                   icon={<CheckCircle2 size={14} />}
-                  disabled={mutation.isPending}
+                  disabled={mutation.isPending || (editingIndex !== null && editingIndex !== evidenceIndex)}
                   onClick={openApproveForm}
                   style={{ fontSize: '0.75rem', padding: '4px 10px' }}
                 >
@@ -565,7 +596,7 @@ function EvidenceReviewItem({
                   variant="danger"
                   size="sm"
                   icon={<XCircle size={14} />}
-                  disabled={mutation.isPending}
+                  disabled={mutation.isPending || (editingIndex !== null && editingIndex !== evidenceIndex)}
                   onClick={openRejectForm}
                   style={{ fontSize: '0.75rem', padding: '4px 10px' }}
                 >
@@ -578,8 +609,9 @@ function EvidenceReviewItem({
                   variant="outline"
                   size="sm"
                   icon={<PauseCircle size={14} />}
-                  disabled={mutation.isPending}
+                  disabled={mutation.isPending || (editingIndex !== null && editingIndex !== evidenceIndex)}
                   onClick={() => {
+                    onEdit(evidenceIndex, true);
                     setReviewComment(evidence.supervisor_comment ?? '');
                     setRejectReason('');
                     setReviewMode('pausar');
@@ -594,6 +626,7 @@ function EvidenceReviewItem({
                   size="sm"
                   icon={<PencilLine size={14} />}
                   onClick={openEditCommentForm}
+                  disabled={editingIndex !== null && editingIndex !== evidenceIndex}
                   style={{ fontSize: '0.75rem', padding: '4px 10px' }}
                 >
                   Editar comentario
@@ -678,4 +711,18 @@ function EvidenceReviewItem({
       </div>
     </div>
   );
+}
+
+function EvidencePhoto({ url, name }: { url: string; name: string }) {
+  const [open, setOpen] = useState(false);
+  const close = useCallback(() => setOpen(false), []);
+  return <>
+    <button type="button" className="gnf-review-zoom" title="Ampliar imagen" aria-label={`Ampliar imagen: ${name}`} onClick={() => setOpen(true)}>
+      <img src={url} alt={name} className="gnf-review-photo" loading="lazy" />
+    </button>
+    <Modal open={open} onClose={close} title="Vista de evidencia" width="1000px">
+      <img src={open ? url : undefined} alt={name} style={{ display: 'block', maxWidth: '100%', maxHeight: '65vh', objectFit: 'contain', margin: '0 auto' }} />
+      <a href={url} target="_blank" rel="noopener noreferrer">Abrir archivo original</a>
+    </Modal>
+  </>;
 }

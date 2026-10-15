@@ -12,7 +12,7 @@ function load(path, mocks = {}) {
   return exports;
 }
 const result = { rubricLabel: 'Tipo IV/V', score: 90, stars: 1, thresholds: { 1: 60, 2: 90 }, missingRequired: [], awards: {} };
-const { AwardSummary } = load('components/domain/AwardSummary.tsx');
+const { AwardSummary } = load('components/domain/AwardSummary.tsx', { '@/components/ui/Button': { Button: ({ children }) => React.createElement('button', null, children) } });
 const markup = renderToStaticMarkup(React.createElement(AwardSummary, { year: 2026, award: { projected: result, validated: result } }));
 assert.ok(markup.includes('gnf-award-summary'), 'Award summary has a dedicated contrasting full-width band');
 assert.ok(markup.includes('Progreso estimado') && markup.includes('Resultado validado'), 'Contrast update preserves the two distinct score meanings');
@@ -22,6 +22,7 @@ const { CentroDetailPage } = load('panels/supervisor/pages/CentroDetailPage.tsx'
   '@/components/ui/Spinner': { Spinner: () => null }, '@/components/ui/Alert': { Alert: () => null },
   '@/components/ui/Button': { Button: ({ children }) => React.createElement('button', null, children) },
   '@/components/domain/CentroCard': { CentroCard: () => null }, '../components/EntryReviewCard': { EntryReviewCard: () => null },
+  '../components/ChallengeReview': { ChallengeReview: () => null },
   '@/components/domain/StatusBadge': { StatusBadge: () => null }, '@/components/domain/AwardSummary': { AwardSummary: () => null },
 });
 const detail = renderToStaticMarkup(React.createElement(CentroDetailPage, { centroId: 1, onBack() {} }));

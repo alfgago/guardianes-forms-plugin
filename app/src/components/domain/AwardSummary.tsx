@@ -1,9 +1,12 @@
-import { Award, CheckCircle2, CircleAlert, Star } from 'lucide-react';
+import { useId, useState } from 'react';
+import { Award, CheckCircle2, ChevronDown, ChevronUp, CircleAlert, Star } from 'lucide-react';
+import { Button } from '@/components/ui/Button';
 import type { AwardBundle, AwardResult } from '@/types';
 
 interface AwardSummaryProps {
   award?: AwardBundle;
   year: number;
+  collapsible?: boolean;
 }
 
 const requiredLabels: Record<string, string> = {
@@ -34,7 +37,9 @@ function ResultColumn({ title, result, description }: { title: string; result: A
   );
 }
 
-export function AwardSummary({ award, year }: AwardSummaryProps) {
+export function AwardSummary({ award, year, collapsible = false }: AwardSummaryProps) {
+  const [expanded, setExpanded] = useState(true);
+  const detailId = useId();
   const projected = award?.projected;
   const validated = award?.validated;
   if (!projected?.rubricLabel || !validated?.rubricLabel) return null;
@@ -53,6 +58,7 @@ export function AwardSummary({ award, year }: AwardSummaryProps) {
       <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--gnf-space-2)', marginBottom: 'var(--gnf-space-4)', flexWrap: 'wrap' }}>
         <Award size={20} color="var(--gnf-forest)" aria-hidden="true" />
         <h3 style={{ margin: 0 }}>Estado del galardón {year}</h3>
+        {collapsible && <Button size="sm" variant="ghost" aria-expanded={expanded} aria-controls={detailId} icon={expanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />} onClick={() => setExpanded(value => !value)} style={{ marginLeft: 'auto' }}>{expanded ? 'Contraer detalle' : 'Ver detalle'}</Button>}
         {award?.rollout?.mode !== 'all' && award?.rollout?.label && (
           <span style={{ border: '1px solid #d6b56b', background: '#fff8e7', color: '#7c5709', borderRadius: 4, padding: '3px 7px', fontSize: '0.75rem', fontWeight: 600 }}>
             {award.rollout.label}
@@ -60,6 +66,7 @@ export function AwardSummary({ award, year }: AwardSummaryProps) {
         )}
       </div>
 
+      <div id={detailId} hidden={collapsible && !expanded}>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: 'var(--gnf-space-5)' }}>
         <ResultColumn title="Progreso estimado" result={projected} description="Incluye evidencia activa pendiente de revisión." />
         <ResultColumn title="Resultado validado" result={validated} description="Incluye únicamente evidencia aprobada." />
@@ -105,6 +112,7 @@ export function AwardSummary({ award, year }: AwardSummaryProps) {
           </div>
         </details>
       )}
+      </div>
     </section>
   );
 }

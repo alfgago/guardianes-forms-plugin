@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="es">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Retos - revisión local</title></head>
+<body><div id="preview"></div>
+<script type="module">
+import React from 'react';
+import { createRoot } from 'react-dom/client';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { CentroDetailPage } from '/src/panels/supervisor/pages/CentroDetailPage.tsx';
+import { ToastProvider } from '/src/components/ui/Toast.tsx';
+import { PanelShell } from '/src/components/layout/PanelShell.tsx';
+import { useYearStore } from '/src/stores/useYearStore.ts';
+import '/src/styles/base.css';
+import '/src/styles/components.css';
+import logoAsset from '../assets/logo-guardiana.png';
+const logo = new URL(logoAsset, location.href).pathname;
+const h = React.createElement;
+useYearStore.getState().init(2026);
+window.__GNF_SUPERVISOR__ = { restUrl: '/mock-challenges', nonce: '' };
+window.reviewRequests = []; window.detailRequests = 0; window.failNextReview = false;
+const names = ['RETO AGUA', 'RETO ECO LONCHERA', 'RETO ELECTRICIDAD', 'RETO RESIDUOS', 'RETO ARTÍSTICO ECO MURALES', 'RETO SIEMBRA DE ÁRBOLES', 'RETO JARDINES Y POLINIZADORES'];
+const file = (estado, extra = {}) => ({ field_id: 5, nombre: 'evidencia.jpg', ruta: logo, tipo: 'imagen', reviewable: true, puntos: 5, estado, original_date: '2026-10-09', ...extra });
+const entries = names.map((name, index) => ({
+  id: index + 101, retoId: index + 1, centroId: 83856, anio: 2026, retoTitulo: name, retoColor: '#287651', retoIconUrl: logo,
+  puntaje: 10, puntajeMaximo: 45, estado: 'en_progreso',
+  evidencias: index === 0 ? [file('pendiente', { replaced: true }), file('pendiente'), file('aprobada'), file('en_pausa', { review_reason: 'subir_requisito', supervisor_comment: 'Adjuntar requisito.' }), file('rechazada', { review_reason: 'no_corresponde' }), file(null, { field_id: 0, puntos: null, reviewable: false })]
+    : index === 1 ? [file('pendiente', { replaced: true }), file('pendiente', { puntos: null }), file('pendiente', { field_id: 99, puntos: null })] : [],
+}));
+function detail() {
+  const result = { rubricLabel: 'Tipo IV/V', score: 75, stars: 0, thresholds: { 1: 60, 2: 90, 3: 120, 4: 145, 5: 180 }, missingRequired: ['agua', 'electricidad', 'residuos'], awards: {} };
+  return { centro: { id: 83856, nombre: 'Centro educativo de prueba', codigoMep: '0000', regionName: 'SANTA CRUZ', circuito: '01', annual: { puntajeTotal: 75, award: { projected: result, validated: { ...result, score: 45 }, rollout: { mode: 'all' } } } }, entries: entries.map(entry => ({ ...entry, responses: [
+    { fieldId: 2, label: 'Participantes en la actividad', type: 'number', displayValue: '24', puntos: 0, evidencias: [] },
+    { fieldId: 5, label: entry.retoId === 1 ? 'Registro del consumo de agua del centro educativo' : 'Fotografía de los estudiantes con meriendas saludables en recipientes reutilizables', isRequiredEvidence: entry.retoId === 1, type: 'file-upload', displayValue: 'Actividad realizada con estudiantes y docentes.', puntos: 5, evidencias: entry.evidencias.filter(ev => ev.field_id === 5) },
+  ] })) };
+}
+const nativeFetch = window.fetch.bind(window);
+window.fetch = async (input, options = {}) => {
+  const url = String(input);
+  if (!url.startsWith('/mock-challenges')) return nativeFetch(input, options);
+  if ((options.method || 'GET') === 'GET') { window.detailRequests++; return Response.json(detail()); }
+  const body = JSON.parse(options.body); const [, id, index] = url.match(/evidence\/(\d+)\/(\d+)/);
+  window.reviewRequests.push({ id: Number(id), index: Number(index), ...body });
+  if (window.failNextReview) { window.failNextReview = false; return Response.json({ message: 'Error de prueba recuperable', code: 'test_error' }, { status: 500 }); }
+  const entry = entries.find(item => item.id === Number(id));
+  entry.evidencias[index] = { ...entry.evidencias[index], estado: { aprobar: 'aprobada', rechazar: 'rechazada', pausar: 'en_pausa' }[body.action], supervisor_comment: body.comment, review_reason: body.reviewReason, reviewed_by: 2 };
+  return Response.json({ success: true, evidence: entry.evidencias[index] });
+};
+function Preview() {
+  const [open, setOpen] = React.useState(true);
+  return h(PanelShell, { title: 'Panel DRE', subtitle: 'Año 2026', nav: h('span', null, 'Centros educativos') },
+    open ? h(CentroDetailPage, { centroId: 83856, onBack: () => setOpen(false) }) : h('button', { onClick: () => setOpen(true) }, 'Volver al centro'));
+}
+createRoot(document.getElementById('preview')).render(h(QueryClientProvider, { client: new QueryClient({ defaultOptions: { queries: { retry: false, refetchOnWindowFocus: false } } }) }, h(ToastProvider, null, h(Preview))));
+</script></body></html>

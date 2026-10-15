@@ -5,8 +5,7 @@ import { Spinner } from '@/components/ui/Spinner';
 import { Alert } from '@/components/ui/Alert';
 import { Button } from '@/components/ui/Button';
 import { CentroCard } from '@/components/domain/CentroCard';
-import { EntryReviewCard } from '../components/EntryReviewCard';
-import { StatusBadge } from '@/components/domain/StatusBadge';
+import { ChallengeReview } from '../components/ChallengeReview';
 import { ArrowLeft } from 'lucide-react';
 import { AwardSummary } from '@/components/domain/AwardSummary';
 
@@ -45,36 +44,8 @@ export function CentroDetailPage({ centroId, onBack }: CentroDetailPageProps) {
         </div>
       </div>
 
-      <AwardSummary award={centro.annual.award} year={year} />
-
-      <h3 style={{ marginBottom: 'var(--gnf-space-4)' }}>Retos ({entries.length})</h3>
-      {entries.map((entry) => (
-        <details key={entry.retoId} style={{ marginBottom: 'var(--gnf-space-4)' }}>
-          <summary style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 'var(--gnf-space-3)',
-            padding: 'var(--gnf-space-4)',
-            background: 'var(--gnf-white)',
-            border: '1px solid var(--gnf-border)',
-            borderRadius: 'var(--gnf-radius)',
-            cursor: 'pointer',
-            listStyle: 'none',
-          }}>
-            {entry.retoIconUrl && (
-              <img src={entry.retoIconUrl} alt="" style={{ width: 36, height: 36, borderRadius: 'var(--gnf-radius-sm)', objectFit: 'cover' }} />
-            )}
-            <span style={{ flex: 1, fontWeight: 600, color: entry.retoColor }}>{entry.retoTitulo}</span>
-            <span style={{ fontSize: '0.75rem', color: 'var(--gnf-muted)' }}>
-              {entry.puntaje} / {entry.puntajeMaximo} pts
-            </span>
-            <StatusBadge estado={entry.estado} />
-          </summary>
-          <div style={{ borderLeft: '1px solid var(--gnf-border)', borderRight: '1px solid var(--gnf-border)', borderBottom: '1px solid var(--gnf-border)', borderRadius: '0 0 var(--gnf-radius) var(--gnf-radius)', padding: 'var(--gnf-space-4)', background: 'var(--gnf-white)' }}>
-            <EntryReviewCard entry={entry} />
-          </div>
-        </details>
-      ))}
+      <AwardSummary award={centro.annual.award} year={year} collapsible />
+      <ChallengeReview key={`${centroId}:${year}`} entries={entries} centroId={centroId} year={year} />
     </div>
   );
 }

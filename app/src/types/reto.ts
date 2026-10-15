@@ -63,6 +63,7 @@ export interface Evidencia {
 }
 
 export interface RetoEntryResponse {
+  isRequiredEvidence?: boolean;
   fieldId: number;
   label: string;
   type: string;

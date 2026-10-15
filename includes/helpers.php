@@ -1999,6 +1999,9 @@ function gnf_build_reto_form_responses( $reto_id, $anio = null, $raw_values = ar
 	$form_data    = gnf_get_wpforms_form_definition( $form_id );
 	$form_fields  = is_array( $form_data['fields'] ?? null ) ? $form_data['fields'] : array();
 	$field_points = gnf_get_reto_field_points( (int) $reto_id, $anio );
+	$required_ids = function_exists( 'gnf_required_evidence_field_ids' ) && function_exists( 'gnf_get_reto_canonical_slug' )
+		? gnf_required_evidence_field_ids( gnf_get_reto_canonical_slug( get_the_title( $reto_id ) ), $form_fields )
+		: array();
 	$responses    = array();
 
 	foreach ( $form_fields as $field ) {
@@ -2031,6 +2034,7 @@ function gnf_build_reto_form_responses( $reto_id, $anio = null, $raw_values = ar
 			'type'         => $field_type,
 			'displayValue' => $display_value,
 			'hasValue'     => $has_value,
+			'isRequiredEvidence' => in_array( $field_id, $required_ids, true ),
 			'puntos'       => (int) ( $points_config['puntos'] ?? 0 ),
 			'evidencias'   => $field_evidencias,
 		);
