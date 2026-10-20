@@ -1685,7 +1685,7 @@ function gnf_render_admin_dashboard()
 		OBJECT_K
 	);
 	$aprobados = isset($stats['aprobado']) ? (int) $stats['aprobado']->total : 0;
-	$enviados  = isset($stats['enviado']) ? (int) $stats['enviado']->total : 0;
+	$enviados  = gnf_get_pending_review_counts( $anio )['total'];
 	$correcc   = isset($stats['correccion']) ? (int) $stats['correccion']->total : 0;
 
 	$pend_docs = get_users(

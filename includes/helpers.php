@@ -4313,6 +4313,41 @@ function gnf_get_supervisores_by_region($region_id)
 }
 
 /**
+ * Counts challenges with pending reviewable evidence, independently of manual submission.
+ * Null scope means global; an empty authorized center list must remain empty.
+ * Reads only evidence in bounded batches, without loading answers or form definitions.
+ */
+function gnf_get_pending_review_counts( $anio, $centro_ids = null ) {
+	global $wpdb;
+	$counts = array( 'total' => 0, 'centros' => array(), 'retos' => array(), 'meses' => array() );
+	$where = '';
+	$args = array( gnf_normalize_year( $anio ) );
+	if ( null !== $centro_ids ) {
+		$centro_ids = array_values( array_unique( array_filter( array_map( 'absint', (array) $centro_ids ) ) ) );
+		if ( ! $centro_ids ) { return $counts; }
+		$where = ' AND centro_id IN (' . implode( ',', array_fill( 0, count( $centro_ids ), '%d' ) ) . ')';
+		$args = array_merge( $args, $centro_ids );
+	}
+	$last_id = 0;
+	do {
+		$rows = $wpdb->get_results( $wpdb->prepare(
+			"SELECT id, centro_id, reto_id, updated_at, evidencias FROM {$wpdb->prefix}gn_reto_entries WHERE anio = %d{$where} AND id > %d ORDER BY id ASC LIMIT 200",
+			array_merge( $args, array( $last_id ) )
+		) );
+		foreach ( (array) $rows as $entry ) {
+			$last_id = (int) $entry->id;
+			$status = gnf_get_reto_entry_computed_status( $entry );
+			if ( ! $status['pendientes'] ) { continue; }
+			$counts['total']++;
+			foreach ( array( 'centros' => (int) $entry->centro_id, 'retos' => (int) $entry->reto_id, 'meses' => (int) substr( $entry->updated_at, 5, 2 ) ) as $group => $id ) {
+				$counts[ $group ][ $id ] = ( $counts[ $group ][ $id ] ?? 0 ) + 1;
+			}
+		}
+	} while ( count( (array) $rows ) === 200 );
+	return $counts;
+}
+
+/**
  * Computes the display status of a reto entry based on its individual evidence states.
  *
  * @param object|array $entry Entry row or array with 'evidencias' JSON field.

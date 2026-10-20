@@ -26,7 +26,6 @@ $anio_activo       = isset($anio_activo) ? $anio_activo : $anio;
 $years_available   = isset($years_available) ? $years_available : array($anio);
 $retos_disponibles = isset($retos_disponibles) ? $retos_disponibles : array();
 $puntos_potenciales = isset($puntos_potenciales) ? $puntos_potenciales : 0;
-$all_retos_complete = isset($all_retos_complete) ? $all_retos_complete : false;
 
 // Scoring is now automatic — no autoevaluación needed.
 
@@ -427,26 +426,6 @@ $active_tab_title = $tab_titles[$active_docente_tab] ?? 'Dashboard';
 					</div>
 				</div>
 
-				<?php if ( $all_retos_complete && $retos_completos > 0 ) : ?>
-					<div class="gnf-alert gnf-alert--success">
-						<div class="gnf-alert__icon">✓</div>
-						<div>
-							<strong>Todo listo para enviar participación</strong>
-							<p class="gnf-muted" style="margin-top:6px;">Todos los retos están completos. El puntaje se calculó automáticamente.</p>
-							<button type="button" class="gnf-btn gnf-docente-enviar-participacion" data-centro-id="<?php echo esc_attr($centro_id); ?>" data-anio="<?php echo esc_attr($anio); ?>" style="margin-top:10px;">
-								Enviar Participación para Revisión
-							</button>
-						</div>
-					</div>
-				<?php else : ?>
-					<div class="gnf-alert gnf-alert--info">
-						<div class="gnf-alert__icon">i</div>
-						<div>
-							<strong>Continúa completando tus retos</strong>
-							<p class="gnf-muted" style="margin-top:6px;">El envío final se habilita cuando todos los retos estén completos.</p>
-						</div>
-					</div>
-				<?php endif; ?>
 
 				<div class="gnf-doc-dashboard__quick-grid">
 					<div class="gnf-card">
@@ -935,47 +914,6 @@ $active_tab_title = $tab_titles[$active_docente_tab] ?? 'Dashboard';
 			toggleCoord();
 		}
 
-		// Enviar participación
-		document.querySelectorAll('.gnf-docente-enviar-participacion').forEach(function(btn) {
-			btn.addEventListener('click', function() {
-				var centroId = this.dataset.centroId;
-				var anio = this.dataset.anio || '';
-				if (!centroId) return;
-
-				if (!confirm('¿Enviar todos los retos completos para revisión? El supervisor de tu región los revisará.')) {
-					return;
-				}
-
-				this.disabled = true;
-				this.textContent = 'Enviando...';
-
-				fetch(gnfData.ajaxUrl, {
-						method: 'POST',
-						headers: {
-							'Content-Type': 'application/x-www-form-urlencoded'
-						},
-						body: 'action=gnf_enviar_participacion&nonce=' + gnfData.nonce + '&centro_id=' + centroId + '&anio=' + anio
-					})
-					.then(function(res) {
-						return res.json();
-					})
-					.then(function(data) {
-						if (data.success) {
-							alert('🎉 ' + data.data.message);
-							location.reload();
-						} else {
-							alert('❌ ' + (data.data || 'Error al enviar participación'));
-							btn.disabled = false;
-							btn.textContent = '📤 Enviar Participación para Revisión';
-						}
-					})
-					.catch(function() {
-						alert('❌ Error de conexión');
-						btn.disabled = false;
-						btn.textContent = '📤 Enviar Participación para Revisión';
-					});
-			});
-		});
 
 		// Agregar reto a matrícula
 		document.querySelectorAll('.gnf-docente-agregar-reto').forEach(function(btn) {

@@ -11,6 +11,7 @@
   const reportPreview = new URLSearchParams(location.search).has('report-preview');
   let formMode = new URLSearchParams(location.search).get('form-mode');
   window.__formRequests = [];
+  window.__savedAnswers = {};
   window.__panelRevision = 'preview-initial';
   window.__restorePreviewForm = () => { formMode = null; };
   window.__GNF_DOCENTE__ = {
@@ -43,7 +44,9 @@
   window.fetch = async (input, options) => {
     const url = new URL(String(input), location.origin);
     if (!url.pathname.startsWith('/mock-api')) return nativeFetch(input, options);
-    window.__formRequests.push({ path: url.pathname, method: options?.method || 'GET' });
+    const body = options?.body ? JSON.parse(options.body) : null;
+    window.__formRequests.push({ path: url.pathname, method: options?.method || 'GET', body });
+    const retoId = Number(url.pathname.match(/\/retos\/(\d+)\//)?.[1] || 1);
     let payload = { success: true };
     if (url.pathname.endsWith('/docente/dashboard')) payload = {
       centro: { id: 1, nombre: 'CENTRO EDUCATIVO DE PRUEBA', codigoMep: '0000', regionName: 'NICOYA' },
@@ -68,6 +71,14 @@
     if (url.pathname.endsWith('/form-html') && formMode) {
       payload.html = formMode === 'missing' ? '<div>No se pudo renderizar.</div>' : formMode === 'no-fields' ? '<form></form>' : '';
       if (formMode === 'broken') payload.formError = 'No se pueden mostrar las preguntas en este momento. Tus respuestas y evidencias guardadas siguen disponibles.';
+    }
+    if (url.pathname.endsWith('/form-html')) {
+      payload.reto = retos.find(reto => reto.id === retoId);
+      payload.savedValues = window.__savedAnswers[retoId] || {};
+    }
+    if (url.pathname.endsWith('/autosave')) {
+      window.__savedAnswers[retoId] = Object.fromEntries(Object.entries(body.fields).map(([id, field]) => [id, field.value]));
+      payload = { success: true, savedAt: new Date().toISOString(), entry: retos.find(reto => reto.id === retoId).entry };
     }
     return new Response(JSON.stringify(payload), { status: 200, headers: { 'Content-Type': 'application/json',
       'X-GNF-Panel-Version': window.__panelRevision, 'X-GNF-Panel-Kind': 'docente' } });

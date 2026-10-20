@@ -478,90 +478,14 @@ $progreso_general = $total_retos > 0 ? round(($retos_completados / $total_retos)
                 ?>
             </div>
 
-            <!-- Botón Finalizar Reto -->
-            <?php if ($entry && in_array($entry->estado, array('en_progreso', 'no_iniciado', 'enviado'), true)) : ?>
-                <div style="background: #fef3c7; border-radius: 12px; padding: 20px; margin-top: 24px;">
-                    <p style="margin: 0 0 12px; color: #92400e;">
-                        <strong>¿Completaste todas las evidencias?</strong><br>
-                        Cuando hayas subido todas las evidencias requeridas, haz clic en "Finalizar Reto". El puntaje se calcula automáticamente.
-                    </p>
-                    <button type="button"
-                        class="gnf-btn gnf-wizard-finalizar-reto"
-                        data-entry-id="<?php echo esc_attr($entry->id); ?>">
-                        ✅ Finalizar Reto
-                    </button>
-                </div>
-            <?php elseif ($entry && 'completo' === $entry->estado) : ?>
-                <div style="background: #dcfce7; border-radius: 12px; padding: 20px; margin-top: 24px;">
-                    <strong style="color: #16a34a;">✅ Este reto está completo</strong>
-                    <p style="margin: 8px 0 0; color: #166534;">Puedes continuar con el siguiente reto o enviarlo junto con los demás para revisión.</p>
-                </div>
-            <?php elseif ($entry && 'enviado' === $entry->estado) : ?>
-                <div style="background: #dbeafe; border-radius: 12px; padding: 20px; margin-top: 24px;">
-                    <strong style="color: #1d4ed8;">📤 Reto enviado para revisión</strong>
-                    <p style="margin: 8px 0 0; color: #1e40af;">Este reto está pendiente de revisión por el supervisor.</p>
-                </div>
-            <?php elseif ($entry && 'aprobado' === $entry->estado) : ?>
+            <?php if ($entry && 'aprobado' === $entry->estado) : ?>
+
                 <div style="background: #dcfce7; border-radius: 12px; padding: 20px; margin-top: 24px;">
                     <strong style="color: #16a34a;">🏆 ¡Reto aprobado!</strong>
                     <p style="margin: 8px 0 0; color: #166534;">Ganaste <?php echo esc_html($entry->puntaje); ?> puntos con este reto.</p>
                 </div>
             <?php endif; ?>
 
-        <?php elseif ('enviar' === $current_step['type']) : ?>
-            <!-- Paso Final: Enviar Participación -->
-            <?php $can_submit = $current_step['can_submit'] ?? false; ?>
-
-            <div class="gnf-wizard__submit-panel<?php echo ! $can_submit ? ' gnf-wizard__submit-panel--blocked' : ''; ?>">
-                <?php if ($can_submit) : ?>
-                    <h3>🎉 ¡Todos los retos están completos!</h3>
-                    <p>Has completado todos los eco retos matriculados. Revisa el resumen a continuación y envía tu participación para revisión.</p>
-                <?php else : ?>
-                    <h3>⏳ Completa todos los retos primero</h3>
-                    <p>Debes completar todos los eco retos matriculados antes de poder enviar tu participación.</p>
-                <?php endif; ?>
-
-                <!-- Resumen de retos -->
-                <div class="gnf-wizard__summary">
-                    <?php foreach ($steps as $step) :
-                        if ('reto' !== $step['type']) continue;
-                        $is_complete = in_array($step['estado'], array('completo', 'enviado', 'aprobado'), true);
-                    ?>
-                        <div class="gnf-wizard__summary-item <?php echo $is_complete ? 'gnf-wizard__summary-item--complete' : 'gnf-wizard__summary-item--pending'; ?>">
-                            <?php if (is_string($step['icon']) && strpos($step['icon'], 'http') === 0) : ?>
-                                <span style="position:relative;flex-shrink:0;">
-                                    <img src="<?php echo esc_url($step['icon']); ?>" alt="" style="width:36px;height:36px;object-fit:contain;border-radius:6px;display:block;" />
-                                    <?php if ($is_complete) : ?>
-                                        <span style="position:absolute;bottom:-4px;right:-4px;background:#22c55e;color:#fff;border-radius:50%;width:16px;height:16px;font-size:10px;display:flex;align-items:center;justify-content:center;">✓</span>
-                                    <?php endif; ?>
-                                </span>
-                            <?php else : ?>
-                                <span style="font-size:24px;flex-shrink:0;"><?php echo $is_complete ? '✅' : esc_html($step['icon']); ?></span>
-                            <?php endif; ?>
-                            <div>
-                                <strong><?php echo esc_html($step['title']); ?></strong>
-                                <small style="display: block; opacity: 0.8;">
-                                    <?php echo esc_html(gnf_get_estado_label($step['estado'])); ?>
-                                </small>
-                            </div>
-                        </div>
-                    <?php endforeach; ?>
-                </div>
-
-                <?php if ($can_submit) : ?>
-                    <button type="button"
-                        class="gnf-btn gnf-wizard-enviar-participacion"
-                        data-centro-id="<?php echo esc_attr($centro_id); ?>"
-                        data-anio="<?php echo esc_attr($anio); ?>"
-                        style="background: #fff; color: #369484; font-size: 18px; padding: 16px 32px; margin-top: 24px;">
-                        📤 Enviar Participación para Revisión
-                    </button>
-                <?php else : ?>
-                    <p style="margin-top: 24px; opacity: 0.7;">
-                        Vuelve a los pasos anteriores para completar los retos pendientes.
-                    </p>
-                <?php endif; ?>
-            </div>
         <?php endif; ?>
 
         <!-- Navegación -->
@@ -598,90 +522,6 @@ $progreso_general = $total_retos > 0 ? round(($retos_completados / $total_retos)
 
 <script>
     document.addEventListener('DOMContentLoaded', function() {
-        var wizardRoot = document.querySelector('.gnf-wizard');
-        var wizardAnio = wizardRoot ? wizardRoot.dataset.anio : '';
-
-        // Finalizar reto
-        document.querySelectorAll('.gnf-wizard-finalizar-reto').forEach(function(btn) {
-            btn.addEventListener('click', function() {
-                if (this.disabled) return;
-
-                var entryId = this.dataset.entryId;
-                if (!entryId) return;
-
-                this.disabled = true;
-                this.textContent = 'Procesando...';
-
-                fetch(gnfData.ajaxUrl, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/x-www-form-urlencoded'
-                        },
-                        body: 'action=gnf_finalizar_reto&nonce=' + gnfData.nonce + '&entry_id=' + entryId + '&anio=' + encodeURIComponent(wizardAnio || '')
-                    })
-                    .then(function(res) {
-                        return res.json();
-                    })
-                    .then(function(data) {
-                        if (data.success) {
-                            alert('✅ ' + data.data.message);
-                            location.reload();
-                        } else {
-                            alert('❌ ' + (data.data || 'Error al finalizar reto'));
-                            btn.disabled = false;
-                            btn.textContent = '✅ Finalizar Reto';
-                        }
-                    })
-                    .catch(function() {
-                        alert('❌ Error de conexión');
-                        btn.disabled = false;
-                        btn.textContent = '✅ Finalizar Reto';
-                    });
-            });
-        });
-
-        // Enviar participación
-        document.querySelectorAll('.gnf-wizard-enviar-participacion').forEach(function(btn) {
-            btn.addEventListener('click', function() {
-                var centroId = this.dataset.centroId;
-                var anio = this.dataset.anio || wizardAnio || '';
-                if (!centroId) return;
-
-                if (!confirm('¿Estás seguro de enviar tu participación? Una vez enviada, será revisada por el supervisor.')) {
-                    return;
-                }
-
-                this.disabled = true;
-                this.textContent = 'Enviando...';
-
-                fetch(gnfData.ajaxUrl, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/x-www-form-urlencoded'
-                        },
-                        body: 'action=gnf_enviar_participacion&nonce=' + gnfData.nonce + '&centro_id=' + centroId + '&anio=' + encodeURIComponent(anio)
-                    })
-                    .then(function(res) {
-                        return res.json();
-                    })
-                    .then(function(data) {
-                        if (data.success) {
-                            alert('🎉 ' + data.data.message);
-                            location.reload();
-                        } else {
-                            alert('❌ ' + (data.data || 'Error al enviar participación'));
-                            btn.disabled = false;
-                            btn.textContent = '📤 Enviar Participación para Revisión';
-                        }
-                    })
-                    .catch(function() {
-                        alert('❌ Error de conexión');
-                        btn.disabled = false;
-                        btn.textContent = '📤 Enviar Participación para Revisión';
-                    });
-            });
-        });
-
         // Botón de ayuda
         document.querySelectorAll('.gnf-wizard-ayuda').forEach(function(btn) {
             btn.addEventListener('click', function() {

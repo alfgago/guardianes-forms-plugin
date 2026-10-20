@@ -753,6 +753,11 @@ function gnf_rest_get_entry_counts_by_centro( $centro_ids, $anio ) {
 		}
 	}
 
+	$pending = gnf_get_pending_review_counts( $anio, $centro_ids );
+	foreach ( $counts as $centro_id => &$count ) {
+		$count['enviados'] = (int) ( $pending['centros'][ $centro_id ] ?? 0 );
+	}
+	unset( $count );
 	return $counts;
 }
 
@@ -2982,6 +2987,10 @@ function gnf_rest_supervisor_dashboard( WP_REST_Request $request ) {
 			}
 		}
 	}
+
+	$pending = gnf_get_pending_review_counts( $anio, $centro_ids );
+	$stats['enviados'] = $pending['total'];
+	$stats['pendientes'] = $pending['total'];
 
 	return array(
 		'stats'              => $stats,

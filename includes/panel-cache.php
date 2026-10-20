@@ -23,6 +23,7 @@ function gnf_panel_cache_context( $teacher ) {
 	$id = (int) $user->ID;
 	$center = $teacher ? (int) gnf_get_centro_for_docente( $id ) : 0;
 	return array(
+		'schema' => 2,
 		'user' => $id, 'roles' => (array) $user->roles, 'caps' => (array) $user->allcaps,
 		'year' => gnf_get_active_year(), 'center' => $center,
 		'state' => $teacher ? gnf_get_docente_estado( $id ) : gnf_get_supervisor_estado( $id ),

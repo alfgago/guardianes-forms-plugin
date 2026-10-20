@@ -52,6 +52,28 @@ try {
   await verify(`window.__formRequests.slice(window.__beforeRevision).some(r => r.path.endsWith('/docente/dashboard'))`, 'An external review revision refetches the teacher dashboard');
   await verify(`window.__editedForm === document.querySelector('#wpforms-form-10') && document.querySelector('#wpforms-10-field_2').value === 'Comentario sin enviar'`, 'Background revision preserves the live form DOM and unsaved text');
   await verify(`window.__formRequests.filter(r => r.path.endsWith('/form-html')).length === window.__beforeForms`, 'Revision does not request a new personalized form');
+  browser('set', 'viewport', '1366', '900');
+  browser('open', `${origin}/preview-docente.html?p=formularios`);
+  await verify(`document.querySelector('#wpforms-10-field_2') !== null`, 'Teacher questions load without final submission');
+  await verify(`!Array.from(document.querySelectorAll('button')).some(b => /Enviar|Finalizar reto|Marcar reto/.test(b.innerText))`, 'No redundant completion or send controls');
+  browser('fill', '#wpforms-10-field_2', 'Respuesta guardada sin envio final');
+  browser('press', 'Tab');
+  await verify(`window.__savedAnswers[1]?.['2'] === 'Respuesta guardada sin envio final'`, 'Blur autosaves the actual field value without submission');
+  evaluate(`Array.from(document.querySelectorAll('button')).find(b => b.innerText.trim() === '5. RETO ECO LONCHERA').scrollIntoView({block:'center'}); true`);
+  browser('find', 'role', 'button', 'click', '--name', '5. RETO ECO LONCHERA', '--exact');
+  await verify(`document.querySelector('[aria-current=step]')?.innerText.includes('LONCHERA')`, 'Horizontal navigation opens the last challenge');
+  await verify(`Array.from(document.querySelectorAll('button')).some(b => b.innerText.trim() === 'Siguiente' && b.disabled)`, 'Next is disabled at the actual last challenge');
+  await verify(`window.__formRequests.some(r => r.path.endsWith('/retos/5/form-html'))`, 'Last challenge loads its own questions');
+  browser('fill', '#wpforms-10-field_2', 'Respuesta del ultimo reto');
+  evaluate(`Array.from(document.querySelectorAll('button')).find(b => b.innerText.trim() === 'Guardar ahora').scrollIntoView({block:'center'}); true`);
+  browser('find', 'role', 'button', 'click', '--name', 'Guardar ahora', '--exact');
+  await verify(`window.__savedAnswers[5]?.['2'] === 'Respuesta del ultimo reto'`, 'Save now persists the last challenge separately');
+  await verify(`window.__formRequests.filter(r => r.path.endsWith('/autosave')).every(r => r.body.year === 2026 && r.body.formId === 10)`, 'Saves retain form and annual context');
+  await verify(`!window.__formRequests.some(r => r.path.endsWith('/submit') || r.path.endsWith('/finalize'))`, 'Saving and navigation never invoke annual submit or finalize');
+  browser('screenshot', join(screenshots, 'last-challenge-desktop.png'), '--full');
+  browser('set', 'viewport', '390', '844');
+  await verify(`document.documentElement.scrollWidth <= innerWidth`, 'Challenge navigation fits mobile without the send tab');
+  browser('screenshot', join(screenshots, 'last-challenge-mobile.png'), '--full');
   assert.equal(browser('errors'), '', 'No uncaught browser errors'); checks++;
   console.log(`${checks} browser checks passed`);
 } finally { browser('close'); }

@@ -5,7 +5,7 @@
  * Decisión BAE: Los docentes NO llenan formularios separados por reto.
  * Llenan un solo formulario maestro tipo wizard dividido así:
  *   Paso 1+: Un paso por cada reto matriculado
- *   Paso final: Revisión y envío
+ *   Las evidencias guardadas quedan disponibles para revision, sin envio final.
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -48,6 +48,9 @@ function gnf_render_wizard() {
 	$paso_actual = isset( $_GET['paso'] ) ? absint( $_GET['paso'] ) : 1;
 	$steps       = gnf_get_wizard_steps( $centro_id, $anio );
 	$total_steps = count( $steps );
+	if ( 0 === $total_steps ) {
+		return '<p>No hay retos disponibles para este centro educativo.</p>';
+	}
 
 	// Validar paso actual.
 	if ( $paso_actual < 1 || $paso_actual > $total_steps ) {
@@ -122,19 +125,6 @@ function gnf_get_wizard_steps( $centro_id, $anio ) {
 			);
 		}
 	}
-
-	// Paso final: Revisión y Envío.
-	$all_complete = gnf_are_all_retos_complete( $centro_id, $anio );
-	$steps[] = array(
-		'id'          => 'enviar',
-		'title'       => 'Enviar Participación',
-		'type'        => 'enviar',
-		'form_id'     => 0,
-		'icon'        => '📤',
-		'description' => 'Revisa y envía tu participación',
-		'estado'      => $all_complete ? 'listo' : 'bloqueado',
-		'can_submit'  => $all_complete,
-	);
 
 	return $steps;
 }

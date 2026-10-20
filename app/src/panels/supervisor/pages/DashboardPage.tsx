@@ -249,7 +249,7 @@ export function DashboardPage({ onViewCentro }: DashboardPageProps) {
       {stats && (
         <StatsGrid>
           <StatCard label="Centros" value={stats.centros} icon={<School size={24} />} color="#0369a1" bg="#e0f2fe" />
-          <StatCard label="Pendientes" value={stats.enviados} icon={<Clock size={24} />} color="#d97706" bg="var(--gnf-sun-light)" />
+          <StatCard label="Retos por revisar" value={stats.enviados} icon={<Clock size={24} />} color="#d97706" bg="var(--gnf-sun-light)" />
           <StatCard label="Aprobados" value={stats.aprobados} icon={<CheckCircle2 size={24} />} color="#16a34a" bg="#dcfce7" />
           <StatCard label="Corrección" value={stats.correccion} icon={<AlertCircle size={24} />} color="#dc2626" bg="var(--gnf-coral-light)" />
         </StatsGrid>

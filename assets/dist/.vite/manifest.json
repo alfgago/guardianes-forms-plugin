@@ -33,8 +33,8 @@
       "assets/ImpactPanel-C8teB6lN.css"
     ]
   },
-  "_SupervisorPanel-9rMG36aC.js": {
-    "file": "chunks/SupervisorPanel-9rMG36aC.js",
+  "_SupervisorPanel-2J0mFMwR.js": {
+    "file": "chunks/SupervisorPanel-2J0mFMwR.js",
     "name": "SupervisorPanel",
     "imports": [
       "_query-D6iAQj8b.js",
@@ -96,7 +96,7 @@
     ]
   },
   "src/entries/admin.tsx": {
-    "file": "admin-DH6tW5qG.js",
+    "file": "admin-DQzw40Pb.js",
     "name": "admin",
     "src": "src/entries/admin.tsx",
     "isEntry": true,
@@ -125,14 +125,14 @@
     ]
   },
   "src/entries/comite.tsx": {
-    "file": "comite-Bqb76UNC.js",
+    "file": "comite-DtYT9JbI.js",
     "name": "comite",
     "src": "src/entries/comite.tsx",
     "isEntry": true,
     "imports": [
       "_query-D6iAQj8b.js",
       "_components-Do3uU8af.js",
-      "_SupervisorPanel-9rMG36aC.js",
+      "_SupervisorPanel-2J0mFMwR.js",
       "_formatters-C8AUi0ZB.js",
       "_react-BGA4by52.js",
       "_FeedbackBubble-CGcUMYFL.js",
@@ -141,7 +141,7 @@
     ]
   },
   "src/entries/docente.tsx": {
-    "file": "docente-Bb0L21yR.js",
+    "file": "docente-DpZqOFxt.js",
     "name": "docente",
     "src": "src/entries/docente.tsx",
     "isEntry": true,
@@ -155,14 +155,14 @@
     ]
   },
   "src/entries/supervisor.tsx": {
-    "file": "supervisor-DEDDL3fe.js",
+    "file": "supervisor-w1FDLWHP.js",
     "name": "supervisor",
     "src": "src/entries/supervisor.tsx",
     "isEntry": true,
     "imports": [
       "_query-D6iAQj8b.js",
       "_components-Do3uU8af.js",
-      "_SupervisorPanel-9rMG36aC.js",
+      "_SupervisorPanel-2J0mFMwR.js",
       "_formatters-C8AUi0ZB.js",
       "_react-BGA4by52.js",
       "_FeedbackBubble-CGcUMYFL.js",

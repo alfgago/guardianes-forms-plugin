@@ -49,17 +49,29 @@ function gnf_get_report_data( $region_id = null, $anio = null ) {
 
 	$where   = $wpdb->prepare( 'WHERE e.anio = %d', $anio );
 	$join    = 'INNER JOIN ' . $wpdb->posts . ' c ON c.ID = e.centro_id';
-	$join   .= ' LEFT JOIN ' . $wpdb->term_relationships . ' tr ON tr.object_id = c.ID';
-	$join   .= ' LEFT JOIN ' . $wpdb->term_taxonomy . ' tt ON tt.term_taxonomy_id = tr.term_taxonomy_id AND tt.taxonomy = "gn_region"';
-	$join   .= ' LEFT JOIN ' . $wpdb->terms . ' t ON t.term_id = tt.term_id';
+	$join   .= ' LEFT JOIN (' . $wpdb->term_relationships . ' tr INNER JOIN ' . $wpdb->term_taxonomy . ' tt ON tt.term_taxonomy_id = tr.term_taxonomy_id AND tt.taxonomy = "gn_region" INNER JOIN ' . $wpdb->terms . ' t ON t.term_id = tt.term_id) ON tr.object_id = c.ID';
 
 	if ( $region_id ) {
 		$where .= $wpdb->prepare( ' AND t.term_id = %d', $region_id );
 	}
 
-	return $wpdb->get_results(
-		"SELECT e.*, c.post_title as centro, t.name as region FROM {$table} e {$join} {$where} AND e.estado IN ('aprobado','enviado')"
+	$items = $wpdb->get_results(
+		"SELECT e.*, c.post_title as centro, t.name as region FROM {$table} e {$join} {$where} ORDER BY e.centro_id, e.reto_id"
 	);
+	foreach ( (array) $items as $item ) {
+		$status = gnf_get_reto_entry_computed_status( $item );
+		// A saved response belongs in the report even without a manual final submission.
+		if ( $status['pendientes'] > 0 ) {
+			$item->estado = 'Por revisar';
+		} elseif ( $status['rechazadas'] > 0 ) {
+			$item->estado = 'Requiere correcciones';
+		} elseif ( $status['pausadas'] > 0 ) {
+			$item->estado = 'En pausa';
+		} elseif ( $status['total'] > 0 ) {
+			$item->estado = 'Evidencias aprobadas';
+		}
+	}
+	return $items;
 }
 
 /**

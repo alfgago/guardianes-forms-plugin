@@ -31,7 +31,7 @@ export function RetosPage() {
                 <ProgressBar value={reto.aprobados} max={reto.total} color="#22c55e" height={4} />
               </div>
               <div>
-                <span style={{ color: '#d97706' }}>Enviados: {reto.enviados}</span>
+                <span style={{ color: '#d97706' }}>Por revisar: {reto.enviados}</span>
                 <ProgressBar value={reto.enviados} max={reto.total} color="var(--gnf-sun)" height={4} />
               </div>
               <div>

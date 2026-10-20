@@ -132,11 +132,8 @@ function gnf_get_admin_stats( $anio = null ) {
 		'fields'     => 'ID',
 	) ) );
 
-	// Retos por estado.
-	$retos_enviados = $wpdb->get_var( $wpdb->prepare(
-		"SELECT COUNT(*) FROM {$table_entries} WHERE estado = 'enviado' AND anio = %d",
-		$anio
-	) );
+	// Keep legacy response keys, but pending review no longer requires annual submission.
+	$retos_enviados = gnf_get_pending_review_counts( $anio )['total'];
 
 	$retos_aprobados = $wpdb->get_var( $wpdb->prepare(
 		"SELECT COUNT(*) FROM {$table_entries} WHERE estado = 'aprobado' AND anio = %d",
@@ -183,7 +180,7 @@ function gnf_get_admin_stats( $anio = null ) {
 }
 
 function gnf_get_admin_stats_summary_cache_key( $anio = null ) {
-	return 'gnf_admin_stats_summary_' . gnf_normalize_year( $anio );
+	return 'gnf_admin_stats_summary_v2_' . gnf_normalize_year( $anio );
 }
 
 function gnf_clear_admin_stats_cache( $anio = null ) {
@@ -239,7 +236,6 @@ function gnf_get_admin_stats_summary( $anio = null ) {
 	$entry_totals         = $wpdb->get_row(
 		$wpdb->prepare(
 			"SELECT
-				SUM(CASE WHEN estado = 'enviado' THEN 1 ELSE 0 END) AS retos_enviados,
 				SUM(CASE WHEN estado = 'aprobado' THEN 1 ELSE 0 END) AS retos_aprobados,
 				SUM(CASE WHEN estado = 'correccion' THEN 1 ELSE 0 END) AS retos_correccion,
 				SUM(CASE WHEN estado IN ('en_progreso', 'no_iniciado', 'completo') THEN 1 ELSE 0 END) AS retos_en_progreso,
@@ -260,7 +256,7 @@ function gnf_get_admin_stats_summary( $anio = null ) {
 		'pending_docentes'    => $pending_docentes,
 		'pending_supervisors' => $pending_supervisors,
 		'pending_users'       => $pending_docentes + $pending_supervisors,
-		'retos_enviados'      => (int) ( $entry_totals['retos_enviados'] ?? 0 ),
+		'retos_enviados'      => gnf_get_pending_review_counts( $anio )['total'],
 		'retos_aprobados'     => (int) ( $entry_totals['retos_aprobados'] ?? 0 ),
 		'retos_correccion'    => (int) ( $entry_totals['retos_correccion'] ?? 0 ),
 		'retos_en_progreso'   => (int) ( $entry_totals['retos_en_progreso'] ?? 0 ),
@@ -392,6 +388,7 @@ function gnf_get_retos_for_admin( $anio = null ) {
 
 	$table_entries = $wpdb->prefix . 'gn_reto_entries';
 	$anio          = gnf_normalize_year( $anio );
+	$pending       = gnf_get_pending_review_counts( $anio );
 
 	$retos = get_posts( array(
 		'post_type'      => 'reto',
@@ -406,7 +403,6 @@ function gnf_get_retos_for_admin( $anio = null ) {
 			"SELECT 
 				COUNT(*) as total,
 				SUM(CASE WHEN estado = 'aprobado' THEN 1 ELSE 0 END) as aprobados,
-				SUM(CASE WHEN estado = 'enviado' THEN 1 ELSE 0 END) as enviados,
 				SUM(CASE WHEN estado = 'correccion' THEN 1 ELSE 0 END) as correccion,
 				SUM(puntaje) as puntos_totales
 			 FROM {$table_entries}
@@ -414,6 +410,7 @@ function gnf_get_retos_for_admin( $anio = null ) {
 			$reto->ID,
 			$anio
 		) );
+		$stats->enviados = (int) ( $pending['retos'][ $reto->ID ] ?? 0 );
 
 		$result[] = array(
 			'reto'  => $reto,
@@ -434,13 +431,13 @@ function gnf_get_reports_data( $anio = null ) {
 
 	$table_entries = $wpdb->prefix . 'gn_reto_entries';
 	$anio          = gnf_normalize_year( $anio );
+	$pending       = gnf_get_pending_review_counts( $anio );
 
 	// Resumen por región.
 	$por_region = $wpdb->get_results( $wpdb->prepare(
 		"SELECT t.name as region, t.term_id,
 			COUNT(DISTINCT e.centro_id) as centros,
 			SUM(CASE WHEN e.estado = 'aprobado' THEN 1 ELSE 0 END) as aprobados,
-			SUM(CASE WHEN e.estado = 'enviado' THEN 1 ELSE 0 END) as pendientes,
 			SUM(CASE WHEN e.estado = 'aprobado' THEN e.puntaje ELSE 0 END) as puntos
 		 FROM {$table_entries} e
 		 INNER JOIN {$wpdb->posts} p ON e.centro_id = p.ID
@@ -452,6 +449,17 @@ function gnf_get_reports_data( $anio = null ) {
 		 ORDER BY t.name",
 		$anio
 	) );
+
+	$region_pending = array();
+	$terms = $pending['centros'] ? wp_get_object_terms( array_keys( $pending['centros'] ), 'gn_region', array( 'fields' => 'all_with_object_id' ) ) : array();
+	if ( ! is_wp_error( $terms ) ) {
+		foreach ( $terms as $term ) {
+			$region_pending[ $term->term_id ] = ( $region_pending[ $term->term_id ] ?? 0 ) + ( $pending['centros'][ $term->object_id ] ?? 0 );
+		}
+	}
+	foreach ( $por_region as $region ) {
+		$region->pendientes = (int) ( $region_pending[ $region->term_id ] ?? 0 );
+	}
 
 	// Top 10 centros por puntaje.
 	$top_centros = $wpdb->get_results( $wpdb->prepare(
@@ -472,14 +480,16 @@ function gnf_get_reports_data( $anio = null ) {
 	// Estadísticas mensuales del año actual.
 	$por_mes = $wpdb->get_results( $wpdb->prepare(
 		"SELECT MONTH(updated_at) as mes,
-			SUM(CASE WHEN estado = 'aprobado' THEN 1 ELSE 0 END) as aprobados,
-			SUM(CASE WHEN estado = 'enviado' THEN 1 ELSE 0 END) as enviados
+			SUM(CASE WHEN estado = 'aprobado' THEN 1 ELSE 0 END) as aprobados
 		 FROM {$table_entries}
 		 WHERE anio = %d
 		 GROUP BY MONTH(updated_at)
 		 ORDER BY mes",
 		$anio
 	) );
+	foreach ( $por_mes as $month ) {
+		$month->enviados = (int) ( $pending['meses'][ (int) $month->mes ] ?? 0 );
+	}
 
 	return array(
 		'por_region'  => $por_region,
