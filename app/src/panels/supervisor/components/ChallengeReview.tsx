@@ -103,7 +103,14 @@ export function ChallengeReview({ entries, centroId, year }: { entries: ReviewEn
           <button className="gnf-review-arrow" aria-label="Ver más retos" title="Ver más retos" onClick={() => tablist.current?.scrollBy({ left: 320 })}><ChevronRight size={20} /></button>
         </div>
         <div className="gnf-review-filters" role="group" aria-label="Filtrar evidencias">
-          {reviewFilters.map(item => <button key={item.value} data-status={item.value} aria-pressed={filter === item.value} disabled={editing} onClick={() => setFilter(item.value)}>{item.label} <strong>{counts[item.value]}</strong></button>)}
+          {reviewFilters.map(item => <button
+            key={item.value}
+            data-status={item.value}
+            aria-pressed={item.value === 'pendiente' ? undefined : filter === item.value}
+            title={item.value === 'pendiente' ? 'Ver todas las evidencias del reto' : undefined}
+            disabled={editing}
+            onClick={() => setFilter(item.value === 'pendiente' ? 'all' : item.value)}
+          >{item.label} <strong>{counts[item.value]}</strong></button>)}
         </div>
         {editing && <p className="gnf-review-editing" role="status">Guarda o cancela el comentario para cambiar de reto o filtro.</p>}
       </div>

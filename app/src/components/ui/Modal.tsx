@@ -1,4 +1,5 @@
 import { useEffect, useId, useRef, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 
 interface ModalProps {
@@ -77,11 +78,13 @@ export function Modal({ open, onClose, title, children, width = '560px', bodyPad
     };
   }, [open, onClose]);
 
-  if (!open) return null;
+  if (!open || typeof document === 'undefined') return null;
 
-  return (
+  // Escape opacity/transform stacking contexts in evidence cards and panel layouts.
+  return createPortal(
     <div
       ref={overlayRef}
+      className="gnf-modal-overlay"
       onClick={(e) => { if (e.target === overlayRef.current) onClose(); }}
       style={{
         position: 'fixed',
@@ -92,6 +95,8 @@ export function Modal({ open, onClose, title, children, width = '560px', bodyPad
         justifyContent: 'center',
         zIndex: 9000,
         padding: 'var(--gnf-space-4)',
+        fontFamily: 'var(--gnf-font-body)',
+        color: 'var(--gnf-text)',
       }}
     >
       <div
@@ -145,6 +150,7 @@ export function Modal({ open, onClose, title, children, width = '560px', bodyPad
         )}
         <div style={{ padding: bodyPadding }}>{children}</div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

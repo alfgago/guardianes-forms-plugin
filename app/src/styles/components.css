@@ -1,7 +1,8 @@
 /* Protect lucide-react SVG icons from WordPress theme overrides.
    Themes like Astra apply global svg { fill: currentColor; width: 1em; }
    which breaks stroke-based lucide icons. */
-.gnf-shell svg {
+.gnf-shell svg,
+.gnf-modal-overlay svg {
   fill: none;
   stroke: currentColor;
   stroke-width: 2;
