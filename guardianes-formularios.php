@@ -51,6 +51,8 @@ function gnf_asset_version( $relative_path ) {
 require_once 'includes/evidence-dates.php';
 require_once 'includes/evidence-review.php';
 require_once 'includes/evidence-notifications.php';
+require_once 'includes/notification-summary.php';
+require_once 'includes/work-locks.php';
 require_once 'includes/helpers.php';
 require_once 'includes/docente-summary.php';
 require_once 'includes/feature-rollout.php';
@@ -90,6 +92,7 @@ require_once 'includes/react-loader.php';
 require_once 'includes/feedback.php';
 require_once 'includes/rest-api.php';
 require_once 'includes/panel-cache.php';
+require_once 'includes/performance.php';
 
 if ( defined( 'WP_CLI' ) && WP_CLI ) {
 	require_once 'includes/cli/class-gnf-merge-centros-command.php';
@@ -159,12 +162,7 @@ function gnf_maybe_disable_page_cache() {
 	if ( ! defined( 'DONOTCACHEPAGE' ) ) {
 		define( 'DONOTCACHEPAGE', true );
 	}
-	if ( ! defined( 'DONOTCACHEOBJECT' ) ) {
-		define( 'DONOTCACHEOBJECT', true );
-	}
-	if ( ! defined( 'DONOTCACHEDB' ) ) {
-		define( 'DONOTCACHEDB', true );
-	}
+	// Private HTML must not be page-cached; internal object caching remains usable.
 	if ( ! defined( 'DONOTMINIFY' ) ) {
 		define( 'DONOTMINIFY', true );
 	}

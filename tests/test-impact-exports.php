@@ -40,25 +40,29 @@ class Impact_Job_DB {
 	public function prepare( $sql, ...$args ) { $this->args = $args; return $sql; }
 	public function query( $sql ) {
 		$this->last_error = '';
-		if ( ! empty( $GLOBALS['before_sql'] ) ) { $hook = $GLOBALS['before_sql']; unset( $GLOBALS['before_sql'] ); $hook( $sql, $this->args ); }
+		$args = $this->args;
+		if ( ! empty( $GLOBALS['before_sql'] ) ) { $hook = $GLOBALS['before_sql']; unset( $GLOBALS['before_sql'] ); $hook( $sql, $args ); }
 		if ( ! empty( $GLOBALS['sql_failure'] ) && false !== stripos( $sql, $GLOBALS['sql_failure'] ) ) { unset( $GLOBALS['sql_failure'] ); $this->last_error = 'Fixture SQL failure'; return false; }
 		if ( 0 === strpos( $sql, 'INSERT IGNORE' ) ) {
-			list( $key, $serialized ) = $this->args;
+			list( $key, $serialized ) = $args;
 			if ( isset( $GLOBALS['job_options'][ $key ] ) ) { return 0; }
 			$GLOBALS['job_options'][ $key ] = unserialize( $serialized ); return 1;
 		}
 		if ( 0 === strpos( $sql, 'UPDATE' ) ) {
-			list( $lock_key, $lock_value, $new_value, $key, $expected ) = $this->args;
+			list( $lock_key, $lock_value, $new_value, $key, $expected ) = $args;
 			if ( serialize( get_option( $lock_key ) ) !== $lock_value || serialize( get_option( $key ) ) !== $expected ) { return 0; }
-			$GLOBALS['job_options'][ $key ] = unserialize( $new_value ); return 1;
+			if ( count( $args ) > 5 && serialize( get_option( 'gnf_impact_pdf_global_lock' ) ) !== $args[5] ) { return 0; }
+			$GLOBALS['job_options'][ $key ] = unserialize( $new_value );
+			if ( ! empty( $GLOBALS['after_job_update'] ) ) { $hook = $GLOBALS['after_job_update']; unset( $GLOBALS['after_job_update'] ); $hook( $key, $GLOBALS['job_options'][ $key ] ); }
+			return 1;
 		}
 		if ( 0 === strpos( $sql, 'DELETE job' ) ) {
-			list( $lock_key, $key, $expected, $lock_value ) = $this->args;
+			list( $lock_key, $key, $expected, $lock_value ) = $args;
 			$actual_lock = get_option( $lock_key, null );
 			if ( serialize( get_option( $key ) ) !== $expected || ( null === $actual_lock ? '' : serialize( $actual_lock ) ) !== $lock_value ) { return 0; }
 			delete_option( $key ); return 1;
 		}
-		list( $key, $serialized ) = $this->args;
+		list( $key, $serialized ) = $args;
 		if ( isset( $GLOBALS['job_options'][ $key ] ) && serialize( $GLOBALS['job_options'][ $key ] ) === $serialized ) { delete_option( $key ); return 1; } return 0;
 	}
 	public function get_var( $sql ) { $this->last_error = ''; return isset( $GLOBALS['job_options'][ $this->args[0] ] ) ? serialize( $GLOBALS['job_options'][ $this->args[0] ] ) : null; }
@@ -307,6 +311,11 @@ if ( function_exists( 'gnf_impact_pdf_owned_update' ) ) {
 	check_impact_export( false === gnf_impact_pdf_owned_update( $atomic_key, $first, array( 'status' => 'ready' ), $lease_key, $owner ) && get_option( $atomic_key ) === $first, 'SQL checkpoint failure retains last good state and reports failure' );
 	$expired_owner = $owner; $expired_owner['expires'] = time() - 1; update_option( $lease_key, $expired_owner );
 	check_impact_export( 0 === gnf_impact_pdf_owned_update( $atomic_key, $first, array( 'status' => 'failed' ), $lease_key, $expired_owner ) && get_option( $atomic_key ) === $first, 'Expired owner cannot persist failure over last good state' );
+	update_option( $lease_key, $owner ); update_option( 'gnf_impact_pdf_global_lock', $owner );
+	$before_sql = static function () use ( $successor ) { update_option( 'gnf_impact_pdf_global_lock', $successor ); };
+	check_impact_export( 0 === gnf_impact_pdf_owned_update( $atomic_key, $first, array( 'status' => 'ready' ), $lease_key, $owner, $owner ) && get_option( $atomic_key ) === $first, 'Global lease takeover immediately before SQL also fences publication' );
+	check_impact_export( ! gnf_release_work_lock( 'gnf_impact_pdf_global_lock', $owner ) && $successor === get_option( 'gnf_impact_pdf_global_lock' ), 'An obsolete PDF worker cannot release a replacement global lease' );
+	delete_option( 'gnf_impact_pdf_global_lock' );
 	gnf_cleanup_impact_pdf_job( $atomic_key, true, $first );
 	$sql_failure = 'INSERT IGNORE';
 	check_impact_export( is_wp_error( gnf_get_impact_pdf_job( $scoped, 'full' ) ), 'SQL job insertion failure never reports queued success' );
@@ -352,12 +361,48 @@ if ( function_exists( 'gnf_get_impact_pdf_job' ) ) {
 	add_option( $lock_key, array( 'token' => 'other-worker', 'expires' => time() + 600 ) );
 	gnf_run_impact_pdf_job( $job['key'] );
 	check_impact_export( 'queued' === get_option( $job['key'] )['status'], 'Concurrent worker cannot render a locked job' );
-	update_option( $lock_key, array( 'token' => 'stale-worker', 'expires' => time() - 1 ) );
+	delete_option( $lock_key );
+	$global_key = 'gnf_impact_pdf_global_lock';
+	$global_owner = array( 'token' => 'different-job', 'expires' => time() + 600 );
+	add_option( $global_key, $global_owner );
+	$before_job = get_option( $job['key'] );
+	unset( $job_events['gnf_run_impact_pdf_job' . json_encode( array( $job['key'] ) )] );
 	gnf_run_impact_pdf_job( $job['key'] );
+	$deferred = get_option( $job['key'] );
+	$retry_at = wp_next_scheduled( 'gnf_run_impact_pdf_job', array( $job['key'] ) );
+	check_impact_export( $before_job === $deferred && $retry_at > time() && $retry_at <= $before_job['deadline'], 'Global contention reschedules a different PDF job without changing payload detail generation or deadline' );
+	check_impact_export( $global_owner === get_option( $global_key ) && ! get_option( $lock_key ), 'Deferred worker releases its job lease without releasing the global owner' );
+	// Keep the legacy rendering checks independent when running this regression red.
+	if ( ! empty( $deferred['path'] ) && gnf_impact_pdf_is_private_file( $deferred['path'] ) ) { unlink( $deferred['path'] ); }
+	update_option( $job['key'], $before_job );
+	$near_deadline = $before_job; $near_deadline['deadline'] = time() + 5;
+	update_option( $job['key'], $near_deadline );
+	unset( $job_events['gnf_run_impact_pdf_job' . json_encode( array( $job['key'] ) )] );
+	gnf_run_impact_pdf_job( $job['key'] );
+	check_impact_export( get_option( $job['key'] ) === $near_deadline && wp_next_scheduled( 'gnf_run_impact_pdf_job', array( $job['key'] ) ) <= $near_deadline['deadline'], 'Contention retries never extend the original deadline' );
+	update_option( $job['key'], $before_job );
+	update_option( $global_key, array( 'token' => 'expired-global', 'expires' => time() ) );
+	update_option( $lock_key, array( 'token' => 'stale-worker', 'expires' => time() - 1 ) );
+	$other_job = gnf_get_impact_pdf_job( $scoped, 'summary' ); $other_record = get_option( $other_job['key'] );
+	unset( $job_events['gnf_run_impact_pdf_job' . json_encode( array( $other_job['key'] ) )] );
+	$nested_held = false;
+	$after_job_update = static function() use ( $other_job, $global_key, &$nested_held ) {
+		$held = get_option( $global_key );
+		gnf_run_impact_pdf_job( $other_job['key'] );
+		$nested_held = is_array( $held ) && $held === get_option( $global_key );
+	};
+	gnf_run_impact_pdf_job( $job['key'] );
+	check_impact_export( $nested_held && $other_record === get_option( $other_job['key'] ) && wp_next_scheduled( 'gnf_run_impact_pdf_job', array( $other_job['key'] ) ) > time(), 'Interleaved different-job worker cannot render while the first worker owns generation' );
 	$ready_job = gnf_get_impact_pdf_job( $scoped, 'full' );
 	check_impact_export( 'ready' === $ready_job['status'] && is_file( $ready_job['path'] ) && '%PDF-' === substr( file_get_contents( $ready_job['path'] ), 0, 5 ), 'Cron recovers stale lock and prepares private PDF' );
 	check_impact_export( strpos( realpath( $ready_job['path'] ), realpath( sys_get_temp_dir() ) ) === 0 && strpos( $ready_job['path'], 'uploads' ) === false, 'Prepared PDF is outside public uploads' );
 	check_impact_export( ! get_option( $lock_key ), 'Worker releases its own lock' );
+	check_impact_export( ! get_option( $global_key ), 'Worker recovers an expired global lease and releases it after rendering' );
+	delete_option( $global_key );
+	$throw_job = gnf_get_impact_pdf_job( $new_cut, 'summary' ); $throw_record = get_option( $throw_job['key'] );
+	$before_sql = static function() { throw new RuntimeException( 'Fixture connection failure' ); };
+	gnf_run_impact_pdf_job( $throw_job['key'] );
+	check_impact_export( $throw_record === get_option( $throw_job['key'] ) && ! get_option( $global_key ), 'Acquisition exception defers without dropping the payload or leaking a global lease' );
 	$events_before = $job_events; $spawns_before = $cron_spawns;
 	$cached = gnf_get_impact_pdf_job( $scoped, 'full' );
 	check_impact_export( 'ready' === $cached['status'] && $cached['path'] === $ready_job['path'] && $job_events === $events_before && $cron_spawns === $spawns_before, 'Repeated authorized requests reuse the prepared artifact without scheduling another render' );
@@ -383,6 +428,7 @@ if ( function_exists( 'gnf_get_impact_pdf_job' ) ) {
 	check_impact_export( is_wp_error( gnf_get_impact_pdf_job( $scoped, 'full' ) ), 'Expired preparation ends polling with recoverable error' );
 	$failed = gnf_get_impact_pdf_job( $scoped, 'full' ); $record = get_option( $failed['key'] ); $record['payload']['ready'] = false; update_option( $failed['key'], $record );
 	gnf_run_impact_pdf_job( $failed['key'] );
+	check_impact_export( ! get_option( $global_key ), 'Rendering failure reliably releases the global PDF lease' );
 	check_impact_export( is_wp_error( gnf_get_impact_pdf_job( $scoped, 'full' ) ), 'Worker failure is recoverable and ends polling' );
 	$retry = gnf_get_impact_pdf_job( $scoped, 'full' );
 	check_impact_export( 'queued' === $retry['status'], 'Explicit retry can prepare a new job after failure' );

@@ -8,7 +8,8 @@ export function useBootstrapNotifications() {
   const client = useQueryClient();
   configurePanelQueryCache(client);
   const versions = useRef<Partial<Record<PanelRevision['kind'], string>>>({});
-  const setNotifications = useNotificationStore((s) => s.setNotifications);
+  const setSummary = useNotificationStore((s) => s.setSummary);
+  const notificationVersion = useRef<string>();
 
   useEffect(() => {
     function onRevision(event: Event) {
@@ -22,17 +23,22 @@ export function useBootstrapNotifications() {
   }, [client]);
 
   const query = useQuery({
-    queryKey: ['notifications'],
-    queryFn: () => notificationsApi.getAll(),
+    queryKey: ['notifications', 'summary'],
+    queryFn: ({ signal }) => notificationsApi.getSummary(signal),
     refetchInterval: 60_000,
     refetchOnWindowFocus: false,
   });
 
   useEffect(() => {
     if (query.data) {
-      setNotifications(query.data);
+      setSummary(query.data);
+      const previous = notificationVersion.current;
+      notificationVersion.current = query.data.version;
+      if (previous !== undefined && previous !== query.data.version) {
+        client.invalidateQueries({ queryKey: ['notifications', 'list'] });
+      }
     }
-  }, [query.data, setNotifications]);
+  }, [query.data, setSummary, client]);
 
   return query;
 }

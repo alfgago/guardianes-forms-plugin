@@ -1420,7 +1420,7 @@ function gnf_insert_notification($user_id, $tipo, $mensaje, $relacion_tipo = '',
 	}
 	global $wpdb;
 	$table = $wpdb->prefix . 'gn_notificaciones';
-	$wpdb->insert(
+	$inserted = $wpdb->insert(
 		$table,
 		array(
 			'user_id'       => $user_id,
@@ -1433,6 +1433,9 @@ function gnf_insert_notification($user_id, $tipo, $mensaje, $relacion_tipo = '',
 		),
 		array('%d', '%s', '%s', '%s', '%d', '%d', '%s')
 	);
+	if ( false !== $inserted && function_exists( 'gnf_invalidate_notification_summary' ) ) {
+		gnf_invalidate_notification_summary( $user_id );
+	}
 }
 
 /**
@@ -1473,7 +1476,7 @@ function gnf_insert_or_refresh_notification( $user_id, $tipo, $mensaje, $relacio
 	);
 
 	if ( $notification ) {
-		$wpdb->update(
+		$updated = $wpdb->update(
 			$table,
 			array(
 				'mensaje'    => $mensaje,
@@ -1483,6 +1486,9 @@ function gnf_insert_or_refresh_notification( $user_id, $tipo, $mensaje, $relacio
 			array( '%s', '%s' ),
 			array( '%d' )
 		);
+		if ( false !== $updated && function_exists( 'gnf_invalidate_notification_summary' ) ) {
+			gnf_invalidate_notification_summary( $user_id );
+		}
 
 		return (int) $notification->id;
 	}
@@ -4319,7 +4325,7 @@ function gnf_get_supervisores_by_region($region_id)
  */
 function gnf_get_pending_review_counts( $anio, $centro_ids = null ) {
 	global $wpdb;
-	$counts = array( 'total' => 0, 'centros' => array(), 'retos' => array(), 'meses' => array() );
+	$counts = array( 'total' => 0, 'centros' => array(), 'retos' => array(), 'meses' => array(), 'evidence' => array() );
 	$where = '';
 	$args = array( gnf_normalize_year( $anio ) );
 	if ( null !== $centro_ids ) {
@@ -4337,6 +4343,13 @@ function gnf_get_pending_review_counts( $anio, $centro_ids = null ) {
 		foreach ( (array) $rows as $entry ) {
 			$last_id = (int) $entry->id;
 			$status = gnf_get_reto_entry_computed_status( $entry );
+			$center_id = (int) $entry->centro_id;
+			if ( ! isset( $counts['evidence'][ $center_id ] ) ) {
+				$counts['evidence'][ $center_id ] = array( 'pending' => 0, 'approved' => 0, 'rejected' => 0, 'paused' => 0, 'total' => 0 );
+			}
+			foreach ( array( 'pending' => 'pendientes', 'approved' => 'aprobadas', 'rejected' => 'rechazadas', 'paused' => 'pausadas', 'total' => 'total' ) as $key => $source ) {
+				$counts['evidence'][ $center_id ][ $key ] += (int) $status[ $source ];
+			}
 			if ( ! $status['pendientes'] ) { continue; }
 			$counts['total']++;
 			foreach ( array( 'centros' => (int) $entry->centro_id, 'retos' => (int) $entry->reto_id, 'meses' => (int) substr( $entry->updated_at, 5, 2 ) ) as $group => $id ) {

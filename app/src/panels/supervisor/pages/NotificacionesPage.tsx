@@ -60,8 +60,10 @@ export function NotificacionesPage({ rejectionsOnly = false }: { rejectionsOnly?
   const queryClient = useQueryClient();
 
   const { data: notifications, isLoading } = useQuery({
-    queryKey: ['notifications'],
-    queryFn: () => notificationsApi.getAll(),
+    queryKey: ['notifications', 'list'],
+    queryFn: ({ signal }) => notificationsApi.getAll(signal),
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: false,
   });
 
   useEffect(() => {

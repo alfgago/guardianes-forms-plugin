@@ -61,6 +61,7 @@ check( 41 === $counts['total'], 'Count challenges, not files; include autosaved 
 check( array( 10 => 41 ) === $counts['centros'] && array( 20 => 41 ) === $counts['retos'], 'Scoped aggregation by center and challenge' );
 check( array( 10 => 41 ) === $counts['meses'], 'Monthly aggregation' );
 check( 2 === count( $wpdb->queries ), 'Bounded batches include the second page' );
+check( array( 'pending' => 82, 'approved' => 41, 'rejected' => 41, 'paused' => 41, 'total' => 205 ) === ( $counts['evidence'][10] ?? null ), 'Reuse the same scan for all evidence counters, including unscored reviewable activities' );
 check( 42 === gnf_get_pending_review_counts( 2026 )['total'], 'Global annual aggregation excludes the prior year' );
 $queries = count( $wpdb->queries );
 check( 0 === gnf_get_pending_review_counts( 2026, array() )['total'], 'Empty authorized scope does not become global' );

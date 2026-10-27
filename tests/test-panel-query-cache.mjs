@@ -21,6 +21,9 @@ assert.equal(defaults.get('supervisor-centros').refetchInterval, 7200000);
 assert.equal(defaults.has('wpforms-form-html'), false, 'Active forms are not assigned summary caching');
 assert.equal(defaults.has('matricula-prefill'), false, 'Editable enrollment stays outside summary cache');
 assert.equal(defaults.has('supervisor-centro'), false, 'Review details remain fresh');
+assert.equal(defaults.get('docente-dashboard').retry(5, { code: 'gnf_panel_preparing' }), true, 'A cold concurrent reader keeps waiting without duplicating server work');
+assert.equal(defaults.get('docente-dashboard').retry(6, { code: 'gnf_panel_preparing' }), false, 'Preparation retries remain bounded');
+assert.equal(defaults.get('docente-dashboard').retry(3, { code: 'other_error' }), false, 'Ordinary errors retain the existing retry budget');
 exports.applyPanelRevision(client, undefined, { kind: 'docente', version: 'a' });
 assert.equal(invalidations.length, 0, 'Initial signal does not start a refetch loop');
 exports.applyPanelRevision(client, 'a', { kind: 'docente', version: 'a' });
@@ -31,4 +34,4 @@ assert.equal(invalidations.includes('wpforms-form-html'), false, 'External revie
 invalidations.length = 0;
 exports.applyPanelRevision(client, 'a', { kind: 'supervisor', version: 'b' });
 assert.deepEqual(invalidations, ['supervisor-dashboard', 'supervisor-centros']);
-console.log('12 panel query/cache checks passed');
+console.log('15 panel query/cache checks passed');

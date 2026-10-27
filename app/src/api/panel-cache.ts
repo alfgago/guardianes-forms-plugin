@@ -16,6 +16,10 @@ export function configurePanelQueryCache(client: QueryClient) {
     gcTime: 10 * 60 * 1000,
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
+    retry: (failureCount: number, error: unknown) => {
+      const preparing = typeof error === 'object' && error !== null && 'code' in error && error.code === 'gnf_panel_preparing';
+      return failureCount < (preparing ? 6 : 3);
+    },
   };
   for (const key of ['docente-dashboard', 'docente-retos', 'wizard-steps']) {
     client.setQueryDefaults([key], options);

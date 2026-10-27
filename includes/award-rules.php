@@ -384,13 +384,56 @@ function gnf_award_required_fields_met( $fields, $evidences, $mode ) {
 	return ! in_array( false, $required, true );
 }
 
+/** No result reuse without an invalidation provider for forms and rubric changes. */
+function gnf_award_cache_revision( $centro_id ) {
+	return function_exists( 'gnf_panel_cache_version' )
+		? array( gnf_panel_cache_version( 'center_' . $centro_id ), gnf_panel_cache_version( 'config' ) )
+		: null;
+}
+
 function gnf_get_center_award_result( $centro_id, $anio, $mode = 'projected' ) {
 	global $wpdb;
 	$centro_id = absint( $centro_id );
 	$anio      = function_exists( 'gnf_normalize_year' ) ? gnf_normalize_year( $anio ) : absint( $anio );
 	$mode      = 'validated' === $mode ? 'validated' : 'projected';
+	$revision  = gnf_award_cache_revision( $centro_id );
 	$table     = $wpdb->prefix . 'gn_reto_entries';
 	$entries   = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$table} WHERE centro_id = %d AND anio = %d", $centro_id, $anio ) );
+	$read_ok   = is_array( $entries ) && empty( $wpdb->last_error );
+
+	$tipologia   = function_exists( 'get_field' ) ? get_field( 'tipologia', $centro_id ) : '';
+	$tipo_centro = function_exists( 'get_field' ) ? get_field( 'tipo_centro_educativo', $centro_id ) : '';
+	$tipologia   = $tipologia ?: get_post_meta( $centro_id, 'tipologia', true );
+	$tipo_centro = $tipo_centro ?: get_post_meta( $centro_id, 'tipo_centro_educativo', true );
+	if ( '' === trim( (string) $tipologia ) || '' === trim( (string) $tipo_centro ) ) {
+		$matricula_table = $wpdb->prefix . 'gn_matriculas';
+		$matricula_json  = $wpdb->get_var(
+			$wpdb->prepare(
+				"SELECT data FROM {$matricula_table} WHERE centro_id = %d AND anio = %d ORDER BY id DESC LIMIT 1",
+				$centro_id,
+				$anio
+			)
+		);
+		$read_ok = $read_ok && empty( $wpdb->last_error );
+		$matricula_data = $matricula_json ? json_decode( (string) $matricula_json, true ) : array();
+		if ( is_array( $matricula_data ) ) {
+			$tipologia   = $tipologia ?: ( $matricula_data['centro-tipologia'] ?? $matricula_data['centro_tipologia'] ?? '' );
+			$tipo_centro = $tipo_centro ?: ( $matricula_data['centro-tipo-centro-educativo'] ?? $matricula_data['centro_tipo_centro_educativo'] ?? '' );
+		}
+	}
+
+	$cache_key = '';
+	if ( $read_ok && null !== $revision && function_exists( 'get_transient' ) && function_exists( 'set_transient' ) ) {
+		// Custom-table edits can precede center invalidation, including within this request.
+		$cache_key = 'gnf_award_v1_' . hash( 'sha256', serialize( array( $centro_id, $anio, $mode, $revision, $entries, $tipologia, $tipo_centro ) ) );
+		$cached = get_transient( $cache_key );
+		if ( is_array( $cached ) && 1 === ( $cached['schema'] ?? null ) && is_array( $cached['result'] ?? null )
+			&& $centro_id === ( $cached['result']['centroId'] ?? null ) && $anio === ( $cached['result']['year'] ?? null )
+			&& $mode === ( $cached['result']['mode'] ?? null ) && $revision === gnf_award_cache_revision( $centro_id ) ) {
+			return gnf_normalize_award_labels( $cached['result'] );
+		}
+	}
+
 	$by_slug   = array();
 	$score     = 0;
 
@@ -443,26 +486,6 @@ function gnf_get_center_award_result( $centro_id, $anio, $mode = 'projected' ) {
 		'bienestar_implementacion'        => $response_yes( 'bienestar-animal', 'bienestar_implementacion', 'implementaron el protocolo' ),
 	);
 
-	$tipologia   = function_exists( 'get_field' ) ? get_field( 'tipologia', $centro_id ) : '';
-	$tipo_centro = function_exists( 'get_field' ) ? get_field( 'tipo_centro_educativo', $centro_id ) : '';
-	$tipologia   = $tipologia ?: get_post_meta( $centro_id, 'tipologia', true );
-	$tipo_centro = $tipo_centro ?: get_post_meta( $centro_id, 'tipo_centro_educativo', true );
-	if ( '' === trim( (string) $tipologia ) || '' === trim( (string) $tipo_centro ) ) {
-		$matricula_table = $wpdb->prefix . 'gn_matriculas';
-		$matricula_json  = $wpdb->get_var(
-			$wpdb->prepare(
-				"SELECT data FROM {$matricula_table} WHERE centro_id = %d AND anio = %d ORDER BY id DESC LIMIT 1",
-				$centro_id,
-				$anio
-			)
-		);
-		$matricula_data = $matricula_json ? json_decode( (string) $matricula_json, true ) : array();
-		if ( is_array( $matricula_data ) ) {
-			$tipologia   = $tipologia ?: ( $matricula_data['centro-tipologia'] ?? $matricula_data['centro_tipologia'] ?? '' );
-			$tipo_centro = $tipo_centro ?: ( $matricula_data['centro-tipo-centro-educativo'] ?? $matricula_data['centro_tipo_centro_educativo'] ?? '' );
-		}
-	}
-
 	$result = gnf_evaluate_award(
 		array(
 			'score'       => $score,
@@ -476,7 +499,13 @@ function gnf_get_center_award_result( $centro_id, $anio, $mode = 'projected' ) {
 	$result['generatedAt']  = current_time( 'mysql' );
 	$result['centroId']     = $centro_id;
 	$result['year']         = $anio;
-	update_post_meta( $centro_id, '_gnf_award_' . $anio . '_' . $mode, $result );
+	// Never publish a reusable result if configuration changed while it was built.
+	if ( $read_ok && $revision === gnf_award_cache_revision( $centro_id ) ) {
+		update_post_meta( $centro_id, '_gnf_award_' . $anio . '_' . $mode, $result );
+		if ( $cache_key ) {
+			set_transient( $cache_key, array( 'schema' => 1, 'result' => $result ), 2 * HOUR_IN_SECONDS );
+		}
+	}
 
 	return $result;
 }

@@ -137,6 +137,16 @@ function gnf_register_rest_routes() {
 
 	register_rest_route(
 		$ns,
+		'/notifications/summary',
+		array(
+			'methods'             => 'GET',
+			'callback'            => 'gnf_rest_notifications_summary',
+			'permission_callback' => 'is_user_logged_in',
+		)
+	);
+
+	register_rest_route(
+		$ns,
 		'/notifications/(?P<id>\d+)/read',
 		array(
 			'methods'             => 'PUT',
@@ -728,7 +738,7 @@ function gnf_rest_get_entry_counts_by_centro( $centro_ids, $anio ) {
 		)
 	);
 
-	$counts = array();
+	$counts = array_fill_keys( $centro_ids, array( 'aprobados' => 0, 'enviados' => 0, 'correccion' => 0, 'enProgreso' => 0 ) );
 	foreach ( $rows as $row ) {
 		$centro_id = (int) $row->centro_id;
 		if ( ! isset( $counts[ $centro_id ] ) ) {
@@ -756,6 +766,7 @@ function gnf_rest_get_entry_counts_by_centro( $centro_ids, $anio ) {
 	$pending = gnf_get_pending_review_counts( $anio, $centro_ids );
 	foreach ( $counts as $centro_id => &$count ) {
 		$count['enviados'] = (int) ( $pending['centros'][ $centro_id ] ?? 0 );
+		$count['evidenceCounts'] = $pending['evidence'][ $centro_id ] ?? array( 'pending' => 0, 'approved' => 0, 'rejected' => 0, 'paused' => 0, 'total' => 0 );
 	}
 	unset( $count );
 	return $counts;
@@ -784,32 +795,11 @@ function gnf_rest_build_centro_with_stats( $centro_id, $anio, $counts = array(),
 				: ''
 		);
 
-	// Count evidence states across all entries for this centro.
-	global $wpdb;
-	$ev_table = $wpdb->prefix . 'gn_reto_entries';
-	$ev_rows  = $wpdb->get_col( $wpdb->prepare(
-		"SELECT evidencias FROM {$ev_table} WHERE centro_id = %d AND anio = %d AND evidencias IS NOT NULL AND evidencias != ''",
-		$centro_id,
-		$anio
-	) );
-	$ev_pendientes = 0;
-	$ev_aprobadas  = 0;
-	$ev_rechazadas = 0;
-	$ev_pausadas   = 0;
-	$ev_total      = 0;
-	foreach ( $ev_rows as $ev_json ) {
-		$evs = json_decode( $ev_json, true );
-		foreach ( (array) $evs as $ev ) {
-			if ( ! empty( $ev['replaced'] ) ) continue;
-			$puntos = $ev['puntos'] ?? null;
-			if ( null === $puntos ) continue;
-			$ev_total++;
-			$est = $ev['estado'] ?? 'pendiente';
-			if ( 'aprobada' === $est ) $ev_aprobadas++;
-			elseif ( 'rechazada' === $est ) $ev_rechazadas++;
-			elseif ( 'en_pausa' === $est ) $ev_pausadas++;
-			else $ev_pendientes++;
-		}
+	// Lists reuse the existing bounded evidence scan, rather than querying per center.
+	$evidence = $stats['evidenceCounts'] ?? null;
+	if ( ! is_array( $evidence ) ) {
+		$pending = gnf_get_pending_review_counts( $anio, array( $centro_id ) );
+		$evidence = $pending['evidence'][ $centro_id ] ?? array();
 	}
 
 	return array_merge(
@@ -821,11 +811,11 @@ function gnf_rest_build_centro_with_stats( $centro_id, $anio, $counts = array(),
 			'enviados'       => (int) ( $stats['enviados'] ?? 0 ),
 			'correccion'     => (int) ( $stats['correccion'] ?? 0 ),
 			'enProgreso'     => (int) ( $stats['enProgreso'] ?? 0 ),
-			'evPendientes'   => $ev_pendientes,
-			'evAprobadas'    => $ev_aprobadas,
-			'evRechazadas'   => $ev_rechazadas,
-			'evPausadas'     => $ev_pausadas,
-			'evTotal'        => $ev_total,
+			'evPendientes'   => (int) ( $evidence['pending'] ?? 0 ),
+			'evAprobadas'    => (int) ( $evidence['approved'] ?? 0 ),
+			'evRechazadas'   => (int) ( $evidence['rejected'] ?? 0 ),
+			'evPausadas'     => (int) ( $evidence['paused'] ?? 0 ),
+			'evTotal'        => (int) ( $evidence['total'] ?? 0 ),
 			'canImpersonateDocente' => '' !== $docente_impersonate_url,
 			'docenteImpersonateUrl' => $docente_impersonate_url,
 		),
@@ -1724,15 +1714,16 @@ function gnf_rest_admin_circuitos( WP_REST_Request $request ) {
 	return gnf_get_region_circuitos( $region_id );
 }
 
+function gnf_rest_notifications_summary() {
+	require_once __DIR__ . '/notification-summary.php';
+	return gnf_get_notification_summary( get_current_user_id() );
+}
+
 function gnf_rest_notifications_list() {
-	global $wpdb;
-	$table   = $wpdb->prefix . 'gn_notificaciones';
+	require_once __DIR__ . '/notification-summary.php';
 	$user_id = get_current_user_id();
 	$rejections_only = gnf_user_receives_only_rejections( $user_id );
-	if ( $rejections_only ) {
-		gnf_backfill_docente_pause_notifications( $user_id );
-	}
-	$type_filter = $rejections_only ? " AND tipo IN ('evidencia_rechazada', 'evidencia_en_pausa', 'invalid_photo_date', 'correccion')" : '';
+	gnf_prepare_notification_backfill( $user_id, $rejections_only );
 
 	$format = static function ( $item ) use ( $user_id, $rejections_only ) {
 			$context = function_exists( 'gnf_build_notification_context' ) ? gnf_build_notification_context( $item, $user_id ) : array();
@@ -1771,47 +1762,22 @@ function gnf_rest_notifications_list() {
 				'requiresYearValidation' => ! empty( $context['requiresYearValidation'] ),
 			);
 	};
-	$result = array();
-	$seen = array();
-	$offset = 0;
-	do {
-		$items = $wpdb->get_results( $wpdb->prepare(
-			"SELECT * FROM {$table} WHERE user_id = %d{$type_filter} ORDER BY created_at DESC, id DESC LIMIT 50 OFFSET %d",
-			$user_id, $offset
-		) );
-		foreach ( (array) $items as $item ) {
-			$formatted = $format( $item );
-			if ( ! $formatted ) {
-				continue;
-			}
-			$key = (string) $item->id;
-			if ( $rejections_only && gnf_get_notification_evidence_scope_key( $item->relacion_tipo ) ) {
-				$key = $item->relacion_tipo . ':' . $item->relacion_id;
-			}
-			if ( isset( $seen[ $key ] ) ) {
-				continue;
-			}
-			$seen[ $key ] = true;
-			$result[] = $formatted;
-			if ( count( $result ) >= 50 ) {
-				break;
-			}
-		}
-		$offset += 50;
-	} while ( $rejections_only && count( (array) $items ) === 50 && count( $result ) < 50 );
-	return $result;
+	return gnf_select_notification_rows( $user_id, $rejections_only, $format );
 }
 
 function gnf_rest_notification_mark_read( WP_REST_Request $request ) {
+	require_once __DIR__ . '/notification-summary.php';
 	global $wpdb;
 	$table = $wpdb->prefix . 'gn_notificaciones';
 	$id    = (int) $request->get_param( 'id' );
 
 	$wpdb->update( $table, array( 'leido' => 1 ), array( 'id' => $id, 'user_id' => get_current_user_id() ) );
+	gnf_invalidate_notification_summary( get_current_user_id() );
 	return array( 'success' => true );
 }
 
 function gnf_rest_notifications_mark_all_read() {
+	require_once __DIR__ . '/notification-summary.php';
 	global $wpdb;
 	$table = $wpdb->prefix . 'gn_notificaciones';
 
@@ -1823,6 +1789,7 @@ function gnf_rest_notifications_mark_all_read() {
 		array( '%d', '%d' )
 	);
 
+	gnf_invalidate_notification_summary( get_current_user_id() );
 	return array( 'success' => true );
 }
 

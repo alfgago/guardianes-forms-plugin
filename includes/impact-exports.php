@@ -3,6 +3,7 @@
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
+require_once __DIR__ . '/work-locks.php';
 
 function gnf_impact_export_error( $code, $message, $status = 500 ) {
 	return new WP_Error( $code, $message, array( 'status' => $status ) );
@@ -453,10 +454,14 @@ function gnf_impact_pdf_insert( $key, $value ) {
 }
 
 /** A single SQL statement fences both the exact lease token and expected job generation. */
-function gnf_impact_pdf_owned_update( $key, $expected, $value, $lock_key, $lock ) {
+function gnf_impact_pdf_owned_update( $key, $expected, $value, $lock_key, $lock, $global_lock = null ) {
 	global $wpdb;
-	if ( (int) $lock['expires'] <= time() ) { return 0; }
-	$result = $wpdb->query( $wpdb->prepare( "UPDATE {$wpdb->options} job INNER JOIN {$wpdb->options} lease ON lease.option_name = %s AND lease.option_value = %s SET job.option_value = %s WHERE job.option_name = %s AND job.option_value = %s", $lock_key, maybe_serialize( $lock ), maybe_serialize( $value ), $key, maybe_serialize( $expected ) ) );
+	if ( (int) $lock['expires'] <= time() || ( $global_lock && (int) $global_lock['expires'] <= time() ) ) { return 0; }
+	$join = $global_lock ? " INNER JOIN {$wpdb->options} global_lease ON global_lease.option_name = 'gnf_impact_pdf_global_lock'" : '';
+	$where = $global_lock ? ' AND BINARY global_lease.option_value = BINARY %s' : '';
+	$args = array( $lock_key, maybe_serialize( $lock ), maybe_serialize( $value ), $key, maybe_serialize( $expected ) );
+	if ( $global_lock ) { $args[] = maybe_serialize( $global_lock ); }
+	$result = $wpdb->query( $wpdb->prepare( "UPDATE {$wpdb->options} job INNER JOIN {$wpdb->options} lease ON lease.option_name = %s AND lease.option_value = %s{$join} SET job.option_value = %s WHERE job.option_name = %s AND job.option_value = %s{$where}", ...$args ) );
 	gnf_impact_pdf_invalidate_option( $key );
 	return $result;
 }
@@ -561,6 +566,16 @@ function gnf_prepare_impact_pdf_job( $scoped, $detail ) {
 	return array( 'key' => $key, 'status' => $job['status'], 'record' => $job );
 }
 
+/** Contention does not consume the payload, change its generation, or extend its deadline. */
+function gnf_reschedule_impact_pdf_job( $key, $job ) {
+	$until = min( (int) $job['deadline'], (int) $job['expires'] );
+	if ( $until <= time() ) { return; }
+	$next = wp_next_scheduled( 'gnf_run_impact_pdf_job', array( $key ) );
+	if ( ! $next || $next <= time() ) {
+		wp_schedule_single_event( min( time() + 30, $until ), 'gnf_run_impact_pdf_job', array( $key ) );
+	}
+}
+
 function gnf_run_impact_pdf_job( $key ) {
 	if ( ! preg_match( '/^gnf_impact_pdf_job_[a-f0-9]{64}$/D', (string) $key ) ) { return; }
 	try { $job = gnf_impact_pdf_read( $key ); }
@@ -568,14 +583,16 @@ function gnf_run_impact_pdf_job( $key ) {
 	if ( ! is_array( $job ) || in_array( $job['status'], array( 'ready', 'failed' ), true ) ) { return; }
 	if ( (int) $job['deadline'] <= time() ) { gnf_cleanup_impact_pdf_job( $key, true, $job ); return; }
 	$lock_key = str_replace( 'gnf_impact_pdf_job_', 'gnf_impact_pdf_lock_', $key );
-	try { $old = gnf_impact_pdf_read( $lock_key ); }
-	catch ( Throwable $error ) { return; }
-	if ( $old && (int) $old['expires'] < time() ) { gnf_impact_pdf_compare_delete( $lock_key, $old ); }
-	$lock = array( 'token' => bin2hex( random_bytes( 16 ) ), 'expires' => time() + 600 );
-	if ( 1 !== gnf_impact_pdf_insert( $lock_key, $lock ) ) { return; }
+	try { $lock = gnf_acquire_work_lock( $lock_key, 600 ); }
+	catch ( Throwable $error ) { gnf_reschedule_impact_pdf_job( $key, $job ); return; }
+	if ( ! $lock ) { gnf_reschedule_impact_pdf_job( $key, $job ); return; }
+	$global_key = 'gnf_impact_pdf_global_lock';
+	$global_lock = false;
 	$path = null;
 	$claimed = false;
 	try {
+		$global_lock = gnf_acquire_work_lock( $global_key, 600 );
+		if ( ! $global_lock ) { gnf_reschedule_impact_pdf_job( $key, $job ); return; }
 		// Another worker may have finished between the first read and lease acquisition.
 		$current = gnf_impact_pdf_read( $key );
 		if ( ! is_array( $current ) || in_array( $current['status'], array( 'ready', 'failed' ), true ) || (int) $current['deadline'] <= time() ) { return; }
@@ -589,25 +606,30 @@ function gnf_run_impact_pdf_job( $key ) {
 		@chmod( $path, 0600 );
 		// Persist the private path before rendering so TTL cleanup also handles fatal timeouts.
 		$working = $job; $working['status'] = 'working'; $working['path'] = $path; $working['started'] = time();
-		if ( 1 !== gnf_impact_pdf_owned_update( $key, $job, $working, $lock_key, $lock ) ) { return; }
+		if ( 1 !== gnf_impact_pdf_owned_update( $key, $job, $working, $lock_key, $lock, $global_lock ) ) { return; }
 		if ( gnf_impact_pdf_is_private_file( $job['path'] ?? null ) ) { @unlink( $job['path'] ); }
 		$job = $working; $claimed = true;
 		$result = gnf_generate_impact_pdf( $job['payload'], $path, $job['detail'] );
 		if ( is_wp_error( $result ) ) { throw new RuntimeException( 'PDF rendering failed' ); }
 		// Do not publish after cancellation, TTL expiry, or lease takeover.
-		if ( (int) $job['expires'] <= time() ) { return; }
+		if ( (int) $job['expires'] <= time() || (int) $job['deadline'] <= time() ) { return; }
 		$published = $job; $published['status'] = 'ready'; $published['finished'] = time(); unset( $published['payload'] );
-		$saved = gnf_impact_pdf_owned_update( $key, $job, $published, $lock_key, $lock );
+		$saved = gnf_impact_pdf_owned_update( $key, $job, $published, $lock_key, $lock, $global_lock );
 		// On SQL failure the tracked working file remains recoverable; never claim ready.
 		if ( 1 === $saved || false === $saved ) { $path = null; }
 	} catch ( Throwable $error ) {
 		if ( $claimed ) {
 			$failed = $job; $failed['status'] = 'failed'; unset( $failed['payload'] );
-			gnf_impact_pdf_owned_update( $key, $job, $failed, $lock_key, $lock );
+			gnf_impact_pdf_owned_update( $key, $job, $failed, $lock_key, $lock, $global_lock );
+		} else {
+			gnf_reschedule_impact_pdf_job( $key, $job );
 		}
 	} finally {
 		if ( $path && gnf_impact_pdf_is_private_file( $path ) ) { @unlink( $path ); }
-		gnf_impact_pdf_compare_delete( $lock_key, $lock );
+		try { gnf_release_work_lock( $lock_key, $lock ); } catch ( Throwable $error ) { /* Expiry permits recovery. */ }
+		if ( $global_lock ) {
+			try { gnf_release_work_lock( $global_key, $global_lock ); } catch ( Throwable $error ) { /* Expiry permits recovery. */ }
+		}
 	}
 }
 

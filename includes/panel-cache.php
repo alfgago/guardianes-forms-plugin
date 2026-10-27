@@ -1,6 +1,7 @@
 <?php
 /** Private panel read caches. Forms and operational evidence review remain live. */
 if ( ! defined( 'ABSPATH' ) ) { exit; }
+require_once __DIR__ . '/work-locks.php';
 
 function gnf_panel_cache_version( $scope ) {
 	return (string) get_option( 'gnf_panel_version_' . $scope, '0' );
@@ -23,7 +24,7 @@ function gnf_panel_cache_context( $teacher ) {
 	$id = (int) $user->ID;
 	$center = $teacher ? (int) gnf_get_centro_for_docente( $id ) : 0;
 	return array(
-		'schema' => 2,
+		'schema' => 3,
 		'user' => $id, 'roles' => (array) $user->roles, 'caps' => (array) $user->allcaps,
 		'year' => gnf_get_active_year(), 'center' => $center,
 		'state' => $teacher ? gnf_get_docente_estado( $id ) : gnf_get_supervisor_estado( $id ),
@@ -77,6 +78,22 @@ function gnf_panel_cache_restore_actions( $data, $route, $context ) {
 	return $data;
 }
 
+function gnf_panel_cache_response( $cached, $route, $context, $state ) {
+	$response = new WP_REST_Response( gnf_panel_cache_restore_actions( $cached['data'], $route, $context ), 200 );
+	$response->header( 'X-GNF-Panel-Cache', $state );
+	return $response;
+}
+
+function gnf_panel_cache_retry() {
+	$response = new WP_REST_Response( array(
+		'code' => 'gnf_panel_preparing', 'message' => 'El panel se esta actualizando. Vuelva a intentar en unos momentos.', 'data' => array( 'status' => 503 ),
+	), 503 );
+	$response->header( 'Retry-After', '2' );
+	$response->header( 'Cache-Control', 'private, no-store' );
+	$response->header( 'X-GNF-Panel-Cache', 'busy' );
+	return $response;
+}
+
 /** rest_dispatch_request is called by core AFTER the route permission callback. */
 function gnf_panel_cache_dispatch( $result, $request, $route, $handler ) {
 	if ( null !== $result || ! gnf_panel_cache_route( $request ) ) { return $result; }
@@ -88,25 +105,48 @@ function gnf_panel_cache_dispatch( $result, $request, $route, $handler ) {
 	$params = $request->get_params();
 	unset( $params['_wpnonce'], $params['_fields'], $params['_embed'] );
 	ksort( $params );
-	$key = 'gnf_panel_v2_' . hash( 'sha256', wp_json_encode( array( $route, $params, $context ) ) );
+	$signature = hash( 'sha256', wp_json_encode( array( $route, $params, $context ) ) );
+	$key = 'gnf_panel_v3_' . $signature;
+	$lock_key = 'gnf_panel_lock_' . $signature;
 	$cached = get_transient( $key );
-	if ( is_array( $cached ) && isset( $cached['data'] ) ) {
-		$response = new WP_REST_Response( gnf_panel_cache_restore_actions( $cached['data'], $route, $context ), 200 );
-		$response->header( 'X-GNF-Panel-Cache', 'hit' );
+	if ( is_array( $cached ) && isset( $cached['data'], $cached['fresh_until'] ) && $cached['fresh_until'] > time() ) {
+		return gnf_panel_cache_response( $cached, $route, $context, 'hit' );
+	}
+	try { $lock = gnf_acquire_work_lock( $lock_key, 300 ); }
+	catch ( Throwable $error ) { $lock = false; }
+	if ( ! $lock ) {
+		// The owner may have published since our first read. Never wait in a PHP worker.
+		$cached = get_transient( $key );
+		if ( is_array( $cached ) && isset( $cached['data'], $cached['fresh_until'] ) && $cached['fresh_until'] + 300 > time()
+			&& $context === gnf_panel_cache_context( $teacher ) ) {
+			return gnf_panel_cache_response( $cached, $route, $context, $cached['fresh_until'] > time() ? 'hit' : 'stale' );
+		}
+		return gnf_panel_cache_retry();
+	}
+	try {
+		$cached = get_transient( $key );
+		if ( is_array( $cached ) && isset( $cached['data'], $cached['fresh_until'] ) && $cached['fresh_until'] > time() ) {
+			return gnf_panel_cache_response( $cached, $route, $context, 'hit' );
+		}
+		$result = call_user_func( $handler['callback'], $request );
+		if ( is_wp_error( $result ) ) { return $result; }
+		$response = rest_ensure_response( $result );
+		if ( 200 !== $response->get_status() || ! is_array( $response->get_data() ) ) { return $response; }
+		$data = gnf_panel_cache_without_actions( $response->get_data() );
+		// Known actions are stripped above; unknown query URLs might carry signed credentials.
+		$encoded = wp_json_encode( $data );
+		if ( is_string( $encoded ) && ! preg_match( '/nonce|[?&][^"\s]*=/i', $encoded ) && $context === gnf_panel_cache_context( $teacher ) ) {
+			try {
+				if ( gnf_work_lock_is_owned( $lock_key, $lock ) ) {
+					set_transient( $key, array( 'data' => $data, 'fresh_until' => time() + 2 * HOUR_IN_SECONDS ), 2 * HOUR_IN_SECONDS + 300 );
+				}
+			} catch ( Throwable $error ) { /* Return the successful live result without caching it. */ }
+		}
+		$response->header( 'X-GNF-Panel-Cache', 'miss' );
 		return $response;
+	} finally {
+		try { gnf_release_work_lock( $lock_key, $lock ); } catch ( Throwable $error ) { /* Expiry permits recovery after a database outage. */ }
 	}
-	$result = call_user_func( $handler['callback'], $request );
-	if ( is_wp_error( $result ) ) { return $result; }
-	$response = rest_ensure_response( $result );
-	if ( 200 !== $response->get_status() || ! is_array( $response->get_data() ) ) { return $response; }
-	$data = gnf_panel_cache_without_actions( $response->get_data() );
-	// Unknown signed fields must never become persistent cached credentials.
-	if ( false === strpos( wp_json_encode( $data ), '_wpnonce' ) && false === strpos( wp_json_encode( $data ), 'nonce' )
-		&& $context === gnf_panel_cache_context( $teacher ) ) {
-		set_transient( $key, array( 'data' => $data ), 2 * HOUR_IN_SECONDS );
-	}
-	$response->header( 'X-GNF-Panel-Cache', 'miss' );
-	return $response;
 }
 
 /** Live revision signal piggybacks on the existing notification request. */
@@ -124,7 +164,7 @@ function gnf_panel_cache_after_request( $result, $handler, $request ) {
 			gnf_invalidate_supervisor_panel_cache( $user->ID );
 		}
 	}
-	if ( '/gnf/v1/notifications' === $route || gnf_panel_cache_route( $request ) || 'GET' !== $request->get_method() ) {
+	if ( in_array( $route, array( '/gnf/v1/notifications', '/gnf/v1/notifications/summary' ), true ) || gnf_panel_cache_route( $request ) || 'GET' !== $request->get_method() ) {
 		$context = gnf_panel_cache_context( $teacher );
 		$response->header( 'X-GNF-Panel-Version', hash( 'sha256', wp_json_encode( $context ) ) );
 		$response->header( 'X-GNF-Panel-Kind', $teacher ? 'docente' : 'supervisor' );
