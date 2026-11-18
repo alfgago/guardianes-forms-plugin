@@ -440,7 +440,12 @@ function gnf_impact_metric_value_for_record( $record, $metric, $mode ) {
 	}
 
 	$reto = (string) ( $metric['reto'] ?? '' );
-	if ( ! isset( $entries[ $reto ] ) || ! gnf_impact_entry_qualifies( $entries[ $reto ], $mode ) ) {
+	$entry = $entries[ $reto ] ?? array();
+	if ( 'count' === $operation && 'entry' === $metric['source'] && 'approved' === $mode ) {
+		// Participation needs one approved file; validating responses needs the full review.
+		return ( $entry['hasApprovedEvidence'] ?? gnf_impact_entry_qualifies( $entry, $mode ) ) ? 1.0 : 0.0;
+	}
+	if ( ! gnf_impact_entry_qualifies( $entry, $mode ) ) {
 		return 0.0;
 	}
 	if ( 'count' === $operation ) {
@@ -448,7 +453,7 @@ function gnf_impact_metric_value_for_record( $record, $metric, $mode ) {
 	}
 
 	$field = (string) ( $metric['field'] ?? '' );
-	$value = $entries[ $reto ]['responses'][ $field ] ?? null;
+	$value = $entry['responses'][ $field ] ?? null;
 	if ( 'count_yes' === $operation ) {
 		return gnf_impact_value_is_yes( $value ) ? 1.0 : 0.0;
 	}

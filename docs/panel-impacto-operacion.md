@@ -7,7 +7,7 @@ y administracion impersonando a un docente activo de ese mismo centro. Se bloque
 la descarga directa de supervisores y DRE/comite, incluso con un nonce valido.
 Las exportaciones colectivas del Panel de Impacto conservan sus permisos territoriales.
 
-Los cortes usan `statsVersion: 3` y guardan puntaje/estrellas por criterio. El cron
+Los cortes usan `statsVersion: 4` y guardan puntaje/estrellas por criterio. El cron
 recalcula la rubrica validada con los datos actuales, sin reutilizar un galardon
 guardado antes de un cambio de tipologia. Un corte anterior sigue disponible,
 pero los promedios validados incompatibles muestran dato pendiente, no proyecciones
@@ -63,8 +63,10 @@ incluidos los pendientes de revision administrativa. No cambia su estado ni
 amplia el alcance territorial de revisores o la vista publica. Se mantienen
 fuera los centros inactivos, rechazados y no publicados o inexistentes.
 `Centros con evidencias cargadas` cuenta archivos vigentes, mientras que en
-resultados validados se exige al menos un archivo aprobado. Para validar las
-respuestas de un reto se mantiene el criterio de revision de sus evidencias.
+resultados validados se exige al menos un archivo aprobado. Los conteos
+«Centros realizando [reto]» en resultados validados aplican esa misma regla
+al reto correspondiente, sin exigir que este completamente aprobado. Las
+respuestas y cantidades declaradas mantienen su criterio de validacion anterior.
 La cobertura bajo los indicadores de respuestas indica cuantos centros dieron
 un dato utilizable; una respuesta No o cero sigue contando en cobertura.
 

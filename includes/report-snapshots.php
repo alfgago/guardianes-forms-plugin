@@ -4,7 +4,7 @@
  */
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
-const GNF_REPORT_STATS_VERSION = 3;
+const GNF_REPORT_STATS_VERSION = 4;
 
 function gnf_report_snapshot_key( $year ) {
 	return 'gnf_report_snapshot_' . absint( $year ) . '_v1';

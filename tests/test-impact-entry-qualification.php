@@ -24,4 +24,14 @@ $rejected = array( 'entries' => array( impact_entry_fixture( array( array( 'esta
 check_qualification( 1.0 === gnf_impact_metric_value_for_record( $rejected, $metric, 'active' ) && 0.0 === gnf_impact_metric_value_for_record( $rejected, $metric, 'approved' ), 'A current rejected file counts as uploaded, not approved' );
 $replaced = array( 'entries' => array( impact_entry_fixture( array( array( 'estado' => 'aprobada', 'puntos' => 5, 'replaced' => true ) ) ) ) );
 check_qualification( 0.0 === gnf_impact_metric_value_for_record( $replaced, $metric, 'active' ) && 0.0 === gnf_impact_metric_value_for_record( $replaced, $metric, 'approved' ), 'Replaced files do not contribute in either view' );
+
+$catalog = gnf_get_impact_metric_catalog( 2026 );
+$tree_count = $catalog['arboles_centros'];
+$tree_quantity = $catalog['arboles_plantados'];
+$tree_record = array( 'entries' => array( 'siembra-de-arboles' => $mixed['entries'][0] ) );
+check_qualification( 1.0 === gnf_impact_metric_value_for_record( $tree_record, $tree_count, 'approved' ), 'A single approved file qualifies a center for the corresponding challenge count' );
+check_qualification( 0.0 === gnf_impact_metric_value_for_record( $tree_record, $catalog['agua_centros'], 'approved' ), 'Approval in one challenge does not qualify another challenge' );
+check_qualification( 0.0 === gnf_impact_metric_value_for_record( $tree_record, $tree_quantity, 'approved' ), 'An approved file alone does not validate the declared quantity' );
+$tree_record['entries']['siembra-de-arboles'] = $replaced['entries'][0];
+check_qualification( 0.0 === gnf_impact_metric_value_for_record( $tree_record, $tree_count, 'approved' ), 'Replaced evidence does not qualify the challenge count' );
 echo "\n{$tests} checks, {$fails} failures\n"; exit( $fails ? 1 : 0 );
