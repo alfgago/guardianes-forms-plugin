@@ -101,22 +101,22 @@ function gnf_get_impact_field_definitions( $anio = 2026 ) {
 	return array(
 		gnf_impact_field_definition( 'agua_captacion', 'agua', '¿Cuentan con un sistema permanente de captacion de agua llovida?', array( 'sistema permanente de captacion de agua' ) ),
 		gnf_impact_field_definition( 'agua_riego', 'agua', '¿Cuentan con un sistema de riego ahorrativo?', array( 'sistema de riego ahorrativo' ) ),
-		gnf_impact_field_definition( 'agua_registro_consumo', 'agua', '¿Cuentan con el consumo de agua de enero a noviembre del año pasado?', array( 'consumo de agua de enero a noviembre' ) ),
+		gnf_impact_field_definition( 'agua_registro_consumo', 'agua', '¿Cuentan con el consumo de agua de enero a noviembre del año pasado?', array( 'consumo de agua de enero a noviembre', 'reporte de consumo del agua' ) ),
 		gnf_impact_field_definition( 'energia_paneles_solares', 'electricidad', '¿Cuentan con paneles solares?', array( 'cuentan con paneles solares' ), true, 'radio' ),
-		gnf_impact_field_definition( 'energia_registro_consumo', 'electricidad', '¿Cuentan con el consumo de energia de enero a noviembre del año pasado?', array( 'consumo de energia de enero a noviembre' ) ),
-		gnf_impact_field_definition( 'residuos_estaciones', 'residuos', '¿Fomentan habitos de separacion de los residuos solidos?', array( 'habitos de separacion de los residuos' ) ),
+		gnf_impact_field_definition( 'energia_registro_consumo', 'electricidad', '¿Cuentan con el consumo de energia de enero a noviembre del año pasado?', array( 'consumo de energia de enero a noviembre', 'reporte de consumo, generado por el proveedor del servicio' ) ),
+		gnf_impact_field_definition( 'residuos_estaciones', 'residuos', '¿Fomentan habitos de separacion de los residuos solidos?', array( 'habitos de separacion de los residuos', 'recipientes de separacion de residuos' ) ),
 		gnf_impact_field_definition( 'residuos_registro_no_valorizables', 'residuos', '¿Cuantifican los residuos no valorizables?', array( 'cuantifican los residuos no valorizables' ) ),
-		gnf_impact_field_definition( 'residuos_kg_valorizables', 'residuos', 'Total de kilogramos de residuos valorizables recolectados y entregados', array( 'total de kilogramos de residuos valorizables' ), true ),
-		gnf_impact_field_definition( 'organicos_compostaje', 'gestion-de-organicos', '¿Aprovechan los residuos organicos?', array( 'aprovechan los residuos organicos' ) ),
+		gnf_impact_field_definition( 'residuos_kg_valorizables', 'residuos', 'Total de kilogramos de residuos valorizables recolectados y entregados', array( 'total de kilogramos de residuos valorizables', 'total de kilos de residuos valorizables' ), true ),
+		gnf_impact_field_definition( 'organicos_compostaje', 'gestion-de-organicos', '¿Aprovechan los residuos organicos?', array( 'aprovechan los residuos organicos', 'dan aprovechamiento a los residuos organicos' ) ),
 		gnf_impact_field_definition( 'limpiezas_total', 'limpiezas', '¿Cuantas limpiezas realizaron en total?', array( 'cuantas limpiezas realizaron en total' ), true ),
-		gnf_impact_field_definition( 'limpiezas_bolsas', 'limpiezas', '¿Cuantas bolsas de residuos recolectaron durante las limpiezas?', array( 'cuantas bolsas de residuos recolectaron' ), true ),
-		gnf_impact_field_definition( 'jardines_areas', 'jardines-y-polinizadores', '¿Con cuantas areas distintas de jardines amigables con polinizadores cuenta el centro?', array( 'cuantas areas distintas de jardines' ), true ),
+		gnf_impact_field_definition( 'limpiezas_bolsas', 'limpiezas', '¿Cuantas bolsas de residuos recolectaron durante las limpiezas?', array( 'cuantas bolsas de residuos recolectaron', 'cuantas bolsas de residuos recogieron' ), true ),
+		gnf_impact_field_definition( 'jardines_areas', 'jardines-y-polinizadores', '¿Con cuantas areas distintas de jardines amigables con polinizadores cuenta el centro?', array( 'cuantas areas distintas de jardines', 'cuantas areas de jardin distintas que atraen polinizadores' ), true ),
 		gnf_impact_field_definition( 'jardines_inaturalist', 'jardines-y-polinizadores', '¿Utilizaron iNaturalist para monitorear polinizadores?', array( 'utilizaron inaturalist' ), true, 'radio' ),
-		gnf_impact_field_definition( 'jardines_refugios', 'jardines-y-polinizadores', '¿Cuantas casas para abejas, meliponarios, colmenas u hoteles de insectos tienen?', array( 'cuantas casas para abejas' ), true ),
-		gnf_impact_field_definition( 'huerta_actividades', 'huerta', '¿Realizaron actividades en la huerta con estudiantes?', array( 'realizaron actividades en la huerta con estudiantes' ) ),
+		gnf_impact_field_definition( 'jardines_refugios', 'jardines-y-polinizadores', '¿Cuantas casas para abejas, meliponarios, colmenas u hoteles de insectos tienen?', array( 'cuantas casas para abejas', 'cuantas casitas para abejas' ), true ),
+		gnf_impact_field_definition( 'huerta_actividades', 'huerta', '¿Realizaron actividades en la huerta con estudiantes?', array( 'realizaron actividades en la huerta con estudiantes', 'realizaron actividades de huerta (cualquier tipo) con estudiantes' ) ),
 		gnf_impact_field_definition( 'eco_giras_total', 'eco-gira', 'Cantidad total de eco giras realizadas', array( 'cantidad total de eco giras realizadas' ), true ),
-		gnf_impact_field_definition( 'eco_giras_estudiantes', 'eco-gira', 'Cantidad total de estudiantes que asistieron a las eco giras', array( 'cantidad de estudiantes' ) ),
-		gnf_impact_field_definition( 'emprendimiento_ingresos', 'eco-emprendimiento', 'Monto total generado por el eco emprendimiento', array( 'monto total ganado', 'monto de dinero generado' ) ),
+		gnf_impact_field_definition( 'eco_giras_estudiantes', 'eco-gira', 'Cantidad total de estudiantes que asistieron a las eco giras', array( 'cantidad de estudiantes', 'cantidad total de estudiantes que fueron a la eco gira' ) ),
+		gnf_impact_field_definition( 'emprendimiento_ingresos', 'eco-emprendimiento', 'Monto total generado por el eco emprendimiento', array( 'monto total ganado', 'monto de dinero generado', 'monto total recaudado a la fecha' ) ),
 		gnf_impact_field_definition( 'arboles_siembras', 'siembra-de-arboles', '¿En cuantas siembras participaron?', array( 'en cuantas siembras participaron' ), true ),
 		gnf_impact_field_definition( 'arboles_estudiantes', 'siembra-de-arboles', '¿Cuantos estudiantes participaron?', array( 'cuantos estudiantes participaron' ) ),
 		gnf_impact_field_definition( 'arboles_plantados', 'siembra-de-arboles', '¿Cuantos arboles se plantaron en total?', array( 'cuantos arboles se plantaron' ), true ),
@@ -155,6 +155,9 @@ function gnf_prepare_impact_form_fields( $fields, $definitions, $next_id = 1 ) {
 	$found   = array();
 
 	foreach ( $fields as $index => &$field ) {
+		if ( in_array( $field['type'] ?? '', array( 'file', 'file-upload' ), true ) ) {
+			continue;
+		}
 		$key = (string) ( $field['gnf_metric_key'] ?? '' );
 		if ( $key ) {
 			$found[ $key ] = true;
@@ -427,8 +430,9 @@ function gnf_impact_metric_value_for_record( $record, $metric, $mode ) {
 
 	$entries = is_array( $record['entries'] ?? null ) ? $record['entries'] : array();
 	if ( 'count_any' === $operation ) {
+		$evidence_key = 'approved' === $mode ? 'hasApprovedEvidence' : 'hasEvidence';
 		foreach ( $entries as $entry ) {
-			if ( gnf_impact_entry_qualifies( $entry, $mode ) ) {
+			if ( $entry[ $evidence_key ] ?? gnf_impact_entry_qualifies( $entry, $mode ) ) {
 				return 1.0;
 			}
 		}
@@ -595,6 +599,10 @@ function gnf_impact_field_key_map( $reto_id, $reto_slug, $anio ) {
 	$map       = array();
 	foreach ( $fields as $field ) {
 		$field_id = (int) ( $field['id'] ?? 0 );
+		// Uploaded evidence is not the response to the indicator question.
+		if ( in_array( $field['type'] ?? '', array( 'file', 'file-upload' ), true ) ) {
+			continue;
+		}
 		$key      = (string) ( $field['gnf_metric_key'] ?? '' );
 		if ( ! $key ) {
 			foreach ( $defs as $definition ) {
@@ -621,17 +629,21 @@ function gnf_build_impact_entry_record( $entry, $anio ) {
 	$evidences  = function_exists( 'gnf_enrich_evidencias' ) ? gnf_enrich_evidencias( (array) $evidences, (int) $entry->reto_id, $anio ) : (array) $evidences;
 	$active     = false;
 	$approved   = true;
+	$has_evidence = false;
+	$has_approved_evidence = false;
 	$reviewable = 0;
 	foreach ( $evidences as $evidence ) {
 		if ( ! is_array( $evidence ) || ! empty( $evidence['replaced'] ) ) {
 			continue;
 		}
+		$has_evidence = true;
 		$state = (string) ( $evidence['estado'] ?? 'pendiente' );
 		if ( ! in_array( $state, array( 'rechazada', 'en_pausa' ), true ) ) {
 			$active = true;
 		}
 		if ( function_exists( 'gnf_evidence_is_reviewable' ) ? gnf_evidence_is_reviewable( $evidence ) : ( (int) ( $evidence['field_id'] ?? 0 ) > 0 || ! array_key_exists( 'puntos', $evidence ) || null !== $evidence['puntos'] ) ) {
 			$reviewable++;
+			$has_approved_evidence = $has_approved_evidence || 'aprobada' === $state;
 			if ( 'aprobada' !== $state ) { $approved = false; }
 		}
 	}
@@ -650,6 +662,8 @@ function gnf_build_impact_entry_record( $entry, $anio ) {
 		'reto'      => $reto_slug,
 		'active'    => $active,
 		'approved'  => $approved,
+		'hasEvidence' => $has_evidence,
+		'hasApprovedEvidence' => $has_approved_evidence,
 		'responses' => $responses,
 	);
 }
@@ -660,6 +674,8 @@ function gnf_merge_impact_entry_record( $current, $incoming ) {
 	}
 	$current['active']    = ! empty( $current['active'] ) || ! empty( $incoming['active'] );
 	$current['approved']  = ! empty( $current['approved'] ) || ! empty( $incoming['approved'] );
+	$current['hasEvidence'] = ! empty( $current['hasEvidence'] ) || ! empty( $incoming['hasEvidence'] );
+	$current['hasApprovedEvidence'] = ! empty( $current['hasApprovedEvidence'] ) || ! empty( $incoming['hasApprovedEvidence'] );
 	$current['responses'] = array_replace( (array) ( $current['responses'] ?? array() ), (array) ( $incoming['responses'] ?? array() ) );
 	return $current;
 }
@@ -667,7 +683,12 @@ function gnf_merge_impact_entry_record( $current, $incoming ) {
 /**
  * Construye registros canonicos en lotes de 200 centros matriculados.
  */
-function gnf_get_impact_center_records( $anio, $only_ids = null, $with_profiles = false ) {
+function gnf_impact_center_status_in_scope( $status, $include_pending = false ) {
+	return ! in_array( $status, array( 'inactivo', 'rechazado' ), true )
+		&& ( $include_pending || 'pendiente_de_revision_admin' !== $status );
+}
+
+function gnf_get_impact_center_records( $anio, $only_ids = null, $with_profiles = false, $include_pending = false ) {
 	global $wpdb;
 	$records    = array();
 	$centro_ids = $only_ids;
@@ -701,7 +722,7 @@ function gnf_get_impact_center_records( $anio, $only_ids = null, $with_profiles 
 		$batch = function_exists( 'gnf_build_centros_export_batch_maps' ) ? gnf_build_centros_export_batch_maps( $published_ids, $anio ) : array();
 		foreach ( $published_ids as $centro_id ) {
 			$profile = function_exists( 'gnf_build_centro_export_record' ) ? gnf_build_centro_export_record( $centro_id, $anio, $batch ) : array();
-			if ( in_array( $profile['estado_centro'] ?? '', array( 'inactivo', 'rechazado', 'pendiente_de_revision_admin' ), true ) ) { continue; }
+			if ( ! gnf_impact_center_status_in_scope( $profile['estado_centro'] ?? '', $include_pending ) ) { continue; }
 			$records[ $centro_id ] = array(
 				'id'          => $centro_id,
 				'regionId'    => (int) ( $profile['region_id'] ?? 0 ),
@@ -865,6 +886,11 @@ function gnf_filter_impact_report_metrics( $report, $keys ) {
 
 function gnf_rest_admin_impact( $request ) {
 	$anio = function_exists( 'gnf_normalize_year' ) ? gnf_normalize_year( $request->get_param( 'year' ) ) : (int) $request->get_param( 'year' );
+	if ( function_exists( 'gnf_scope_report_snapshot' ) ) {
+		$scoped = gnf_scope_report_snapshot( gnf_get_report_snapshot( $anio ) );
+		if ( is_wp_error( $scoped ) ) { return $scoped; }
+		return $scoped['impact'] + array( 'ready' => $scoped['ready'], 'stale' => $scoped['stale'] );
+	}
 	return gnf_build_impact_report( $anio, 'active' );
 }
 

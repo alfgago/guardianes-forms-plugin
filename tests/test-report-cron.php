@@ -25,10 +25,12 @@ function gnf_impact_reto_map() { return array(); }
 function gnf_get_impact_metric_catalog() { return array( 'inscripciones' => array( 'key' => 'inscripciones', 'source' => 'center', 'unit' => 'centros', 'title' => 'Inscripciones', 'operation' => 'count', 'reto' => '' ) ); }
 function gnf_impact_metric_is_available() { return true; }
 function gnf_impact_metric_value_for_record() { return 1; }
-function gnf_get_impact_center_records( $year, $ids, $with_profiles ) {
+function gnf_impact_center_status_in_scope( $status ) { return 'pendiente_de_revision_admin' !== $status; }
+function gnf_get_impact_center_records( $year, $ids, $with_profiles, $include_pending = false ) {
 	$GLOBALS['batches'][] = count( $ids );
 	if ( $GLOBALS['fail_batch'] ) { throw new RuntimeException( 'Simulated failure' ); }
-	return array_map( static function( $id ) { return array( 'profile' => array( 'centro_id' => $id, 'region_id' => 2, 'region_name' => 'Heredia', 'circuito' => '01' ), 'stats' => array(), 'retos' => array() ); }, $ids );
+	if ( ! $include_pending ) { $ids = array_diff( $ids, array( 201 ) ); }
+	return array_map( static function( $id ) { return array( 'profile' => array( 'centro_id' => $id, 'region_id' => 2, 'region_name' => 'Heredia', 'circuito' => '01', 'estado_centro' => 201 === $id ? 'pendiente_de_revision_admin' : 'activo' ), 'stats' => array(), 'retos' => array() ); }, $ids );
 }
 class ReportDB {
 	public $options = 'wp_options', $last_error = '';
@@ -74,7 +76,7 @@ check_cron( 200 === $options['gnf_report_job_2026']['cursor'], 'Cursor is checkp
 gnf_refresh_report_snapshot( 2026 );
 $built = $options['gnf_report_snapshot_2026_v1'];
 check_cron( $batches === array( 200, 1 ) && count( $built['centros'] ) === 201, 'The second event finishes without omissions or duplicates' );
-check_cron( 201 === $built['impact']['active']['total']['values']['inscripciones'], 'Published totals include every completed batch' );
+check_cron( 200 === $built['impact']['active']['total']['values']['inscripciones'], 'Public aggregates do not include pending schools in the private snapshot' );
 check_cron( ! isset( $options['gnf_report_job_2026'] ) && ! isset( $options['gnf_report_lock_2026'] ), 'Successful jobs clean up their cursor and lock' );
 $fail_batch = true;
 gnf_refresh_report_snapshot( 2026 );

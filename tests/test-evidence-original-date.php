@@ -18,6 +18,10 @@ $api     = file_get_contents( $root . '/app/src/api/retos.ts' );
 $tests = 0;
 $fails = 0;
 
+function wp_read_image_metadata( $path ) {
+	return $GLOBALS['image_date_metadata'][ $path ] ?? array();
+}
+
 function check_evidence_original_date( $condition, $label ) {
 	global $tests, $fails;
 	$tests++;
@@ -65,6 +69,11 @@ check_evidence_original_date(
 	'la validacion de imagen reconoce la nueva fecha generica'
 );
 
+check_evidence_original_date(
+	false === strpos( $legacy, 'new Date(file.lastModified).getFullYear()' ),
+	'el formulario clasico no advierte por el anio de modificacion del navegador'
+);
+
 if ( file_exists( $root . '/includes/evidence-dates.php' ) ) {
 	if ( ! defined( 'ABSPATH' ) ) {
 		define( 'ABSPATH', $root . '/' );
@@ -93,7 +102,7 @@ if ( file_exists( $root . '/includes/evidence-dates.php' ) ) {
 	$pdf_evidence = gnf_apply_evidence_original_date(
 		array( 'tipo' => 'pdf', 'nombre' => 'informe.pdf' ),
 		2026,
-		array( 'date' => '2025-04-05', 'source' => 'browser_file_metadata' )
+		array( 'date' => '2025-04-05', 'source' => 'pdf_metadata' )
 	);
 	check_evidence_original_date(
 		'2025-04-05' === ( $pdf_evidence['original_date'] ?? '' )
@@ -119,9 +128,20 @@ if ( file_exists( $root . '/includes/evidence-dates.php' ) ) {
 		array( 'date' => '2025-04-05', 'source' => 'browser_file_metadata' )
 	);
 	check_evidence_original_date(
-		! empty( $browser_image['requires_year_validation'] )
+		null === $browser_image['original_date']
+			&& 'unavailable' === $browser_image['date_source']
+			&& empty( $browser_image['requires_year_validation'] )
 			&& ! gnf_evidence_has_verifiable_date_issue( $browser_image ),
-		'fecha de navegador alerta pero no auto-rechaza una imagen'
+		'lastModified del navegador no es fecha original ni genera alerta anual'
+	);
+	$browser_pdf = gnf_apply_evidence_original_date(
+		array( 'tipo' => 'pdf', 'nombre' => 'informe.pdf' ),
+		2026,
+		array( 'date' => '2026-10-30', 'source' => 'browser_file_metadata' )
+	);
+	check_evidence_original_date(
+		null === $browser_pdf['original_date'] && empty( $browser_pdf['date_year_mismatch'] ),
+		'un PDF sin fecha embebida tampoco usa la fecha de modificacion'
 	);
 
 	$temp_precedence = tempnam( sys_get_temp_dir(), 'gnf-date-priority-' );
@@ -136,6 +156,70 @@ if ( file_exists( $root . '/includes/evidence-dates.php' ) ) {
 		'2024-02-03' === ( $preferred_metadata['original_date'] ?? '' )
 			&& 'image_metadata' === ( $preferred_metadata['date_source'] ?? '' ),
 		'la fecha embebida confiable tiene prioridad sobre la fecha del navegador'
+	);
+
+	$temp_stored = tempnam( sys_get_temp_dir(), 'gnf-date-stored-' );
+	file_put_contents( $temp_stored, "RIFF....WEBP....EXIF....DateTimeOriginal\0 2025:02:03 08:09:10\0" );
+	$stored_browser = gnf_apply_evidence_original_date(
+		array(
+			'tipo' => 'imagen', 'path_local' => $temp_stored,
+			'original_date' => '2026-10-30', 'photo_date' => '2026-10-30',
+			'date_source' => 'browser_file_metadata', 'estado' => 'aprobada', 'puntos' => 5,
+		),
+		2026
+	);
+	@unlink( $temp_stored );
+	check_evidence_original_date(
+		'2025-02-03' === $stored_browser['original_date']
+			&& '2025-02-03' === $stored_browser['photo_date']
+			&& 'image_metadata' === $stored_browser['date_source'],
+		'vuelve a extraer metadatos cuando la fecha guardada procedia del navegador'
+	);
+	check_evidence_original_date(
+		'aprobada' === $stored_browser['estado'] && 5 === $stored_browser['puntos'],
+		'corregir la fecha mostrada no modifica la revision ni los puntos guardados'
+	);
+	$stored_unknown = gnf_apply_evidence_original_date(
+		array(
+			'original_date' => '2026-10-30', 'photo_date' => '2026-10-30',
+			'date_source' => 'browser_file_metadata', 'requires_year_validation' => true,
+		),
+		2026
+	);
+	check_evidence_original_date(
+		null === $stored_unknown['original_date'] && empty( $stored_unknown['photo_date'] )
+			&& 'unavailable' === $stored_unknown['date_source']
+			&& empty( $stored_unknown['requires_year_validation'] ),
+		'una fecha historica del navegador no se vuelve a presentar como original'
+	);
+
+	// Minimal TIFF with separate original and digitized EXIF timestamps.
+	$temp_exif = tempnam( sys_get_temp_dir(), 'gnf-date-exif-' );
+	$tiff = 'II' . pack( 'vV', 42, 8 ) . pack( 'v', 1 )
+		. pack( 'vvVV', 0x8769, 4, 1, 26 ) . pack( 'V', 0 )
+		. pack( 'v', 2 ) . pack( 'vvVV', 0x9003, 2, 20, 56 )
+		. pack( 'vvVV', 0x9004, 2, 20, 76 ) . pack( 'V', 0 )
+		. "2025:03:01 23:59:00\0" . "2026:10:30 10:00:00\0";
+	file_put_contents( $temp_exif, $tiff );
+	$GLOBALS['image_date_metadata'][ $temp_exif ] = array( 'created_timestamp' => strtotime( '2026-10-30 UTC' ) );
+	if ( function_exists( 'exif_read_data' ) ) {
+		$original_exif = gnf_extract_evidence_original_date( $temp_exif, 'imagen' );
+		check_evidence_original_date(
+			'2025-03-01' === $original_exif['date'],
+			'EXIF DateTimeOriginal prevalece sobre la fecha digitalizada de WordPress'
+		);
+	}
+	@unlink( $temp_exif );
+
+	check_evidence_original_date(
+		'2025-01-02' === gnf_extract_labeled_embedded_date(
+			'<rdf:Description xmp:CreateDate="2026-10-30T10:00:00" exif:DateTimeOriginal="2025-01-02T10:00:00"/>'
+		),
+		'XMP DateTimeOriginal prevalece sobre CreateDate'
+	);
+	check_evidence_original_date(
+		'' === gnf_extract_labeled_embedded_date( "DateTime\0 2026:10:30 10:00:00\0" ),
+		'la etiqueta generica DateTime de modificacion no es fecha original'
 	);
 
 	$unknown = gnf_apply_evidence_original_date( array( 'tipo' => 'archivo' ), 2026 );

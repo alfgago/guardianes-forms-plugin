@@ -79,10 +79,13 @@ function gnf_read_evidence_metadata_bytes( $path ) {
  */
 function gnf_extract_labeled_embedded_date( $bytes ) {
 	$patterns = array(
+		'/<(?:exif:)?DateTimeOriginal>\s*([^<]+)\s*</i',
+		'/(?:exif:)?DateTimeOriginal\s*=\s*["\']([^"\']+)["\']/i',
+		'/DateTimeOriginal\x00*[^0-9]{0,32}((?:19|20)\d{2}:[01]\d:[0-3]\d(?:[ T][0-2]\d:[0-5]\d:[0-5]\d)?)/i',
 		'/\/(?:CreationDate)\s*\(\s*(D:[^\)]+)\)/i',
 		'/<(?:xmp:CreateDate|pdf:CreationDate)>\s*([^<]+)\s*</i',
 		'/(?:xmp:CreateDate|CreateDate)\s*=\s*["\']([^"\']+)["\']/i',
-		'/(?:DateTimeOriginal|DateTimeDigitized|DateTime)\x00*[^0-9]{0,32}((?:19|20)\d{2}:[01]\d:[0-3]\d(?:[ T][0-2]\d:[0-5]\d:[0-5]\d)?)/i',
+		'/DateTimeDigitized\x00*[^0-9]{0,32}((?:19|20)\d{2}:[01]\d:[0-3]\d(?:[ T][0-2]\d:[0-5]\d:[0-5]\d)?)/i',
 	);
 	foreach ( $patterns as $pattern ) {
 		if ( preg_match( $pattern, $bytes, $matches ) ) {
@@ -121,6 +124,28 @@ function gnf_extract_evidence_original_date( $path, $type = '' ) {
 	$is_image  = 'imagen' === $type || in_array( $extension, array( 'jpg', 'jpeg', 'png', 'gif', 'webp', 'heic', 'heif', 'tif', 'tiff' ), true );
 	$is_pdf    = 'pdf' === $type || 'pdf' === $extension;
 
+	// WordPress prefers DateTimeDigitized; the capture date must take precedence.
+	$digitized_date = '';
+	if ( $is_image && function_exists( 'exif_read_data' ) ) {
+		$exif = @exif_read_data( $path, 'IFD0,EXIF', true );
+		$date = gnf_normalize_evidence_original_date( $exif['EXIF']['DateTimeOriginal'] ?? '' );
+		if ( '' !== $date ) {
+			$request_cache[ $cache_key ] = array( 'date' => $date, 'source' => 'image_metadata' );
+			return $request_cache[ $cache_key ];
+		}
+		$digitized_date = gnf_normalize_evidence_original_date( $exif['EXIF']['DateTimeDigitized'] ?? '' );
+	}
+
+	$bytes = gnf_read_evidence_metadata_bytes( $path );
+	$date  = gnf_extract_labeled_embedded_date( $bytes );
+	if ( '' !== $date || '' !== $digitized_date ) {
+		$request_cache[ $cache_key ] = array(
+			'date'   => '' !== $date ? $date : $digitized_date,
+			'source' => $is_pdf ? 'pdf_metadata' : ( $is_image ? 'image_metadata' : 'embedded_metadata' ),
+		);
+		return $request_cache[ $cache_key ];
+	}
+
 	if ( $is_image && ! function_exists( 'wp_read_image_metadata' ) && defined( 'ABSPATH' ) ) {
 		$image_functions = ABSPATH . 'wp-admin/includes/image.php';
 		if ( is_file( $image_functions ) ) {
@@ -137,27 +162,6 @@ function gnf_extract_evidence_original_date( $path, $type = '' ) {
 			);
 			return $request_cache[ $cache_key ];
 		}
-	}
-
-	if ( $is_image && function_exists( 'exif_read_data' ) ) {
-		$exif = @exif_read_data( $path, 'IFD0,EXIF', true );
-		foreach ( array( $exif['EXIF']['DateTimeOriginal'] ?? '', $exif['EXIF']['DateTimeDigitized'] ?? '', $exif['IFD0']['DateTime'] ?? '' ) as $candidate ) {
-			$date = gnf_normalize_evidence_original_date( $candidate );
-			if ( '' !== $date ) {
-				$request_cache[ $cache_key ] = array( 'date' => $date, 'source' => 'image_metadata' );
-				return $request_cache[ $cache_key ];
-			}
-		}
-	}
-
-	$bytes = gnf_read_evidence_metadata_bytes( $path );
-	$date  = gnf_extract_labeled_embedded_date( $bytes );
-	if ( '' !== $date ) {
-		$request_cache[ $cache_key ] = array(
-			'date'   => $date,
-			'source' => $is_pdf ? 'pdf_metadata' : ( $is_image ? 'image_metadata' : 'embedded_metadata' ),
-		);
-		return $request_cache[ $cache_key ];
 	}
 
 	$request_cache[ $cache_key ] = array( 'date' => null, 'source' => 'unavailable' );
@@ -177,15 +181,23 @@ function gnf_apply_evidence_original_date( $evidence, $active_year = null, $prov
 	$date     = gnf_normalize_evidence_original_date( $evidence['original_date'] ?? $evidence['photo_date'] ?? '' );
 	$source   = trim( (string) ( $evidence['date_source'] ?? '' ) );
 
+	// File.lastModified is not a capture/creation date, including in saved records.
+	if ( 'browser_file_metadata' === $source ) {
+		$date = '';
+		$source = '';
+		$evidence['photo_date'] = null;
+	}
+
 	if ( '' === $date && ! empty( $evidence['path_local'] ) ) {
 		$extracted = gnf_extract_evidence_original_date( $evidence['path_local'], $evidence['tipo'] ?? $evidence['type'] ?? '' );
 		$date      = (string) ( $extracted['date'] ?? '' );
 		$source    = (string) ( $extracted['source'] ?? '' );
 	}
 
-	if ( '' === $date && is_array( $provided_metadata ) ) {
+	if ( '' === $date && is_array( $provided_metadata )
+		&& in_array( $provided_metadata['source'] ?? '', array( 'image_metadata', 'pdf_metadata', 'embedded_metadata' ), true ) ) {
 		$date   = gnf_normalize_evidence_original_date( $provided_metadata['date'] ?? '' );
-		$source = '' !== $date ? trim( (string) ( $provided_metadata['source'] ?? 'browser_file_metadata' ) ) : '';
+		$source = '' !== $date ? $provided_metadata['source'] : '';
 	}
 
 	if ( '' !== $date && '' === $source ) {

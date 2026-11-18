@@ -17,4 +17,11 @@ check_qualification( ! impact_entry_fixture( array( array( 'estado' => 'rechazad
 check_qualification( impact_entry_fixture( array( array( 'estado' => 'aprobada', 'puntos' => 5 ), array( 'estado' => 'pendiente', 'puntos' => null ) ) )['approved'], 'Informational uploads do not block approval of reviewable evidence' );
 check_qualification( ! impact_entry_fixture( array( array( 'estado' => 'pendiente', 'puntos' => null ) ) )['approved'], 'Informational uploads alone are not proof of validated impact' );
 check_qualification( impact_entry_fixture( array( array( 'estado' => 'aprobada', 'puntos' => 5 ), array( 'estado' => 'rechazada', 'puntos' => 5, 'replaced' => true ) ) )['approved'], 'Replaced evidence does not affect current validation' );
+$metric = gnf_get_impact_metric_catalog( 2026 )['centros_con_evidencias'];
+$mixed = array( 'entries' => array( impact_entry_fixture( array( array( 'estado' => 'aprobada', 'puntos' => 5 ), array( 'estado' => 'pendiente', 'puntos' => 5 ) ) ) ) );
+check_qualification( 1.0 === gnf_impact_metric_value_for_record( $mixed, $metric, 'approved' ) && ! $mixed['entries'][0]['approved'], 'An approved file counts as evidence without validating the entire challenge' );
+$rejected = array( 'entries' => array( impact_entry_fixture( array( array( 'estado' => 'rechazada', 'puntos' => 5 ) ) ) ) );
+check_qualification( 1.0 === gnf_impact_metric_value_for_record( $rejected, $metric, 'active' ) && 0.0 === gnf_impact_metric_value_for_record( $rejected, $metric, 'approved' ), 'A current rejected file counts as uploaded, not approved' );
+$replaced = array( 'entries' => array( impact_entry_fixture( array( array( 'estado' => 'aprobada', 'puntos' => 5, 'replaced' => true ) ) ) ) );
+check_qualification( 0.0 === gnf_impact_metric_value_for_record( $replaced, $metric, 'active' ) && 0.0 === gnf_impact_metric_value_for_record( $replaced, $metric, 'approved' ), 'Replaced files do not contribute in either view' );
 echo "\n{$tests} checks, {$fails} failures\n"; exit( $fails ? 1 : 0 );

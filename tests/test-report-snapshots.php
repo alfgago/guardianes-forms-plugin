@@ -50,6 +50,8 @@ if ( function_exists( 'gnf_get_report_snapshot' ) ) {
 	check_snapshot( gnf_get_report_snapshot( 2026 )['stale'], 'A three-hour snapshot is now stale under the two-hour policy' );
 	$options['gnf_report_snapshot_2026_v1']['generatedTimestamp'] = time() - HOUR_IN_SECONDS;
 	$options['gnf_report_snapshot_2026_v1']['statsVersion'] = 2;
+	check_snapshot( gnf_get_report_snapshot( 2026 )['stale'], 'A fresh timestamp does not hide an outdated reporting schema' );
+	$options['gnf_report_snapshot_2026_v1']['statsVersion'] = GNF_REPORT_STATS_VERSION;
 	check_snapshot( ! gnf_get_report_snapshot( 2026 )['stale'], 'An hour-old snapshot is still immediately usable' );
 	$options['gnf_report_snapshot_2026_v1'] = array( 'ready' => true, 'generatedTimestamp' => time() - 5 * HOUR_IN_SECONDS, 'centros' => array(), 'impact' => array() );
 	$old = gnf_get_report_snapshot( 2026 );
@@ -90,6 +92,23 @@ if ( function_exists( 'gnf_get_report_snapshot' ) ) {
 	check_snapshot( 30 === $r['impact']['total']['values']['trees'] && 20.0 === $r['summary']['promedioPuntaje'], 'Admin regional filter recalculates totals and averages' );
 	$all = gnf_scope_report_snapshot( $snapshot );
 	check_snapshot( 80 === $all['impact']['total']['values']['trees'], 'Admin unfiltered total includes all centers' );
+	$live_centers[2]['estado_centro'] = 'pendiente_de_revision_admin';
+	check_snapshot( 30 === gnf_scope_report_snapshot( $snapshot, 2 )['impact']['total']['values']['trees'], 'Admin regional totals include published matriculated centers awaiting administrative review' );
+	$is_admin = false;
+	check_snapshot( 20 === gnf_scope_report_snapshot( $snapshot, 2 )['impact']['total']['values']['trees'], 'A pending center does not become visible to regional reviewers' );
+	$is_admin = true;
+	unset( $live_centers[2]['estado_centro'] );
+
+	$count_catalog = array(
+		array( 'key' => 'inscripciones', 'operation' => 'count' ),
+		array( 'key' => 'centros_con_evidencias', 'operation' => 'count_any' ),
+		array( 'key' => 'agua_captacion', 'operation' => 'count_yes' ),
+	);
+	$count_center = array( 'profile' => $snapshot['centros'][0]['profile'], 'values' => array(
+		'active' => array( 'inscripciones' => 1, 'centros_con_evidencias' => 0, 'agua_captacion' => 0 ),
+	) );
+	$counts = gnf_aggregate_report_centers( array( $count_center ), $count_catalog, 'active' );
+	check_snapshot( 0 === $counts['total']['values']['centros_con_evidencias'] && array( 'agua_captacion' => 1 ) === $counts['total']['coverage'], 'Coverage counts recorded responses including No, not all centers for a participation count' );
 	check_snapshot( is_wp_error( gnf_scope_report_snapshot( $snapshot, 0, 'abc' ) ), 'Malformed circuit does not silently widen the scope' );
 	check_snapshot( is_wp_error( gnf_scope_report_snapshot( $snapshot, 'abc' ) ) && is_wp_error( gnf_scope_report_snapshot( $snapshot, -1 ) ), 'Malformed region cannot silently widen the scope' );
 	check_snapshot( is_wp_error( gnf_scope_report_snapshot( $snapshot, 0, '', array() ) ) && is_wp_error( gnf_scope_report_snapshot( $snapshot, 0, '', 'invalid' ) ), 'Invalid criteria return an error instead of a different mode' );

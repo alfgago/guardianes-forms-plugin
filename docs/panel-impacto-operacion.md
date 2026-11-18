@@ -7,7 +7,7 @@ y administracion impersonando a un docente activo de ese mismo centro. Se bloque
 la descarga directa de supervisores y DRE/comite, incluso con un nonce valido.
 Las exportaciones colectivas del Panel de Impacto conservan sus permisos territoriales.
 
-Los cortes usan `statsVersion: 2` y guardan puntaje/estrellas por criterio. El cron
+Los cortes usan `statsVersion: 3` y guardan puntaje/estrellas por criterio. El cron
 recalcula la rubrica validada con los datos actuales, sin reutilizar un galardon
 guardado antes de un cambio de tipologia. Un corte anterior sigue disponible,
 pero los promedios validados incompatibles muestran dato pendiente, no proyecciones
@@ -57,6 +57,20 @@ Alternativa sin WP-CLI: ejecutar PHP CLI sobre `/ruta/a/wordpress/wp-cron.php`
 cada minuto. Usar la misma versión y extensiones PHP del sitio. Solo después de
 comprobar el cron real configurar `DISABLE_WP_CRON` como `true` en `wp-config.php`.
 Este repositorio no modifica el cron del servidor de producción.
+
+En administracion, el corte cuenta centros publicados con matricula del anio,
+incluidos los pendientes de revision administrativa. No cambia su estado ni
+amplia el alcance territorial de revisores o la vista publica. Se mantienen
+fuera los centros inactivos, rechazados y no publicados o inexistentes.
+`Centros con evidencias cargadas` cuenta archivos vigentes, mientras que en
+resultados validados se exige al menos un archivo aprobado. Para validar las
+respuestas de un reto se mantiene el criterio de revision de sus evidencias.
+La cobertura bajo los indicadores de respuestas indica cuantos centros dieron
+un dato utilizable; una respuesta No o cero sigue contando en cobertura.
+
+En el formulario de Limpiezas 2026 hay categorias abiertas, como «4 o mas»:
+no se informa un total exacto a partir de ellas. La evidencia de Jardines puede
+corresponder a iNaturalist o a otra herramienta y no permite distinguirlas.
 
 Verificar la primera ejecución y su duración con WP-CLI:
 

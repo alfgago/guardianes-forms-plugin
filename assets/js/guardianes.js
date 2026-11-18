@@ -133,8 +133,8 @@
 			const exifPromises = files.map(async (file) => ({
 				file,
 				year: file.type.startsWith('image/')
-					? ((await readExifYear(file)) || new Date(file.lastModified).getFullYear())
-					: new Date(file.lastModified).getFullYear(),
+					? await readExifYear(file)
+					: null,
 			}));
 			const exifResults = await Promise.all(exifPromises);
 			warnIfYearMismatch(exifResults);

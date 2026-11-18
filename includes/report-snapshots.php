@@ -4,6 +4,8 @@
  */
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+const GNF_REPORT_STATS_VERSION = 3;
+
 function gnf_report_snapshot_key( $year ) {
 	return 'gnf_report_snapshot_' . absint( $year ) . '_v1';
 }
@@ -23,7 +25,7 @@ function gnf_get_report_snapshot( $year ) {
 	$snapshot = is_array( $snapshot ) ? $snapshot : array();
 	$snapshot['ready'] = ! empty( $snapshot['ready'] );
 	$snapshot['year'] = $year;
-	$snapshot['stale'] = ! $snapshot['ready'] || 2 !== (int) ( $snapshot['statsVersion'] ?? 0 ) || time() - (int) ( $snapshot['generatedTimestamp'] ?? 0 ) >= 2 * HOUR_IN_SECONDS;
+	$snapshot['stale'] = ! $snapshot['ready'] || GNF_REPORT_STATS_VERSION !== (int) ( $snapshot['statsVersion'] ?? 0 ) || time() - (int) ( $snapshot['generatedTimestamp'] ?? 0 ) >= 2 * HOUR_IN_SECONDS;
 	if ( $snapshot['stale'] ) {
 		gnf_queue_report_refresh( $year );
 	}
@@ -132,7 +134,7 @@ function gnf_refresh_report_snapshot( $year ) {
 	$job_key = 'gnf_report_job_' . $year;
 	try {
 		$job = get_option( $job_key, array() );
-		if ( empty( $job ) || 2 !== (int) ( $job['statsVersion'] ?? 0 ) || time() - (int) ( $job['started'] ?? 0 ) > 2 * HOUR_IN_SECONDS ) {
+		if ( empty( $job ) || GNF_REPORT_STATS_VERSION !== (int) ( $job['statsVersion'] ?? 0 ) || time() - (int) ( $job['started'] ?? 0 ) > 2 * HOUR_IN_SECONDS ) {
 			$catalog = gnf_get_impact_metric_catalog( $year );
 			$map = gnf_impact_reto_map( $year );
 			foreach ( $catalog as &$metric ) {
@@ -144,11 +146,11 @@ function gnf_refresh_report_snapshot( $year ) {
 			$wpdb->last_error = '';
 			$center_ids = gnf_get_centros_with_matricula( $year );
 			if ( ! empty( $wpdb->last_error ) ) { throw new RuntimeException( 'Report enrollment query failed' ); }
-			$job = array( 'statsVersion' => 2, 'started' => time(), 'cursor' => 0, 'ids' => array_values( array_unique( array_map( 'absint', $center_ids ) ) ), 'catalog' => array_values( $catalog ), 'centros' => array() );
+			$job = array( 'statsVersion' => GNF_REPORT_STATS_VERSION, 'started' => time(), 'cursor' => 0, 'ids' => array_values( array_unique( array_map( 'absint', $center_ids ) ) ), 'catalog' => array_values( $catalog ), 'centros' => array() );
 		}
 		$ids = array_slice( $job['ids'], $job['cursor'], 200 );
 		if ( $ids ) {
-			$records = gnf_get_impact_center_records( $year, $ids, true );
+			$records = gnf_get_impact_center_records( $year, $ids, true, true );
 			foreach ( $records as $record ) {
 				$job['centros'][] = gnf_report_center_snapshot( $record, $year, $job['catalog'] );
 			}
@@ -159,9 +161,19 @@ function gnf_refresh_report_snapshot( $year ) {
 			gnf_queue_report_refresh( $year );
 			return;
 		}
-		$snapshot = array( 'statsVersion' => 2, 'ready' => true, 'year' => $year, 'generatedTimestamp' => time(), 'generatedAt' => current_time( 'mysql' ), 'centros' => $job['centros'], 'impact' => array() );
+		$snapshot = array( 'statsVersion' => GNF_REPORT_STATS_VERSION, 'ready' => true, 'year' => $year, 'generatedTimestamp' => time(), 'generatedAt' => current_time( 'mysql' ), 'centros' => $job['centros'], 'impact' => array() );
+		// The public aggregate must not inherit the wider administrative scope.
+		$published_centers = array_filter( $job['centros'], static function ( $center ) {
+			return gnf_impact_center_status_in_scope( $center['profile']['estado_centro'] ?? '' );
+		} );
 		foreach ( array( 'active', 'approved' ) as $mode ) {
-			$snapshot['impact'][ $mode ] = gnf_aggregate_report_centers( $job['centros'], $job['catalog'], $mode );
+			$catalog = array_map( static function ( $metric ) use ( $mode ) {
+				if ( 'centros_con_evidencias' === $metric['key'] ) {
+					$metric['title'] = 'approved' === $mode ? 'Centros con al menos una evidencia aprobada' : 'Centros con evidencias cargadas';
+				}
+				return $metric;
+			}, $job['catalog'] );
+			$snapshot['impact'][ $mode ] = gnf_aggregate_report_centers( $published_centers, $catalog, $mode );
 			$snapshot['impact'][ $mode ]['year'] = $year;
 			$snapshot['impact'][ $mode ]['generatedAt'] = $snapshot['generatedAt'];
 		}
@@ -226,7 +238,7 @@ function gnf_report_center_snapshot( $record, $year, $display_catalog ) {
 		foreach ( $catalog as $key => $metric ) {
 			$value = gnf_impact_metric_value_for_record( $record, $metric, $mode );
 			if ( empty( $availability[ $key ] ) ) { $value = null; }
-			if ( 'response' === $metric['source'] ) {
+			elseif ( 'response' === $metric['source'] ) {
 				$entry = $record['entries'][ $metric['reto'] ] ?? array();
 				$response = $entry['responses'][ $metric['field'] ] ?? null;
 				if ( ! gnf_impact_entry_qualifies( $entry, $mode ) || null === $response || '' === trim( (string) ( is_scalar( $response ) ? $response : '' ) ) ) { $value = null; }
@@ -266,7 +278,10 @@ function gnf_report_live_center_scopes( $ids ) {
 function gnf_aggregate_report_centers( $centers, $catalog, $mode ) {
 	$keys = array_column( $catalog, 'key' );
 	$blank = array_fill_keys( $keys, null );
-	$empty = array( 'values' => $blank, 'coverage' => array_fill_keys( $keys, 0 ) );
+	$response_keys = array_column( array_filter( $catalog, static function ( $metric ) {
+		return in_array( $metric['operation'] ?? '', array( 'count_yes', 'sum' ), true );
+	} ), 'key' );
+	$empty = array( 'values' => $blank, 'coverage' => array_fill_keys( $response_keys, 0 ) );
 	$total = array_merge( $empty, array( 'id' => 'total', 'label' => 'Total del alcance seleccionado' ) );
 	$regions = array(); $circuits = array();
 	foreach ( $centers as $center ) {
@@ -279,7 +294,7 @@ function gnf_aggregate_report_centers( $centers, $catalog, $mode ) {
 			if ( null === $value ) { continue; }
 			foreach ( array( &$total, &$regions[ $rid ], &$circuits[ $cid ] ) as &$scope ) {
 				$scope['values'][ $key ] = ( $scope['values'][ $key ] ?? 0 ) + $value;
-				$scope['coverage'][ $key ]++;
+				if ( isset( $scope['coverage'][ $key ] ) ) { $scope['coverage'][ $key ]++; }
 			}
 			unset( $scope );
 		}
@@ -323,7 +338,7 @@ function gnf_scope_report_snapshot( $snapshot, $region = 0, $circuit = '', $mode
 	catch ( Throwable $error ) { return new WP_Error( 'gnf_report_scope_unavailable', 'No se pudo verificar el acceso territorial. Intenta nuevamente.', array( 'status' => 503 ) ); }
 	foreach ( (array) ( $snapshot['centros'] ?? array() ) as $center ) {
 		$p = $center['profile']; $live = $live_scopes[ $p['centro_id'] ] ?? null;
-		if ( ! $live || 'publish' !== $live['post_status'] || in_array( $live['estado_centro'], array( 'inactivo', 'rechazado', 'pendiente_de_revision_admin' ), true ) ) { continue; }
+		if ( ! $live || 'publish' !== $live['post_status'] || ! gnf_impact_center_status_in_scope( $live['estado_centro'], $admin ) ) { continue; }
 		$p['region_name'] = $live['region_name'] ?: ( (int) $live['region_id'] === (int) $p['region_id'] ? $p['region_name'] : 'DRE ' . $live['region_id'] );
 		$p['region_id'] = $live['region_id']; $p['circuito'] = gnf_normalize_circuito( $live['circuito'] ); $center['profile'] = $p;
 		$rid = (int) $p['region_id']; $cv = $p['circuito'];
