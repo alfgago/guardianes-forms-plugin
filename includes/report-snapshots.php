@@ -4,7 +4,7 @@
  */
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
-const GNF_REPORT_STATS_VERSION = 4;
+const GNF_REPORT_STATS_VERSION = 5;
 
 function gnf_report_snapshot_key( $year ) {
 	return 'gnf_report_snapshot_' . absint( $year ) . '_v1';
@@ -241,7 +241,8 @@ function gnf_report_center_snapshot( $record, $year, $display_catalog ) {
 			elseif ( 'response' === $metric['source'] ) {
 				$entry = $record['entries'][ $metric['reto'] ] ?? array();
 				$response = $entry['responses'][ $metric['field'] ] ?? null;
-				if ( ! gnf_impact_entry_qualifies( $entry, $mode ) || null === $response || '' === trim( (string) ( is_scalar( $response ) ? $response : '' ) ) ) { $value = null; }
+				if ( ! gnf_impact_metric_entry_qualifies( $entry, $metric, $mode ) || null === $response || '' === trim( (string) ( is_scalar( $response ) ? $response : '' ) ) ) { $value = null; }
+				elseif ( 'residuos_bolsas_no_valorizables' === $key ) { $value = gnf_impact_bag_count( $response ); }
 				elseif ( 'sum' === ( $metric['operation'] ?? '' ) ) { $value = gnf_report_numeric_response( $response ); }
 				elseif ( 'count_yes' === ( $metric['operation'] ?? '' ) ) { $value = gnf_report_yes_response( $response ); }
 			}

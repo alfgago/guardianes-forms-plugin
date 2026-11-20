@@ -29,8 +29,8 @@ check_impact_metric( function_exists( 'gnf_aggregate_impact_records' ), 'existe 
 
 if ( function_exists( 'gnf_get_impact_metric_catalog' ) && function_exists( 'gnf_aggregate_impact_records' ) ) {
 	$catalog = gnf_get_impact_metric_catalog( 2026 );
-	check_impact_metric( 41 === count( $catalog ), 'el catalogo 2026 contiene los 41 indicadores solicitados' );
-	foreach ( array( 'inscripciones', 'centros_con_evidencias', 'residuos_kg_valorizables', 'eco_giras_estudiantes', 'arboles_plantados' ) as $key ) {
+	check_impact_metric( 42 === count( $catalog ), 'el catalogo incluye los 41 indicadores del Excel y el total de bolsas de basura' );
+	foreach ( array( 'inscripciones', 'centros_con_evidencias', 'residuos_bolsas_no_valorizables', 'residuos_kg_valorizables', 'eco_giras_estudiantes', 'arboles_plantados' ) as $key ) {
 		check_impact_metric( isset( $catalog[ $key ] ), "incluye {$key}" );
 	}
 
@@ -47,6 +47,8 @@ if ( function_exists( 'gnf_get_impact_metric_catalog' ) && function_exists( 'gnf
 				'agua' => array(
 					'active'    => true,
 					'approved'  => true,
+					'formId'    => 77446,
+					'evidenceByField' => array( 25 => 'approved' ),
 					'responses' => array(
 						'agua_captacion' => 'si',
 						'agua_riego' => 'si',
@@ -55,11 +57,15 @@ if ( function_exists( 'gnf_get_impact_metric_catalog' ) && function_exists( 'gnf
 				'residuos' => array(
 					'active'    => true,
 					'approved'  => true,
+					'formId'    => 77468,
+					'evidenceByField' => array( 20 => 'approved' ),
 					'responses' => array( 'residuos_kg_valorizables' => '125.5' ),
 				),
 				'eco-gira' => array(
 					'active'    => true,
 					'approved'  => true,
+					'formId'    => 77528,
+					'evidenceByField' => array( 4 => 'approved' ),
 					'responses' => array( 'eco_giras_total' => 2, 'eco_giras_estudiantes' => 35 ),
 				),
 			),

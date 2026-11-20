@@ -7,7 +7,7 @@ y administracion impersonando a un docente activo de ese mismo centro. Se bloque
 la descarga directa de supervisores y DRE/comite, incluso con un nonce valido.
 Las exportaciones colectivas del Panel de Impacto conservan sus permisos territoriales.
 
-Los cortes usan `statsVersion: 4` y guardan puntaje/estrellas por criterio. El cron
+Los cortes usan `statsVersion: 5` y guardan puntaje/estrellas por criterio. El cron
 recalcula la rubrica validada con los datos actuales, sin reutilizar un galardon
 guardado antes de un cambio de tipologia. Un corte anterior sigue disponible,
 pero los promedios validados incompatibles muestran dato pendiente, no proyecciones
@@ -65,8 +65,14 @@ fuera los centros inactivos, rechazados y no publicados o inexistentes.
 `Centros con evidencias cargadas` cuenta archivos vigentes, mientras que en
 resultados validados se exige al menos un archivo aprobado. Los conteos
 «Centros realizando [reto]» en resultados validados aplican esa misma regla
-al reto correspondiente, sin exigir que este completamente aprobado. Las
-respuestas y cantidades declaradas mantienen su criterio de validacion anterior.
+al reto correspondiente, sin exigir que este completamente aprobado. Cuando
+un indicador 2026 tiene un adjunto asociado, solo cuenta una evidencia vigente
+aprobada en ese campo para validarlo; las otras actividades no lo bloquean ni
+lo habilitan. La aprobacion respalda la actividad, no recalcula cantidades.
+Separacion de residuos, entrega del registro de no valorizables y actividades
+de huerta cuentan centros por su adjunto, no por la respuesta Si/No.
+El total de bolsas no valorizables suma los conteos declarados (sin convertir
+a kilos); en validados solo se suma cuando el registro asociado esta aprobado.
 La cobertura bajo los indicadores de respuestas indica cuantos centros dieron
 un dato utilizable; una respuesta No o cero sigue contando en cobertura.
 

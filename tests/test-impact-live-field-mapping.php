@@ -1,7 +1,7 @@
 <?php
 define( 'ABSPATH', dirname( __DIR__ ) . '/' );
 
-function gnf_get_reto_form_id_for_year( $reto_id ) { return $reto_id; }
+function gnf_get_reto_form_id_for_year( $reto_id ) { return $GLOBALS['form_ids'][ $reto_id ]; }
 function gnf_get_wpforms_form_definition( $form_id ) { return array( 'fields' => $GLOBALS['forms'][ $form_id ] ); }
 function get_the_title( $id ) { return $GLOBALS['slugs'][ $id ]; }
 function gnf_get_reto_canonical_slug( $title ) { return $title; }
@@ -30,17 +30,22 @@ $failures = 0;
 foreach ( $cases as $index => list( $slug, $field_id, $type, $label, $key, $answer, $expected ) ) {
 	$reto_id = $index + 1;
 	$GLOBALS['slugs'][ $reto_id ] = $slug;
-	$GLOBALS['forms'][ $reto_id ] = array( array( 'id' => $field_id, 'type' => $type, 'label' => $label ) );
+	$metric = gnf_get_impact_metric_catalog( 2026 )[ $key ];
+	$form_id = $metric['proof']['formId'] ?? $reto_id;
+	$proof_field = $metric['proof']['fields'][0] ?? 99;
+	$GLOBALS['form_ids'][ $reto_id ] = $form_id;
+	$GLOBALS['forms'][ $form_id ] = array( array( 'id' => $field_id, 'type' => $type, 'label' => $label ) );
 	if ( 'agua' === $slug ) {
-		$GLOBALS['forms'][ $reto_id ][] = array( 'id' => 31, 'type' => 'file-upload', 'label' => 'Consumo de agua de enero a noviembre', 'gnf_metric_key' => $key );
+		$GLOBALS['forms'][ $form_id ][] = array( 'id' => 31, 'type' => 'file-upload', 'label' => 'Consumo de agua de enero a noviembre', 'gnf_metric_key' => $key );
+	} else {
+		$GLOBALS['forms'][ $form_id ][] = array( 'id' => $proof_field, 'type' => 'file-upload' );
 	}
 	$entry = gnf_build_impact_entry_record( (object) array(
 		'reto_id' => $reto_id,
 		'data' => json_encode( array( '__raw_values__' => array( $field_id => $answer ) ) ),
-		'evidencias' => '[{"estado":"aprobada","puntos":5}]',
+		'evidencias' => json_encode( array( array( 'field_id' => $proof_field, 'estado' => 'aprobada', 'puntos' => 5 ) ) ),
 	), 2026 );
 	$record = array( 'entries' => array( $slug => $entry ), 'profile' => array(), 'stats' => array() );
-	$metric = gnf_get_impact_metric_catalog( 2026 )[ $key ];
 	$metric['available'] = gnf_impact_metric_is_available( $metric, 2026, array( $slug => $reto_id ) );
 	$result = gnf_report_center_snapshot( $record, 2026, array( $metric ) );
 	$ok = $expected === $result['values']['active'][ $key ] && $expected === $result['values']['approved'][ $key ];

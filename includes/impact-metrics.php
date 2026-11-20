@@ -42,8 +42,9 @@ function gnf_get_impact_metric_catalog( $anio = 2026 ) {
 		gnf_impact_metric( 'energia_paneles_solares', 'Centros con paneles solares', 'response', 'count_yes', 'centros', 'electricidad', 'energia_paneles_solares', true ),
 		gnf_impact_metric( 'energia_registro_consumo', 'Centros registrando consumo de energia', 'response', 'count_yes', 'centros', 'electricidad', 'energia_registro_consumo' ),
 		gnf_impact_metric( 'residuos_centros', 'Centros realizando Reto Residuos', 'entry', 'count', 'centros', 'residuos', '', true ),
-		gnf_impact_metric( 'residuos_estaciones', 'Centros con estaciones de separacion', 'response', 'count_yes', 'centros', 'residuos', 'residuos_estaciones', true ),
-		gnf_impact_metric( 'residuos_registro_no_valorizables', 'Centros registrando residuos no valorizables', 'response', 'count_yes', 'centros', 'residuos', 'residuos_registro_no_valorizables' ),
+		gnf_impact_metric( 'residuos_estaciones', 'Centros con estaciones de separacion', 'evidence', 'count', 'centros', 'residuos', '', true ),
+		gnf_impact_metric( 'residuos_registro_no_valorizables', 'Centros que entregaron el registro de residuos no valorizables', 'evidence', 'count', 'centros', 'residuos' ),
+		gnf_impact_metric( 'residuos_bolsas_no_valorizables', 'Total de bolsas de residuos no valorizables', 'response', 'sum', 'bolsas', 'residuos', 'residuos_bolsas_no_valorizables' ),
 		gnf_impact_metric( 'residuos_kg_valorizables', 'Residuos valorizables recolectados', 'response', 'sum', 'kg', 'residuos', 'residuos_kg_valorizables', true ),
 		gnf_impact_metric( 'organicos_centros', 'Centros realizando Gestion de Organicos', 'entry', 'count', 'centros', 'gestion-de-organicos' ),
 		gnf_impact_metric( 'organicos_compostaje', 'Centros aprovechando residuos organicos', 'response', 'count_yes', 'centros', 'gestion-de-organicos', 'organicos_compostaje', true ),
@@ -56,7 +57,7 @@ function gnf_get_impact_metric_catalog( $anio = 2026 ) {
 		gnf_impact_metric( 'jardines_inaturalist', 'Centros usando iNaturalist', 'response', 'count_yes', 'centros', 'jardines-y-polinizadores', 'jardines_inaturalist' ),
 		gnf_impact_metric( 'jardines_refugios', 'Meliponarios, colmenas u hoteles de insectos', 'response', 'sum', 'estructuras', 'jardines-y-polinizadores', 'jardines_refugios' ),
 		gnf_impact_metric( 'huerta_centros', 'Centros realizando Reto Huerta', 'entry', 'count', 'centros', 'huerta' ),
-		gnf_impact_metric( 'huerta_actividades', 'Centros con actividades en la huerta', 'response', 'count_yes', 'centros', 'huerta', 'huerta_actividades', true ),
+		gnf_impact_metric( 'huerta_actividades', 'Centros con actividades en la huerta', 'evidence', 'count', 'centros', 'huerta', '', true ),
 		gnf_impact_metric( 'eco_gira_centros', 'Centros realizando Eco Gira', 'entry', 'count', 'centros', 'eco-gira' ),
 		gnf_impact_metric( 'eco_giras_total', 'Eco giras realizadas', 'response', 'sum', 'giras', 'eco-gira', 'eco_giras_total', true ),
 		gnf_impact_metric( 'eco_giras_estudiantes', 'Estudiantes visitando areas naturales', 'response', 'sum', 'estudiantes', 'eco-gira', 'eco_giras_estudiantes', true ),
@@ -73,8 +74,35 @@ function gnf_get_impact_metric_catalog( $anio = 2026 ) {
 		gnf_impact_metric( 'comodin_centros', 'Centros realizando Reto Comodin', 'entry', 'count', 'centros', 'comodin' ),
 	);
 
+	// WPForms field IDs are local to the form. These are the verified 2026 forms.
+	$proof_by_form = array(
+		77446 => array( 'agua_captacion' => array( 25 ), 'agua_riego' => array( 29 ), 'agua_registro_consumo' => array( 31 ) ),
+		77457 => array( 'energia_paneles_solares' => array( 25 ), 'energia_registro_consumo' => array( 23 ) ),
+		77468 => array(
+			'residuos_estaciones'              => array( 17 ),
+			'residuos_registro_no_valorizables' => array( 22 ),
+			'residuos_bolsas_no_valorizables'   => array( 22 ),
+			'residuos_kg_valorizables'          => array( 20, 29 ),
+		),
+		77522 => array( 'organicos_compostaje' => array( 14 ) ),
+		77479 => array( 'limpiezas_bolsas' => array( 3, 9, 11 ) ),
+		77530 => array( 'jardines_areas' => array( 12, 14 ), 'jardines_refugios' => array( 9 ) ),
+		77533 => array( 'huerta_actividades' => array( 8, 9, 10, 11, 12 ) ),
+		77528 => array( 'eco_giras_total' => array( 4, 8, 9 ), 'eco_giras_estudiantes' => array( 4, 8, 9 ) ),
+		77539 => array( 'emprendimiento_ingresos' => array( 9 ) ),
+		77490 => array( 'arboles_siembras' => array( 7, 19 ), 'arboles_estudiantes' => array( 7, 19 ), 'arboles_plantados' => array( 7, 19 ) ),
+	);
+	$proof_by_metric = array();
+	foreach ( $proof_by_form as $form_id => $rules ) {
+		foreach ( $rules as $key => $fields ) {
+			$proof_by_metric[ $key ] = array( 'formId' => $form_id, 'fields' => $fields );
+		}
+	}
 	$result = array();
 	foreach ( $metrics as $metric ) {
+		if ( isset( $proof_by_metric[ $metric['key'] ] ) ) {
+			$metric['proof'] = $proof_by_metric[ $metric['key'] ];
+		}
 		$result[ $metric['key'] ] = $metric;
 	}
 	return $result;
@@ -106,6 +134,7 @@ function gnf_get_impact_field_definitions( $anio = 2026 ) {
 		gnf_impact_field_definition( 'energia_registro_consumo', 'electricidad', '¿Cuentan con el consumo de energia de enero a noviembre del año pasado?', array( 'consumo de energia de enero a noviembre', 'reporte de consumo, generado por el proveedor del servicio' ) ),
 		gnf_impact_field_definition( 'residuos_estaciones', 'residuos', '¿Fomentan habitos de separacion de los residuos solidos?', array( 'habitos de separacion de los residuos', 'recipientes de separacion de residuos' ) ),
 		gnf_impact_field_definition( 'residuos_registro_no_valorizables', 'residuos', '¿Cuantifican los residuos no valorizables?', array( 'cuantifican los residuos no valorizables' ) ),
+		gnf_impact_field_definition( 'residuos_bolsas_no_valorizables', 'residuos', 'Total de bolsas de residuos no valorizables', array( 'total de bolsas de residuos no valorizables' ) ),
 		gnf_impact_field_definition( 'residuos_kg_valorizables', 'residuos', 'Total de kilogramos de residuos valorizables recolectados y entregados', array( 'total de kilogramos de residuos valorizables', 'total de kilos de residuos valorizables' ), true ),
 		gnf_impact_field_definition( 'organicos_compostaje', 'gestion-de-organicos', '¿Aprovechan los residuos organicos?', array( 'aprovechan los residuos organicos', 'dan aprovechamiento a los residuos organicos' ) ),
 		gnf_impact_field_definition( 'limpiezas_total', 'limpiezas', '¿Cuantas limpiezas realizaron en total?', array( 'cuantas limpiezas realizaron en total' ), true ),
@@ -413,6 +442,34 @@ function gnf_impact_entry_qualifies( $entry, $mode ) {
 	return 'approved' === $mode ? ! empty( $entry['approved'] ) : ! empty( $entry['active'] );
 }
 
+function gnf_impact_metric_entry_qualifies( $entry, $metric, $mode ) {
+	if ( 'active' === $mode && 'residuos_bolsas_no_valorizables' === $metric['key'] ) {
+		return true;
+	}
+	$proof = $metric['proof'] ?? null;
+	if ( ! $proof || ( 'active' === $mode && 'evidence' !== $metric['source'] ) ) {
+		return gnf_impact_entry_qualifies( $entry, $mode );
+	}
+	if ( (int) ( $entry['formId'] ?? 0 ) !== $proof['formId'] ) {
+		return false;
+	}
+	foreach ( $proof['fields'] as $field_id ) {
+		$status = $entry['evidenceByField'][ $field_id ] ?? '';
+		if ( 'approved' === $mode ? 'approved' === $status : '' !== $status ) {
+			return true;
+		}
+	}
+	return false;
+}
+
+function gnf_impact_bag_count( $value ) {
+	if ( ! is_scalar( $value ) || is_bool( $value ) || ! preg_match( '/^\d+(?:[.,]0+)?$/D', trim( (string) $value ) ) ) {
+		return null;
+	}
+	$number = gnf_impact_numeric_value( $value );
+	return is_finite( $number ) ? $number : null;
+}
+
 function gnf_impact_metric_value_for_record( $record, $metric, $mode ) {
 	$operation = $metric['operation'];
 	if ( 'count' === $operation && 'center' === $metric['source'] ) {
@@ -442,10 +499,10 @@ function gnf_impact_metric_value_for_record( $record, $metric, $mode ) {
 	$reto = (string) ( $metric['reto'] ?? '' );
 	$entry = $entries[ $reto ] ?? array();
 	if ( 'count' === $operation && 'entry' === $metric['source'] && 'approved' === $mode ) {
-		// Participation needs one approved file; validating responses needs the full review.
+		// Participation needs one approved file, regardless of the activity.
 		return ( $entry['hasApprovedEvidence'] ?? gnf_impact_entry_qualifies( $entry, $mode ) ) ? 1.0 : 0.0;
 	}
-	if ( ! gnf_impact_entry_qualifies( $entry, $mode ) ) {
+	if ( ! gnf_impact_metric_entry_qualifies( $entry, $metric, $mode ) ) {
 		return 0.0;
 	}
 	if ( 'count' === $operation ) {
@@ -456,6 +513,9 @@ function gnf_impact_metric_value_for_record( $record, $metric, $mode ) {
 	$value = $entry['responses'][ $field ] ?? null;
 	if ( 'count_yes' === $operation ) {
 		return gnf_impact_value_is_yes( $value ) ? 1.0 : 0.0;
+	}
+	if ( 'residuos_bolsas_no_valorizables' === $metric['key'] ) {
+		return gnf_impact_bag_count( $value ) ?? 0.0;
 	}
 	return 'sum' === $operation ? gnf_impact_numeric_value( $value ) : 0.0;
 }
@@ -636,12 +696,17 @@ function gnf_build_impact_entry_record( $entry, $anio ) {
 	$approved   = true;
 	$has_evidence = false;
 	$has_approved_evidence = false;
+	$evidence_by_field = array();
 	$reviewable = 0;
 	foreach ( $evidences as $evidence ) {
 		if ( ! is_array( $evidence ) || ! empty( $evidence['replaced'] ) ) {
 			continue;
 		}
 		$has_evidence = true;
+		$field_id = (int) ( $evidence['field_id'] ?? 0 );
+		if ( $field_id > 0 && ! isset( $evidence_by_field[ $field_id ] ) ) {
+			$evidence_by_field[ $field_id ] = 'uploaded';
+		}
 		$state = (string) ( $evidence['estado'] ?? 'pendiente' );
 		if ( ! in_array( $state, array( 'rechazada', 'en_pausa' ), true ) ) {
 			$active = true;
@@ -649,6 +714,9 @@ function gnf_build_impact_entry_record( $entry, $anio ) {
 		if ( function_exists( 'gnf_evidence_is_reviewable' ) ? gnf_evidence_is_reviewable( $evidence ) : ( (int) ( $evidence['field_id'] ?? 0 ) > 0 || ! array_key_exists( 'puntos', $evidence ) || null !== $evidence['puntos'] ) ) {
 			$reviewable++;
 			$has_approved_evidence = $has_approved_evidence || 'aprobada' === $state;
+			if ( $field_id > 0 && 'aprobada' === $state ) {
+				$evidence_by_field[ $field_id ] = 'approved';
+			}
 			if ( 'aprobada' !== $state ) { $approved = false; }
 		}
 	}
@@ -669,6 +737,8 @@ function gnf_build_impact_entry_record( $entry, $anio ) {
 		'approved'  => $approved,
 		'hasEvidence' => $has_evidence,
 		'hasApprovedEvidence' => $has_approved_evidence,
+		'formId' => function_exists( 'gnf_get_reto_form_id_for_year' ) ? (int) gnf_get_reto_form_id_for_year( (int) $entry->reto_id, $anio ) : 0,
+		'evidenceByField' => $evidence_by_field,
 		'responses' => $responses,
 	);
 }
@@ -682,6 +752,16 @@ function gnf_merge_impact_entry_record( $current, $incoming ) {
 	$current['hasEvidence'] = ! empty( $current['hasEvidence'] ) || ! empty( $incoming['hasEvidence'] );
 	$current['hasApprovedEvidence'] = ! empty( $current['hasApprovedEvidence'] ) || ! empty( $incoming['hasApprovedEvidence'] );
 	$current['responses'] = array_replace( (array) ( $current['responses'] ?? array() ), (array) ( $incoming['responses'] ?? array() ) );
+	if ( ( $current['formId'] ?? 0 ) === ( $incoming['formId'] ?? 0 ) ) {
+		foreach ( $incoming['evidenceByField'] ?? array() as $field_id => $status ) {
+			if ( 'approved' !== ( $current['evidenceByField'][ $field_id ] ?? '' ) ) {
+				$current['evidenceByField'][ $field_id ] = $status;
+			}
+		}
+	} else {
+		$current['formId'] = 0;
+		$current['evidenceByField'] = array();
+	}
 	return $current;
 }
 
@@ -782,6 +862,17 @@ function gnf_impact_metric_is_available( $metric, $anio, $reto_map = null ) {
 	$slug     = (string) ( $metric['reto'] ?? '' );
 	if ( empty( $reto_map[ $slug ] ) ) {
 		return false;
+	}
+	if ( ! empty( $metric['proof'] ) ) {
+		$proof = $metric['proof'];
+		if ( ! function_exists( 'gnf_get_reto_form_id_for_year' ) || ! function_exists( 'gnf_get_wpforms_form_definition' ) || (int) gnf_get_reto_form_id_for_year( $reto_map[ $slug ], $anio ) !== $proof['formId'] ) {
+			return false;
+		}
+		$fields = gnf_get_wpforms_form_definition( $proof['formId'] )['fields'] ?? array();
+		$uploads = array_filter( $fields, static function ( $field ) { return in_array( $field['type'] ?? '', array( 'file-upload', 'file' ), true ); } );
+		if ( ! array_intersect( $proof['fields'], array_column( $uploads, 'id' ) ) ) {
+			return false;
+		}
 	}
 	if ( 'response' !== $metric['source'] ) {
 		return true;
